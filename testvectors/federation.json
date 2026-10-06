@@ -1,0 +1,95 @@
+{
+  "description": "Reference values for FEDERATION.md §10. Binary values are base64url without padding.",
+  "invalid_payloads": [
+    "tavrn:verify?v=2&a=alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k&b=bob@b.example&kb=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo",
+    "tavrn:verify?x=1&v=1&a=alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k&b=bob@b.example&kb=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo",
+    "tavrn:verify?v=1&a=alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k&b=bob@b.example&kb=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo&x=1",
+    "tavrn:verify?v=1&a=Alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k&b=bob@b.example&kb=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo",
+    "tavrn:verify?v=1&a=bob@b.example&ka=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo&b=alice@a.example&kb=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k",
+    "tavrn:verify?v=1&a=alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k&b=alice@a.example&kb=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo",
+    "tavrn:verify?v=1&a=alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYaw&b=bob@b.example&kb=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo",
+    "https://a.example/verify?v=1&a=alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k&b=bob@b.example&kb=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo"
+  ],
+  "jcs": [
+    {
+      "canonical": "{\"body\":\"Hallo\",\"type\":\"text\"}",
+      "input": "{\"type\":\"text\",\"body\":\"Hallo\"}"
+    },
+    {
+      "canonical": "{\"a\":1,\"b\":2,\"c\":{\"y\":null,\"z\":[3,2,1]}}",
+      "input": "{ \"b\" : 2, \"a\" : 1, \"c\": { \"z\": [3, 2, 1], \"y\": null } }"
+    },
+    {
+      "canonical": "{\"literals\":[null,true,false],\"numbers\":[333333333.3333333,1e+30,4.5,0.002,1e-27],\"string\":\"€$\\u000f\\nA'B\\\"\\\\\\\\\\\"/\"}",
+      "input": "{\"numbers\":[333333333.33333329,1E30,4.50,2e-3,0.000000000000000000000000001],\"string\":\"\\u20ac$\\u000F\\u000aA'\\u0042\\u0022\\u005c\\\\\\\"\\/\",\"literals\":[null,true,false]}"
+    },
+    {
+      "canonical": "{\"\\r\":\"Carriage Return\",\"1\":\"One\",\"\":\"Control\",\"ö\":\"Latin Small Letter O With Diaeresis\",\"€\":\"Euro Sign\",\"😀\":\"Emoji: Grinning Face\",\"דּ\":\"Hebrew Letter Dalet With Dagesh\"}",
+      "input": "{\"\\u20ac\":\"Euro Sign\",\"\\r\":\"Carriage Return\",\"\\ufb33\":\"Hebrew Letter Dalet With Dagesh\",\"1\":\"One\",\"\\ud83d\\ude00\":\"Emoji: Grinning Face\",\"\\u0080\":\"Control\",\"\\u00f6\":\"Latin Small Letter O With Diaeresis\"}"
+    },
+    {
+      "canonical": "{\"escaped\":\"é\",\"literal\":\"€ö😀\"}",
+      "input": "{\"literal\":\"€ö😀\",\"escaped\":\"\\u00e9\"}"
+    },
+    {
+      "canonical": "[0,0,1,-1.5,1e+21,1e-7,123456789,9007199254740992,0.1,100]",
+      "input": "[0, -0, 1.0, -1.5, 1e21, 1e-7, 123456789, 9007199254740993, 0.1, 1e+2]"
+    },
+    {
+      "canonical": "{\"s\":\"line\\nbreak\\ttab \\u0001 \\u001f    </script>\"}",
+      "input": "{\"s\":\"line\\nbreak\\ttab \\u0001 \\u001f \\u007f \\u2028 </script>\"}"
+    },
+    {
+      "canonical": "{\"empty\":{},\"list\":[],\"str\":\"\"}",
+      "input": "{\"empty\":{},\"list\":[],\"str\":\"\"}"
+    }
+  ],
+  "plaintext_signature": {
+    "content_input": "{ \"type\": \"text\", \"gif\": { \"width\": 480, \"url\": \"https://media.giphy.com/media/x/giphy.gif\", \"height\": 270.0 }, \"body\": \"Hallo **Welt** \\u20ac\" }",
+    "content_jcs": "{\"body\":\"Hallo **Welt** €\",\"gif\":{\"height\":270,\"url\":\"https://media.giphy.com/media/x/giphy.gif\",\"width\":480},\"type\":\"text\"}",
+    "device_public_key": "Kay64UG8yvCyLhqU000LxzYeUm0L_hLIl5S8kyKWbdc",
+    "device_secret_key": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+    "fields": {
+      "attachments": [
+        {
+          "id": "01J9ZK3G5M8Q2W4E6R8T0Y2V02",
+          "sha256": "lpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq-wsbKztLU",
+          "size": 12345
+        }
+      ],
+      "author": "alice@node.example",
+      "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+      "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+      "mentions": [
+        "bob@other.example",
+        "carol@node.example"
+      ],
+      "mentions_everyone": false,
+      "reply_to": "01J9ZK3G5M8Q2W4E6R8T0Y2V01",
+      "thread_id": null
+    },
+    "nonce": "YGFiY2RlZmdoaWprbG1ubw",
+    "signature": "YGFiY2RlZmdoaWprbG1ub2gBAEsCvhRfPQmk5LvmApGbHvAjhVOKujVFBeUtvlpPBCs_EzCP08Nfmf62DJOMBy-hycztlgfQOHqLVHN2CAc",
+    "signed": "dGF2cm4gcGxhaW50ZXh0IHNpZ25hdHVyZSB2MQAAJ25vZGUuZXhhbXBsZS8wMUo5WkszRzVNOFEyVzRFNlI4VDBZMlYwMAASYWxpY2VAbm9kZS5leGFtcGxlABowMUo5WkszRzVNOFEyVzRFNlI4VDBZMlZBMQAaMDFKOVpLM0c1TThRMlc0RTZSOFQwWTJWMDEAAAAAAgARYm9iQG90aGVyLmV4YW1wbGUAEmNhcm9sQG5vZGUuZXhhbXBsZQABABowMUo5WkszRzVNOFEyVzRFNlI4VDBZMlYwMgAAAAAAADA5ACtscGVZbVpxYm5KMmVuNkNob3FPa3BhYW5xS21xcTZ5dHJxLXdzYkt6dExVYGFiY2RlZmdoaWprbG1ubwAAAH57ImJvZHkiOiJIYWxsbyAqKldlbHQqKiDigqwiLCJnaWYiOnsiaGVpZ2h0IjoyNzAsInVybCI6Imh0dHBzOi8vbWVkaWEuZ2lwaHkuY29tL21lZGlhL3gvZ2lwaHkuZ2lmIiwid2lkdGgiOjQ4MH0sInR5cGUiOiJ0ZXh0In0"
+  },
+  "safety_numbers": [
+    {
+      "a": "alice@a.example",
+      "b": "bob@b.example",
+      "grouped": "04033 92169 13827 95818 79522 94580 67121 55464 44183 40779 77093 80693",
+      "ka": "wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k",
+      "kb": "fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo",
+      "payload": "tavrn:verify?v=1&a=alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k&b=bob@b.example&kb=fH_kPFup8sEfDh2-kzsw3Lc0YpI2EDsIMErULrdbiKo",
+      "safety_number": "040339216913827958187952294580671215546444183407797709380693"
+    },
+    {
+      "a": "carol@a.example",
+      "b": "alice@a.example",
+      "grouped": "94051 53383 64003 45057 76332 82205 14110 20928 94280 44442 27917 91496",
+      "ka": "0SrHjH46X6NfO-8JB0UZncD622cfnSiiljBYBJOhBmU",
+      "kb": "wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k",
+      "payload": "tavrn:verify?v=1&a=alice@a.example&ka=wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k&b=carol@a.example&kb=0SrHjH46X6NfO-8JB0UZncD622cfnSiiljBYBJOhBmU",
+      "safety_number": "940515338364003450577633282205141102092894280444422791791496"
+    }
+  ]
+}

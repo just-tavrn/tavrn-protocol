@@ -1,0 +1,52 @@
+[
+  {
+    "name": "Plaintext channel without flags: bots allowed",
+    "input": { "room_no_bots": false, "category_no_bots": false, "channel_no_bots": false, "encrypted": false, "bots_allowed": false, "bots_in_encrypted_channels": "per_channel" },
+    "expected": false
+  },
+  {
+    "name": "per_channel room: an encrypted channel is no-bots by default",
+    "input": { "room_no_bots": false, "category_no_bots": false, "channel_no_bots": false, "encrypted": true, "bots_allowed": false, "bots_in_encrypted_channels": "per_channel" },
+    "expected": true
+  },
+  {
+    "name": "per_channel room: bots_allowed opens the encrypted channel",
+    "input": { "room_no_bots": false, "category_no_bots": false, "channel_no_bots": false, "encrypted": true, "bots_allowed": true, "bots_in_encrypted_channels": "per_channel" },
+    "expected": false
+  },
+  {
+    "name": "allowed room: encrypted channels follow the flags only",
+    "input": { "room_no_bots": false, "category_no_bots": false, "channel_no_bots": false, "encrypted": true, "bots_allowed": false, "bots_in_encrypted_channels": "allowed" },
+    "expected": false
+  },
+  {
+    "name": "The channel flag wins over bots_allowed",
+    "input": { "room_no_bots": false, "category_no_bots": false, "channel_no_bots": true, "encrypted": true, "bots_allowed": true, "bots_in_encrypted_channels": "per_channel" },
+    "expected": true
+  },
+  {
+    "name": "The category flag wins over bots_allowed",
+    "input": { "room_no_bots": false, "category_no_bots": true, "channel_no_bots": false, "encrypted": true, "bots_allowed": true, "bots_in_encrypted_channels": "allowed" },
+    "expected": true
+  },
+  {
+    "name": "The room flag wins over everything",
+    "input": { "room_no_bots": true, "category_no_bots": false, "channel_no_bots": false, "encrypted": false, "bots_allowed": true, "bots_in_encrypted_channels": "allowed" },
+    "expected": true
+  },
+  {
+    "name": "bots_allowed means nothing in a plaintext channel",
+    "input": { "room_no_bots": false, "category_no_bots": false, "channel_no_bots": false, "encrypted": false, "bots_allowed": true, "bots_in_encrypted_channels": "per_channel" },
+    "expected": false
+  },
+  {
+    "name": "An unknown room setting is treated as per_channel (fail closed)",
+    "input": { "room_no_bots": false, "category_no_bots": false, "channel_no_bots": false, "encrypted": true, "bots_allowed": false, "bots_in_encrypted_channels": "sometimes" },
+    "expected": true
+  },
+  {
+    "name": "A missing room setting is treated as per_channel (fail closed)",
+    "input": { "room_no_bots": false, "category_no_bots": false, "channel_no_bots": false, "encrypted": true, "bots_allowed": false },
+    "expected": true
+  }
+]

@@ -1,0 +1,30 @@
+# Dependencies and package output
+node_modules/
+*.tgz
+
+# Rust build output (never inside the repository)
+target/
+
+# Never part of a public repository (agent files, planning notes, local data, secrets, test output)
+.claude/
+docs/PLAN.md
+data-dev/
+data/
+pgdata/
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+test-results/
+playwright-report/
+perf/results/
+.publish-check.private
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

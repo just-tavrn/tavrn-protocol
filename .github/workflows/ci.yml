@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Checks of the protocol repository. Every job is gated by the repository variable CI_ENABLED
+# (docs/GITHUB.md): nothing runs on GitHub until the owner sets it to "true".
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Schemas, test vectors, SPDX headers, package
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Tests (JSON parses, OpenAPI 3.1, vector shapes, package exports)
+        run: npm test
+      - name: SPDX headers
+        run: scripts/check-spdx.sh
+      - name: Package contents
+        run: npm pack --dry-run
+
+  publish-check:
+    name: Publication hygiene
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: No private files, domains or secrets
+        env:
+          # Comma-separated private domains, hosts and addresses (repository or organization secret).
+          PUBLISH_CHECK_PRIVATE: ${{ secrets.PUBLISH_CHECK_PRIVATE }}
+        run: scripts/publish-check.sh
+
+  gitleaks:
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    uses: just-tavrn/.github/.github/workflows/gitleaks.yml@main

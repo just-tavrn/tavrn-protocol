@@ -1,0 +1,93 @@
+{
+  "backup": {
+    "backup_key": "fzkXwgY7TsNm166mXLnAKfnlFC2pN89KIbxgM6lxe-o",
+    "blob": "AWBhYmNkZWZnaGlqa8APKaUHXZuxm46FDkGj6x4T5-SY6HS-b0ipIBowOWUvJBiFg6qqq3Xf_dajc4UMIOMwNZhiwEtcRhCuqut60P9_OuN9cd4FcBi-kafAh-QQ046V76sg_E8i8vs7c9_tg4w22U0hhCvrax9gHSDOowlGR0Z5aR8CFEfg8XFfQO0dhR0OM7h2s4I4ufU1C-LdIfD3OwW28hBAM8QTBsOrwKgkC5G_FyYuZcDFKjnZqS89co7U0R_4XvgFvI3t6thg",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "epoch_keys": {
+      "41": "gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp8",
+      "42": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8"
+    },
+    "nonce": "YGFiY2RlZmdoaWpr"
+  },
+  "content": {
+    "aad": "AQAnbm9kZS5leGFtcGxlLzAxSjlaSzNHNU04UTJXNEU2UjhUMFkyVjAwAAAAAAAAACoAEmFsaWNlQG5vZGUuZXhhbXBsZQAaMDFKOVpLM0c1TThRMlc0RTZSOFQwWTJWQTE",
+    "author": "alice@node.example",
+    "content": "AQAAAAAAAAAqYGFiY2RlZmdoaWprtSPIKuK7MjPtYPPm_Vz7QyDLI7LI5i1N6cG_ipYVVl7KgBEEW7HqNTmR-wRpFc9CsYuKXtycT7Ke7LxIr7axvT-D2zc_Kn39YH34Ac87Yzn_PTKcSgi68T89MDvpNYCJns2NN-vVcbHjl3tIdOY",
+    "content_key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "epoch": 42,
+    "json": "{\"type\":\"text\",\"body\":\"Hello\"}",
+    "nonce": "YGFiY2RlZmdoaWpr"
+  },
+  "description": "Reference values for ENCRYPTION.md. Binary values are base64url without padding.",
+  "device_attestation": {
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "device_public_key": "Kay64UG8yvCyLhqU000LxzYeUm0L_hLIl5S8kyKWbdc",
+    "device_secret_key": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+    "message": "dGF2cm4gZGV2aWNlIGF0dGVzdGF0aW9uIHYxACmsuuFBvMrwsi4alNNNC8c2HlJtC_4SyJeUvJMilm3XABowMUo5WkszRzVNOFEyVzRFNlI4VDBZMlZBMQASYWxpY2VAbm9kZS5leGFtcGxl",
+    "signature": "mfLtgK50O9FuJb2u0_zLdPEmGjbMHUiRY09ZeQ3nZyHPglUuGDcTysCAe3_FmFmiJAPjj3V5Kep73vnKENnqBw",
+    "user_address": "alice@node.example"
+  },
+  "file": {
+    "ciphertext": "d5sdCBJkWP5ZnHwnzAYeJ9gZSl5VI7PKooAWJIU",
+    "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+    "nonce": "YGFiY2RlZmdoaWpr",
+    "plaintext": "ZmlsZSBjb250ZW50cw",
+    "sha256": "pv7WsaLi_hlgLwcRAAYYqCon1kJ5xa4E1xXyx_eW5lU"
+  },
+  "identity_rotation": {
+    "continuity": {
+      "at": "2026-10-06T12:00:00Z",
+      "new_key": "wUvaTAk8scwJWlXdvO1w1HS0s30ex0KDauAJTfkK_NM",
+      "old_key": "wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k",
+      "sig_new": "yQVFXmK3ZCdkIRPzQTHJ2S2To7lXd-gfDA76F5_lTPTg9GFt9CKwYrzZFMCRjRVGRmp9wnbSXM0f80NtkaEcDA",
+      "sig_old": "UTEQFYBTSWKRR0TClsfmIXlTwc3aPMI8uzbj4iFMzHIrvfN9abFxK9Ghh2XIpl4krL1l-nvIdjOi-qlNxSEYDQ"
+    },
+    "continuity_message": "dGF2cm4gaWRlbnRpdHkgY29udGludWl0eSB2MXsiYXQiOiIyMDI2LTEwLTA2VDEyOjAwOjAwWiIsIm5ld19rZXkiOiJ3VXZhVEFrOHNjd0pXbFhkdk8xdzFIUzBzMzBleDBLRGF1QUpUZmtLX05NIiwib2xkX2tleSI6IndhMmpvOTFKenowR2l1Ukl6TElrOWVnbDVjdmZ2RGxrNGZBczhMYVlhNWsifQ",
+    "device_signature": "3PZI_v0Qhdkuapv064HFNBJUq-or5nkkeX0F4Vvu_1zqdLB9B3CLZYGIgxjYm3apEWmny-Cxfy1yrmEQBHZTAA",
+    "identity_blob": "AWBhYmNkZWZnaGlqa9RVCUXMZE0mUnr4qNpQqeLGvrZrjc0E-wuXTAyVWekq5khZRO2_5E55gkjoSjcygg",
+    "identity_wrap_key": "Qez-qiA9yqaICxT6Grxrm6tjHfj1V4epg1-ZG_-BxlE",
+    "master_secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "nonce": "YGFiY2RlZmdoaWpr",
+    "rotated_public_key": "wUvaTAk8scwJWlXdvO1w1HS0s30ex0KDauAJTfkK_NM",
+    "rotated_seed": "8PHy8_T19vf4-fr7_P3-_wABAgMEBQYHCAkKCwwNDg8",
+    "user_address": "alice@node.example"
+  },
+  "keys": {
+    "backup_key": "fzkXwgY7TsNm166mXLnAKfnlFC2pN89KIbxgM6lxe-o",
+    "identity_public_key": "wa2jo91Jzz0GiuRIzLIk9egl5cvfvDlk4fAs8LaYa5k",
+    "key_file_key": "AQABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fSRF2sA",
+    "key_file_words": "abandon amount liar amount expire adjust cage candy arch gather drum bullet absurd math era live bid rhythm alien crouch range attend journey unaware",
+    "master_secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+  },
+  "secret_storage": {
+    "master_secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "nonce": "YGFiY2RlZmdoaWpr",
+    "passkey_method": "passkey:Y3JlZGVudGlhbC0x",
+    "passkey_wrapped": "AWBhYmNkZWZnaGlqa04lyVDQUUhU_UruhIVAEY0qfowY6Q51151bgmP7UMIxJiwRxT9QHkIvzsfbFyMhfg",
+    "passkey_wrapping_key": "-AL0YXRcdT_EYuKDBqh7o4nzLViI9dX7SxYKBaae1Bg",
+    "prf_input": "dGF2cm4gc2VjcmV0IHN0b3JhZ2UgcHJmIHYx",
+    "prf_output": "4OHi4-Tl5ufo6err7O3u7_Dx8vP09fb3-Pn6-_z9_v8",
+    "recovery_aad": "dGF2cm4gc2VjcmV0IHN0b3JhZ2UgdjEAABJhbGljZUBub2RlLmV4YW1wbGUACHJlY292ZXJ5",
+    "recovery_key": "wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t8",
+    "recovery_key_compact": "AsDBwsPExcbHyMnKy8zNzs_Q0dLT1NXW19jZ2tvc3d7fFcfWUQ",
+    "recovery_key_text": "# tavrn recovery key v1 - keep this key secret and safe\n# Account: alice@node.example\n# Together with your login it unlocks your encrypted messages on new devices.\nkey: AsDBwsPExcbHyMnKy8zNzs_Q0dLT1NXW19jZ2tvc3d7fFcfWUQ\nwords: school asthma rail maze fragile glue case deer slim grid inhale panic artist truly exercise one strategy salute cushion remember saddle humble kiwi work\n",
+    "recovery_key_words": "school asthma rail maze fragile glue case deer slim grid inhale panic artist truly exercise one strategy salute cushion remember saddle humble kiwi work",
+    "recovery_wrapped": "AWBhYmNkZWZnaGlqay9r6_n4OEUoGwrpmm89AcUEr1PU7g_wsNzBwVTBbZ0SNVasbfo8YD4hRcKJkbmcvw",
+    "recovery_wrapping_key": "L3-KcXnwnAxQcUBFslqqlZS3dxKT5cszZ1bM5usW8wY",
+    "user_address": "alice@node.example"
+  },
+  "webhook_inbox": {
+    "content_key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "device_signature": "J72DWmuf_llVdL4oclo-GbBZD-cRE_9YM30m_zg8UfR9_TLodf1PkU9fvt6wgD8bUSTPnf67LoMht65pDHscAA",
+    "ephemeral_secret_key": "-Pn6-_z9_v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhc",
+    "epoch": 42,
+    "inbox_public_key": "WAq8wDfv0Xi2-sNI4pIXkTFpJ107JqPjMI65puc3tQc",
+    "inbox_secret_key": "BCKhNnqEEVZ-iS0OH_9QKTXG_MDexH7jOTBWFWYltwg",
+    "payload": "{\"content\":{\"type\":\"text\",\"body\":\"Deployed\"}}",
+    "sealed": "eUvcXYFFV8xicl7F2oHRSU6WaDF5pkDNjq_Kfh-XdGfVqeozXvORGlgny3ao6ad1Ut0d-IFdVA2UMuS6jWydRXHQCBVCrHBY3faeYh6RdWg-35MHqD74LxH3SdZj",
+    "signature_message": "dGF2cm4gd2ViaG9vayBpbmJveCBrZXkgdjEAACdub2RlLmV4YW1wbGUvMDFKOVpLM0c1TThRMlc0RTZSOFQwWTJWMDAAAAAAAAAAKlgKvMA379F4tvrDSOKSF5ExaSddOyaj4zCOuabnN7UH"
+  }
+}
