@@ -34,6 +34,11 @@ private; nothing runs on GitHub until `CI_ENABLED` is set.
   weekly, grouped updates of the workflow actions.
 - **Actions permissions**: allow the organization's reusable workflows (`just-tavrn/.github`) and the actions
   used in `.github/workflows/` (`actions/*`, `contributor-assistant/github-action` through the CLA workflow).
+  While `just-tavrn/.github` is private, its Settings → Actions → General → Access must be set to "Accessible
+  from repositories in the just-tavrn organization". Until that repository exists and is accessible, every
+  push shows a failed `CI` run with "workflow file issue" (the `gitleaks` job references it); no job runs.
+- **Dependabot** runs on GitHub's side as soon as `dependabot.yml` exists (it is not gated by `CI_ENABLED`). To
+  keep it quiet during the private phase, pause it under Insights → Dependency graph → Dependabot.
 - **Once the repository is public** (branch protection and rulesets are not available on private
   repositories of the free organization plan): protect `main` with a ruleset: pull request required, one
   approving review from `@just-tavrn/maintainers` (CODEOWNERS), required checks `Schemas, test vectors, SPDX
