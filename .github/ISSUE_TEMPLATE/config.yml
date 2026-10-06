@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/just-tavrn/tavrn-protocol/security/advisories/new
+    about: Please report vulnerabilities in the protocol privately, never in a public issue.
+  - name: Ask a question
+    url: https://github.com/just-tavrn/tavrn-protocol/discussions
+    about: Questions about implementing the protocol belong in Discussions.

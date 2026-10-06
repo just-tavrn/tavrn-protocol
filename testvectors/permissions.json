@@ -1,0 +1,287 @@
+[
+  {
+    "name": "The owner has everything, even with deny overrides",
+    "input": {
+      "user_id": "u1", "is_owner": true, "everyone_role_id": "r0", "everyone_permissions": 0,
+      "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false,
+      "channel_overrides": [{ "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 1 }]
+    },
+    "expected": "4611686087146864639"
+  },
+  {
+    "name": "The administrator role beats all overrides",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 4611686018427387904]], "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }],
+      "channel_overrides": [], "sync_with_category": true, "timed_out": false
+    },
+    "expected": "4611686087146864639"
+  },
+  {
+    "name": "Only @everyone, no overrides",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [], "category_overrides": [], "channel_overrides": [], "sync_with_category": true, "timed_out": false
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Roles are combined with @everyone",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 2], ["r2", 128]], "category_overrides": [], "channel_overrides": [], "sync_with_category": true, "timed_out": false
+    },
+    "expected": "131"
+  },
+  {
+    "name": "An @everyone override on the category removes sending (channel synced)",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [], "sync_with_category": true, "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 2, "deny": 0 }]
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Channel not synced: only its own overrides count",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [], "sync_with_category": false, "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 0 }]
+    },
+    "expected": "3"
+  },
+  {
+    "name": "A role allow beats an @everyone deny",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 0]], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "channel_overrides": [
+        { "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 },
+        { "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 }
+      ]
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Between two roles, allow wins over deny",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 0], ["r2", 0]], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "channel_overrides": [
+        { "subject_type": "role", "subject_id": "r1", "allow": 0, "deny": 2 },
+        { "subject_type": "role", "subject_id": "r2", "allow": 2, "deny": 0 }
+      ]
+    },
+    "expected": "3"
+  },
+  {
+    "name": "A member override beats a role allow",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [["r1", 0]], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "channel_overrides": [
+        { "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 },
+        { "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 2 }
+      ]
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Overrides of other roles and members are ignored",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "channel_overrides": [
+        { "subject_type": "role", "subject_id": "r9", "allow": 0, "deny": 3 },
+        { "subject_type": "member", "subject_id": "u2", "allow": 0, "deny": 3 }
+      ]
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Without view_channel nothing remains",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 131,
+      "member_roles": [], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }]
+    },
+    "expected": "0"
+  },
+  {
+    "name": "A timeout leaves only reading",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 65539,
+      "member_roles": [], "sync_with_category": true, "timed_out": true, "category_overrides": [], "channel_overrides": []
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Whiteboard permissions: a channel override removes use_whiteboard, a role grants manage_whiteboard",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 134217731,
+      "member_roles": [["r1", 268435456]], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 134217728 }]
+    },
+    "expected": "268435459"
+  },
+  {
+    "name": "Bot: administrator role is masked by the token scopes (messages:read only)",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "no_bots": false, "scopes": ["messages:read"]
+    },
+    "expected": "17188257793"
+  },
+  {
+    "name": "Bot: messages:write keeps only its bits of the role permissions",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 8454155,
+      "member_roles": [], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["messages:write"]
+    },
+    "expected": "8388619"
+  },
+  {
+    "name": "Bot in a no-bots channel has nothing, even as administrator",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "no_bots": true
+    },
+    "expected": "0"
+  },
+  {
+    "name": "Bot without a scope list (all scopes) keeps everything except the administrator bit",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot"
+    },
+    "expected": "68719476735"
+  },
+  {
+    "name": "Users are not affected by the no-bots flag",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "user", "no_bots": true, "scopes": []
+    },
+    "expected": "3"
+  },
+  {
+    "name": "An unknown account kind is evaluated like a bot",
+    "input": {
+      "user_id": "w1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "webhook", "scopes": []
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Bot marked as owner is still capped by its scopes (rooms:manage)",
+    "input": {
+      "user_id": "b1", "is_owner": true, "everyone_role_id": "r0", "everyone_permissions": 0,
+      "member_roles": [], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["rooms:manage"]
+    },
+    "expected": "42962257793"
+  },
+  {
+    "name": "Timeout keeps reading, including the history from before the join (read_history)",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 17179869187,
+      "member_roles": [], "sync_with_category": true, "timed_out": true, "category_overrides": [], "channel_overrides": []
+    },
+    "expected": "17179869185"
+  },
+  {
+    "name": "System channel: no override hides it or its history (SYSTEM_CHANNEL_FORCED), writing stays denied",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 17179869203,
+      "member_roles": [], "category_overrides": [], "sync_with_category": false, "timed_out": false, "system_channel": true,
+      "channel_overrides": [
+        { "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 17179869185 },
+        { "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 1 }
+      ]
+    },
+    "expected": "17179869201"
+  },
+  {
+    "name": "System channel: the owner has everything except writing (SYSTEM_CHANNEL_DENIED)",
+    "input": {
+      "user_id": "u1", "is_owner": true, "everyone_role_id": "r0", "everyone_permissions": 0,
+      "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false, "system_channel": true,
+      "channel_overrides": []
+    },
+    "expected": "4611686086979092373"
+  },
+  {
+    "name": "System channel: a role allowed to send, attach and pin still cannot",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 33554442]], "category_overrides": [], "sync_with_category": false, "timed_out": false,
+      "system_channel": true,
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 }]
+    },
+    "expected": "17179869185"
+  },
+  {
+    "name": "System channel: visible even when @everyone lacks view_channel in the room",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 0,
+      "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false, "system_channel": true,
+      "channel_overrides": []
+    },
+    "expected": "17179869185"
+  },
+  {
+    "name": "System channel: a bot in a no-bots zone still has nothing",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false, "system_channel": true,
+      "kind": "bot", "no_bots": true, "scopes": null,
+      "channel_overrides": []
+    },
+    "expected": "0"
+  },
+  {
+    "name": "manage_applications (bit 35) is a normal role bit for users",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 34359738368]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false
+    },
+    "expected": "34359738369"
+  },
+  {
+    "name": "Bot: rooms:manage keeps manage_applications of its role",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 34359738880]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["rooms:manage"]
+    },
+    "expected": "34359738881"
+  },
+  {
+    "name": "Bot: without rooms:manage the scope cap removes manage_applications",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 34359738880]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["messages:read", "commands"]
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Bot in an encrypted channel of a per_channel room (effective no_bots) has nothing",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 17179869187,
+      "member_roles": [], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "no_bots": true
+    },
+    "expected": "0"
+  }
+]

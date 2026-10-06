@@ -1,0 +1,49 @@
+{
+  "name": "@tavrn/protocol",
+  "version": "0.1.0",
+  "description": "The tavrn protocol: OpenAPI description, test vectors and permission tables",
+  "license": "Apache-2.0 AND CC-BY-4.0",
+  "author": "The tavrn authors",
+  "homepage": "https://github.com/just-tavrn/tavrn-protocol#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/just-tavrn/tavrn-protocol.git"
+  },
+  "bugs": {
+    "url": "https://github.com/just-tavrn/tavrn-protocol/issues"
+  },
+  "keywords": [
+    "tavrn",
+    "protocol",
+    "openapi",
+    "federation",
+    "mls",
+    "test-vectors"
+  ],
+  "type": "module",
+  "files": [
+    "openapi.json",
+    "testvectors/*.json",
+    "permissions.md",
+    "LICENSE.md",
+    "LICENSE-APACHE",
+    "LICENSE-CC-BY-4.0",
+    "NOTICE"
+  ],
+  "exports": {
+    "./openapi.json": "./openapi.json",
+    "./testvectors/*.json": "./testvectors/*.json",
+    "./permissions.md": "./permissions.md",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --test test/*.test.mjs && scripts/check-spdx.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

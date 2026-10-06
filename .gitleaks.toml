@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# gitleaks configuration: the default rules, minus the test vectors. testvectors/*.json contain keys derived
+# from fixed, published seeds (for example the bytes 00 01 02 …) so that every implementation can reproduce
+# them; they protect nothing. Every other file is scanned with the default rules.
+title = "tavrn-protocol"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Deterministic test vector keys (fixed published seeds, not secrets)"
+paths = ['''^testvectors/[^/]+\.json$''']

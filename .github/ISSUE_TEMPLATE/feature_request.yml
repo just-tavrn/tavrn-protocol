@@ -1,0 +1,33 @@
+name: Protocol proposal
+description: Propose a new feature, capability or a change to the protocol
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can nodes, clients or bots not do today, and who needs it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Routes, fields, events, capability strings and how they interact with federation and encryption.
+    validations:
+      required: true
+  - type: dropdown
+    id: compatibility
+    attributes:
+      label: Compatibility
+      description: See the compatibility rules in `PROTOCOL.md` §3.
+      options:
+        - Compatible extension (optional fields, new routes or events, a new capability)
+        - Breaking change
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

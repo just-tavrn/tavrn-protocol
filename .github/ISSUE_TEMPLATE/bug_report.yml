@@ -1,0 +1,35 @@
+name: Specification error
+description: A contradiction, ambiguity, mistake or a wrong test vector in the specification
+labels: [bug, triage]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Where
+      description: Document and section (for example `FEDERATION.md` §2.4), or the test vector file and case name.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+      description: Quote the text or value and explain the contradiction or ambiguity.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should say
+      description: Your proposed wording or value, if you have one.
+  - type: textarea
+    id: implementations
+    attributes:
+      label: Affected implementations
+      description: Does the reference node or client behave differently from the text? Which version?
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Security
+      options:
+        - label: This is not a security vulnerability (those go to private vulnerability reporting).
+          required: true

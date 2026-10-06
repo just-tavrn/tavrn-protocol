@@ -1,0 +1,13 @@
+# Weekly, grouped updates. The package has no runtime or development dependencies (the tests use node:test),
+# so only the workflow actions are watched; add an npm entry if dependencies appear.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, github-actions]
+    groups:
+      actions:
+        patterns: ["*"]
