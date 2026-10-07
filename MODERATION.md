@@ -35,7 +35,9 @@ Who handles a report (`scope`):
 - **`room`**: a message in a room channel, or a user reported with a room as context. The room's moderators (the owner
   and every member holding `moderate_members` or `administrator`) see it, and the node admins of the node hosting the
   room. A report about the room's owner goes to the node admins only (`scope: node`): moderators cannot act against
-  the owner. Moderators never see reports about themselves.
+  the owner. Moderators never see reports about themselves. Every moderator of the room sees a room report with its
+  snapshot or evidence, also when the channel is hidden from some of them: the reporter chose to tell the room's
+  moderators.
 - **`node`**: a message in a DM or group DM, a user without room context, a room. The node admins of the node the
   report was sent to see it. Clients send a report to the node that hosts the conversation or room (room channels:
   the room's node, through the federated session if it is another node), and DM and group DM reports always to the
