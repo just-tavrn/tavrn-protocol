@@ -1080,7 +1080,8 @@ other nodes use the same routes with their federated session. Nothing crosses no
   characters, plus `message.epoch_mismatch`, `message.epoch_unknown`, `e2ee.device_not_attested`) and clients
   decrypt and verify it like message content and drop anything whose `type` is not `thread.title` or whose body is
   longer than 100 characters. In unencrypted channels `title` is plaintext (trimmed, 1–100 characters,
-  `400 thread.title_invalid`) and `title_epoch` is null.
+  `400 thread.title_invalid`) and `title_epoch` is null. `encrypted` says which of the two the stored title is
+  (a channel switched to or from encryption keeps its old titles until they are renamed).
 - `tags`: forum posts only, ids out of the channel's tag list (below). `message_count` counts the thread's
   messages (the root not included); `participant_ids` names up to three users who wrote in the thread most
   recently (newest first), for avatars.
