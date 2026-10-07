@@ -2745,6 +2745,168 @@
         ]
       }
     },
+    "/api/v1/admin/reports": {
+      "get": {
+        "tags": [],
+        "summary": "Every report of the node, newest first (node admins).",
+        "operationId": "admin_reports",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "`open`, `resolved` or `dismissed` (default: all).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "description": "Admin list only: `room` or `node`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100, default 50.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "A report id: older reports only (paging).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/rooms": {
+      "get": {
+        "tags": [],
+        "summary": "The node's rooms with their roles (node admins).",
+        "description": "For pickers such as the single sign-on group map, which names rooms and roles by id.",
+        "operationId": "admin_rooms",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Part of the room name.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100, default 50.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "A room id: rooms after it (paging).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminRoom"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/sso/group-map": {
       "get": {
         "tags": [],
@@ -11223,6 +11385,330 @@
         ]
       }
     },
+    "/api/v1/reports": {
+      "post": {
+        "tags": [],
+        "summary": "Report a message, a user or a room.",
+        "description": "Any authenticated user (also users of other nodes with a session here), never bots. Room content goes to the\nroom's moderators and the node admins, everything else to the node admins (MODERATION.md §1.1). For messages of\nencrypted conversations the reporter may release their plaintext as `evidence`; plaintext messages are linked and\nsnapshotted by the node. A report of the same target by the same reporter while the first is open is merged\n(`200`). At most `TAVRN_REPORTS_RATE_PER_HOUR` reports per hour.",
+        "operationId": "create_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merged into an open report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportCreated"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "tags": [],
+        "summary": "One report with its evidence.",
+        "description": "For node admins, and for the room's moderators (`moderate_members`) when the report is about the room's content\nand not about themselves. Everybody else gets `404 report.not_found`.",
+        "operationId": "get_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [],
+        "summary": "Delete a report and its evidence.",
+        "description": "Node admins only, at any time (audited as `report.delete`).",
+        "operationId": "delete_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [],
+        "summary": "Change a report's status, assignee or resolution note.",
+        "description": "Whoever may see the report. `status`: `open`, `resolved` or `dismissed`; `assignee_id`: a moderator who may see\nthe report, or null. Sends `report.update`.",
+        "operationId": "update_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/actions": {
+      "post": {
+        "tags": [],
+        "summary": "Act on a report: delete the message, time out, kick, ban or purge the reported user.",
+        "description": "Runs the existing moderation route on the report's target with the caller's permissions (same checks and errors)\nand records the report id in that route's audit entry (`meta.report_id`) and the action in the report.\n`purge` is two-step: without `confirm_token` it answers with the count and a token. `resolve: true` also closes\nthe report (MODERATION.md §1.4).",
+        "operationId": "act_on_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/rooms": {
       "get": {
         "tags": [
@@ -11701,6 +12187,114 @@
                   "items": {
                     "$ref": "#/components/schemas/AuditEntry"
                   }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/automod": {
+      "get": {
+        "tags": [],
+        "summary": "The room's auto-moderation settings.",
+        "description": "`manage_room` or `moderate_members`. Content rules apply to unencrypted channels only (MODERATION.md §2.2).",
+        "operationId": "get_automod",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomodSettings"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [],
+        "summary": "Replace the room's content rules.",
+        "description": "`manage_room`. At most 20 rules; each needs terms or a link filter (`400 automod.rules_invalid` names the rule).\nNew rules get an id; ids sent back are kept. Audited as `automod.rules`.",
+        "operationId": "put_automod",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutAutomodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomodSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -16116,6 +16710,100 @@
         ]
       }
     },
+    "/api/v1/rooms/{room_id}/reports": {
+      "get": {
+        "tags": [],
+        "summary": "The room's reports, newest first.",
+        "description": "`moderate_members` (owners and node admins too). Moderators never see reports about themselves; reports about\nthe owner go to the node admins only. List entries leave the evidence out (`evidence_count`).",
+        "operationId": "room_reports",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "`open`, `resolved` or `dismissed` (default: all).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "description": "Admin list only: `room` or `node`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100, default 50.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "A report id: older reports only (paging).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/rooms/{room_id}/roles": {
       "post": {
         "tags": [
@@ -16771,6 +17459,71 @@
             "description": "Audio file"
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/transfer": {
+      "post": {
+        "tags": [],
+        "summary": "Hand the room to another member.",
+        "description": "The owner only, with a reauth token (`Tavrn-Reauth`, PROTOCOL.md §5c). The new owner must be a member, a local\nuser and not a bot (`400 room.transfer_invalid`); the former owner stays a member with their roles. Audited as\n`room.transfer`, announced with `room.update` (MODERATION.md §4).",
+        "operationId": "transfer_room",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferRoomRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
             "description": "",
             "content": {
               "application/json": {
@@ -22045,6 +22798,62 @@
           }
         }
       },
+      "AdminRoom": {
+        "type": "object",
+        "description": "A room of this node with its roles (without `@everyone`).",
+        "required": [
+          "id",
+          "name",
+          "members",
+          "roles"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "members": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The owner's address."
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminRoomRole"
+            }
+          }
+        }
+      },
+      "AdminRoomRole": {
+        "type": "object",
+        "description": "A role of a room in the admin's list.",
+        "required": [
+          "id",
+          "name",
+          "position"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "AdminToken": {
         "type": "object",
         "required": [
@@ -22455,6 +23264,145 @@
           }
         ],
         "description": "A full session (after the second factor or a passkey-only login)."
+      },
+      "AutomodBurst": {
+        "type": "object",
+        "description": "The node's flood detection (read-only).",
+        "required": [
+          "limit",
+          "window_secs",
+          "timeout_minutes"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Messages per window above which a member is flooding (0 = off).",
+            "minimum": 0
+          },
+          "timeout_minutes": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "window_secs": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AutomodNode": {
+        "type": "object",
+        "description": "The node lists that apply to every unencrypted conversation.",
+        "required": [
+          "words",
+          "links"
+        ],
+        "properties": {
+          "links": {
+            "type": "boolean",
+            "description": "`TAVRN_AUTOMOD_LINKS` is active."
+          },
+          "words": {
+            "type": "boolean",
+            "description": "`TAVRN_AUTOMOD_WORDS_FILE` is active."
+          }
+        }
+      },
+      "AutomodRule": {
+        "type": "object",
+        "description": "A content rule of a room.",
+        "required": [
+          "name",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`block`, `delete` or `timeout`."
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Domains of the link filter (at most 500; a domain covers its subdomains)."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "exempt_channels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Channel ids of the room the rule does not apply to."
+          },
+          "exempt_roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Role ids of the room the rule does not apply to."
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Assigned by the node; kept when the rule is sent back with it."
+          },
+          "links": {
+            "type": "string",
+            "description": "`off`, `block_all`, `allow_list` or `block_list`."
+          },
+          "name": {
+            "type": "string",
+            "description": "1–64 characters, unique in the room; named in the error a blocked sender sees."
+          },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Words or phrases (at most 500, 1–100 characters each); `*` matches any run of non-space characters."
+          },
+          "timeout_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`timeout` only: 1–40320 minutes."
+          },
+          "whole_word": {
+            "type": "boolean",
+            "description": "Matches must start and end at a word boundary."
+          }
+        }
+      },
+      "AutomodSettings": {
+        "type": "object",
+        "description": "The auto-moderation settings of a room.",
+        "required": [
+          "rules",
+          "burst",
+          "node"
+        ],
+        "properties": {
+          "burst": {
+            "$ref": "#/components/schemas/AutomodBurst"
+          },
+          "node": {
+            "$ref": "#/components/schemas/AutomodNode"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutomodRule"
+            }
+          }
+        }
       },
       "BTreeMap": {
         "type": "object",
@@ -24327,6 +25275,71 @@
         },
         "additionalProperties": false
       },
+      "CreateReportRequest": {
+        "type": "object",
+        "description": "Body of `POST /reports`.",
+        "required": [
+          "kind",
+          "category"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "`spam`, `harassment`, `illegal`, `sexual`, `violence` or `other`."
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "description": "At most 2000 characters."
+          },
+          "evidence": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/EvidenceEntry"
+            },
+            "description": "Messages of encrypted conversations only: the plaintext the reporter releases (at most 11 entries)."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`message`, `user` or `room`."
+          },
+          "message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "node": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`message`: the node hosting the conversation when it is not this node (DMs on another node)."
+          },
+          "room_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`room`: the reported room; `user`: optional context."
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`user`: the reported address; `message` on another node: the author."
+          }
+        }
+      },
       "CreateRoleRequest": {
         "type": "object",
         "required": [
@@ -25397,6 +26410,48 @@
           "epoch": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "EvidenceEntry": {
+        "type": "object",
+        "description": "One message the reporter releases in plaintext (MODERATION.md §1.2).",
+        "required": [
+          "author",
+          "created_at"
+        ],
+        "properties": {
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "File names of the attachments (at most 10), never the files."
+          },
+          "author": {
+            "type": "string",
+            "description": "The author's address."
+          },
+          "created_at": {
+            "type": "string",
+            "description": "RFC 3339."
+          },
+          "device_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The sending device as the envelope names it."
+          },
+          "message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "The decrypted body (at most 4000 characters)."
           }
         }
       },
@@ -27364,6 +28419,33 @@
           }
         }
       },
+      "MessageSnapshot": {
+        "type": "object",
+        "description": "The content of a plaintext message at report time.",
+        "required": [
+          "author",
+          "created_at",
+          "text",
+          "attachments"
+        ],
+        "properties": {
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "author": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
       "Mode": {
         "type": "string",
         "enum": [
@@ -27392,6 +28474,182 @@
           "reset_avatar": {
             "type": "boolean",
             "description": "Remove the member's per-room avatar."
+          }
+        }
+      },
+      "ModerationReport": {
+        "type": "object",
+        "description": "A report as moderators and node admins see it.",
+        "required": [
+          "id",
+          "source",
+          "scope",
+          "kind",
+          "message_exists",
+          "target_address",
+          "category",
+          "detail",
+          "evidence_count",
+          "status",
+          "note",
+          "actions",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportActionRecord"
+            }
+          },
+          "assignee": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/User"
+              }
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "conversation_kind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`channel`, `dm` or `group` (null when unknown here)."
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/EvidenceEntry"
+            },
+            "description": "Only in `GET /reports/{id}` and action results."
+          },
+          "evidence_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "evidence_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`reporter` when evidence was released by the reporter."
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`message`, `user` or `room`."
+          },
+          "message_exists": {
+            "type": "boolean",
+            "description": "The reported message still exists on this node."
+          },
+          "message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "node": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The node hosting the conversation when it is not this node."
+          },
+          "note": {
+            "type": "string"
+          },
+          "reporter": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/User",
+                "description": "Null for automod entries."
+              }
+            ]
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "description": "`room` (the room's moderators and node admins) or `node` (node admins)."
+          },
+          "snapshot": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MessageSnapshot"
+              }
+            ]
+          },
+          "source": {
+            "type": "string",
+            "description": "`user` or `automod`."
+          },
+          "status": {
+            "type": "string",
+            "description": "`open`, `resolved` or `dismissed`."
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/User",
+                "description": "The reported user (null for an address this node does not know)."
+              }
+            ]
+          },
+          "target_address": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
           }
         }
       },
@@ -29478,6 +30736,22 @@
           "reauth"
         ]
       },
+      "PutAutomodRequest": {
+        "type": "object",
+        "description": "Body of `PUT /rooms/{room_id}/automod`.",
+        "required": [
+          "rules"
+        ],
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutomodRule"
+            },
+            "description": "The complete list (at most 20 rules)."
+          }
+        }
+      },
       "PutCommandSettings": {
         "type": "object",
         "description": "`PUT /rooms/{room_id}/commands/{command_ref}` body.",
@@ -29924,6 +31198,134 @@
         "properties": {
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "ReportActionRecord": {
+        "type": "object",
+        "description": "An action shortcut taken on a report.",
+        "required": [
+          "action",
+          "actor",
+          "at"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string",
+            "description": "The moderator's address."
+          },
+          "at": {
+            "type": "string"
+          },
+          "minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "ReportActionRequest": {
+        "type": "object",
+        "description": "Body of `POST /reports/{id}/actions`.",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`delete_message`, `timeout`, `kick`, `ban` or `purge`."
+          },
+          "confirm_token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`purge`: the token of the preview."
+          },
+          "minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`timeout`: 1–40320."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Passed to the route (kick, ban, timeout)."
+          },
+          "resolve": {
+            "type": "boolean",
+            "description": "Also set the report `resolved`."
+          }
+        }
+      },
+      "ReportActionResult": {
+        "type": "object",
+        "description": "Answer of an action shortcut.",
+        "required": [
+          "report"
+        ],
+        "properties": {
+          "purge": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PurgeResponse",
+                "description": "The preview or result of a purge."
+              }
+            ]
+          },
+          "report": {
+            "$ref": "#/components/schemas/ModerationReport"
+          }
+        }
+      },
+      "ReportCreated": {
+        "type": "object",
+        "description": "Answer of `POST /reports` (`201` for a new report, `200` when merged into an open one).",
+        "required": [
+          "id",
+          "status",
+          "merged"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "merged": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ReportList": {
+        "type": "object",
+        "description": "A page of the inbox.",
+        "required": [
+          "reports",
+          "open"
+        ],
+        "properties": {
+          "open": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Open reports of the list's scope (badges), whatever the filters."
+          },
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModerationReport"
+            }
           }
         }
       },
@@ -31263,6 +32665,19 @@
           }
         }
       },
+      "TransferRoomRequest": {
+        "type": "object",
+        "description": "Body of `POST /rooms/{room_id}/transfer`.",
+        "required": [
+          "user_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The member who becomes the owner."
+          }
+        }
+      },
       "UnfurlResponse": {
         "type": "object",
         "description": "A link preview as the sender's client puts it into the message content.",
@@ -31622,6 +33037,33 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpdateReportRequest": {
+        "type": "object",
+        "description": "Body of `PATCH /reports/{id}`.",
+        "properties": {
+          "assignee_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A moderator who may see the report, or null."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The resolution note (at most 2000 characters)."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`open`, `resolved` or `dismissed`."
+          }
+        }
       },
       "UpdateRoleRequest": {
         "type": "object",

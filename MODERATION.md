@@ -44,8 +44,9 @@ Who handles a report (`scope`):
   evidence only (it has no copy of the message) and its admins can act against local accounts or block the peer.
   A user of another node can send `node` reports to this node only about conversations and rooms of this node.
 
-Checks: the reporter must be able to read the reported message (member of the conversation, `view_channel`; `404
-message.not_found` otherwise, the same answer as for a message that does not exist), must belong to the room given as
+Checks: the reporter must be able to read the reported message (the usual access errors of the conversation,
+`403 room.not_member`, `channel.view_forbidden`, `404 conversation.not_found`; `404 message.not_found` for a message
+that is not in it), must belong to the room given as
 context (`403 room.not_member`), and a reported room must be one the reporter belongs to or a public room of this node
 (`404 room.not_found` otherwise). Reporting oneself is `400 report.self`; an unknown user `404 user.not_found`;
 anything malformed `400 report.target_invalid`, `report.category_invalid` or `validation.length`.
@@ -81,7 +82,8 @@ Evidence and snapshot are deleted with the report (§1.5).
 A report of the same target (`message`: the message; `user`: the address and the room context; `room`: the room) by
 the same reporter while an earlier one is still `open` is **merged** into it: category, detail and evidence are
 replaced, `updated_at` moves, no new event is sent, and the answer is `200` with `merged: true`. Every user may send
-`TAVRN_REPORTS_RATE_PER_HOUR` (default 10) reports per hour, merged ones included (`429` with `retry_after_secs`).
+`TAVRN_REPORTS_RATE_PER_HOUR` (default 10) new reports per hour (`429` with `retry_after_secs`); a merge counts
+when the limit is reached as well, so a full limit refuses both.
 
 ### 1.4 The moderation inbox
 
