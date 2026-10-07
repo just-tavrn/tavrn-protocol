@@ -12,7 +12,7 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 3 | `attach_files` | Attach files |
 | 4 | `add_reactions` | Add reactions |
 | 5 | `mention_everyone` | Mention `@everyone` and `@here` |
-| 6 | `create_threads` | Create threads |
+| 6 | `create_threads` | Start threads and write in them (text and announcement channels; forum posts need `send_messages` only, `PROTOCOL.md` §7e) |
 | 7 | `manage_channels` | Create, edit and delete channels and categories (including the encryption switch) |
 | 8 | `manage_roles` | Manage roles and overrides (only below your own highest role, only permissions you hold) |
 | 9 | `manage_room` | Room settings, invites |
@@ -42,6 +42,7 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 33 | `manage_files` | Files channels: rename, move and delete entries of others (own entries need `attach_files`, which also uploads and creates folders), configure the storage backend together with `manage_channels` (design note 4.13, `FILES.md`) |
 | 34 | `read_history` | Encrypted channels: read messages from before joining as far as the channel's `history_for_new_members` policy allows, and receive their keys from other members (default for `@everyone`, design note 4.13 item 11, `ENCRYPTION.md` §7b). Without it the history starts at the member's join. Plaintext messages are not affected. |
 | 35 | `manage_applications` | Install and remove applications (bots) in the room and edit the room's command settings (`APPLICATIONS.md` §4.2, §4.3, §5.3). The managed role of an installation additionally needs `manage_roles`, and the bot never gets more than the installer holds. Covered by the app token scope `rooms:manage`; bots still cannot install bots. |
+| 36 | `manage_threads` | Rename, archive, lock and delete other people's threads and edit the tags of any forum post (`PROTOCOL.md` §7e). Covered by the app token scope `moderation`. |
 | 62 | `administrator` | All permissions, overrides are ignored |
 
 Default permissions of `@everyone` in new rooms: `view_channel`, `send_messages`, `attach_files`, `add_reactions`,
@@ -51,7 +52,9 @@ the `@everyone` role of every existing room, so boards keep working where they d
 the `@everyone` role of every room that existed before it (startup fixup, recorded in `node_settings` so a later
 removal by the room is kept). `manage_applications` (bit 35) replaced `manage_room` as the right to install applications:
 a startup fixup grants it once to every role that held `manage_room` when the bit was introduced (marker
-`fixup.manage_applications`), so nobody loses the ability; rooms may narrow it afterwards.
+`fixup.manage_applications`), so nobody loses the ability; rooms may narrow it afterwards. `manage_threads` (bit 36)
+is granted the same way once to every role that held `manage_messages` when it was introduced (marker
+`fixup.manage_threads`), so moderators keep moderating threads.
 
 `change_nickname` covers the whole per-room profile (nickname, avatar and bio in that room, `PROTOCOL.md` §6b);
 `manage_nicknames` lets moderators change or reset the per-room profiles of members below them.
@@ -108,10 +111,11 @@ Management-class permissions can never be granted to `@everyone`, neither in the
 | 29 | `manage_webhooks` |
 | 33 | `manage_files` |
 | 35 | `manage_applications` |
+| 36 | `manage_threads` |
 | 62 | `administrator` |
 
 New management-class bits are added to this list when they are introduced. Denying any of them to `@everyone`
-stays allowed. The same constant lives in the node (`tavrn-node`, value `4611686062204976004`).
+stays allowed. The same constant lives in the node (`tavrn-node`, value `4611686130924452740`).
 
 Nodes remove these bits from existing `@everyone` roles and `@everyone` overrides at start (idempotent) and record
 every removal in the room's audit log as `role.everyone_restricted` (`meta`: `kind` role|override, `removed`,

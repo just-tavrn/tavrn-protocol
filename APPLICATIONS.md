@@ -265,7 +265,7 @@ ALWAYS    = view_channel | change_nickname
 | `messages:read` | `read_history` | `GET …/messages`, pins, attachment downloads, search, received history keys (`GET`/`DELETE …/history-keys`, `GET …/history-pending`); events `message.*`, `typing`, `read.update`, `history.*` |
 | `messages:write` | `send_messages`, `attach_files`, `add_reactions`, `mention_everyone`, `create_threads`, `pin_messages`, `use_external_emojis` | create/edit/delete own messages, reactions, uploads, pins, typing, read markers, `ephemeral` type `cursor` |
 | `members:read` | – | `GET /rooms/{id}/members`, `GET /presence`; events `member.*`, `presence.update`, `user.update` |
-| `moderation` | `manage_messages`, `kick_members`, `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_nicknames`, `mute_members`, `move_members` | kicks, bans, timeouts, purge (with preview), audit log, voice mute/move/disconnect |
+| `moderation` | `manage_messages`, `kick_members`, `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_nicknames`, `mute_members`, `move_members`, `manage_threads` | kicks, bans, timeouts, purge (with preview), audit log, voice mute/move/disconnect |
 | `rooms:manage` | `manage_room`, `manage_channels`, `manage_roles`, `create_invites`, `manage_emojis`, `manage_files`, `manage_applications` | room, category, channel, role, override, emoji, soundboard and invite management (installing applications and the room's command settings stay closed to app tokens, §4.2) |
 | `voice` | `connect`, `speak`, `stream`, `use_camera`, `use_soundboard`, `use_external_sounds`, `priority_speaker` | `voice/join`, voice state, soundboard; event `voice.state`, `voice.move` |
 | `whiteboard` | `use_whiteboard`, `manage_whiteboard` (bits added in phase 4E) | `ephemeral` types `whiteboard.*`; event `whiteboard.session` |
@@ -273,6 +273,12 @@ ALWAYS    = view_channel | change_nickname
 | `webhooks:manage` | `manage_webhooks` (new bit, §10.2) | webhook routes of §6.1 |
 | `presence` | – | `PUT /users/me/presence`, `PUT/DELETE /users/me/activity` for the bot; the local activity bridge of §7.3 |
 | `dms` | – | `POST /conversations { kind: "dm" }` (reading/writing DMs still needs `messages:*`) |
+
+**Threads** (`PROTOCOL.md` §7e) need no scope of their own: listing and reading threads and
+`GET /rooms/{id}/followed-threads` fall under `messages:read` (events `thread.*` too); starting threads, writing in
+them, renaming, archiving, deleting, following and per-thread read markers under `messages:write`; other people's
+threads additionally need `manage_threads`, which only `moderation` unlocks. Bots receive `thread_id` in every
+message envelope and reply in a thread by sending it.
 
 **Always allowed** for an app token (no scope): `GET /users/me`, `GET /users/{address}/profile`, `GET /rooms`,
 `GET /rooms/{id}` and channel/category/role reads, `GET /node`, the WebSocket, `POST /rooms/{id}/leave`

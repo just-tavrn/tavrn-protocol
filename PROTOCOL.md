@@ -106,6 +106,9 @@ Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, 
 since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
+`threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
+node that implements §7e.
+
 `voice` (voice channels, `VOICE.md`), `screenshare` (screen sharing allowed) and `soundboard` (room clips) are
 announced by nodes while `TAVRN_VOICE_ENABLED` (and for `screenshare` also `TAVRN_SCREENSHARE_ENABLED`) is on.
 `unfurl` (link previews for the node's own users, §7b) is announced while `TAVRN_UNFURL` is on. `webhooks.v1`
@@ -539,6 +542,9 @@ connection of that device). Event types besides the room/message events of phase
 | `interaction.reply` | the invoker: their other connections for the first response, all of them for follow-ups | `EphemeralReply` `{ interaction_id, conversation_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`: an ephemeral reply, shown only to the invoker and never stored (`APPLICATIONS.md` §5.7) |
 | `message.redact` | conversation audience¹ | `{ room_id, conversation_id, ids, author_id }`: the content of these messages was deleted with their author's account (§5d); the slots stay with the content `{"type":"system.deleted"}`. Clients replace cached content and drop the messages from local search indexes |
 | `user.deleted` | the rooms the user was in, friends and DM contacts | `{ user_id, address, tombstone }`: an account was deleted (§5d); its messages now name the tombstone (`author_deleted: true`) |
+| `thread.create`, `thread.update` | room members | `{ room_id, thread }`: a thread was started, or its title, tags, archive or lock state or its counters changed (§7e) |
+| `thread.delete` | room members | `{ room_id, channel_id, id }`: a thread was deleted with its messages (§7e) |
+| `thread.read` | the user (all of their connections) | `ThreadReadState`: the per-thread read marker or the follow state changed (§7e) |
 | `legal.statement` | the uploader | `{ case_id, decision, counter_deadline? }`: a statement of reasons or a decision about the user's content (`LEGAL.md` §1.4); details at `GET /users/me/legal-notices` |
 
 ¹ Room channels: all room members; DMs and group DMs: their members. `message.create`, `message.update` and
@@ -752,6 +758,8 @@ Every message consists of an envelope (readable by the node) and content (opaque
 - `encrypted = false`: `content` is the JSON content object in plaintext. Only allowed in channels whose
   `encrypted` flag is `false`. The node rejects plaintext in encrypted channels and ciphertext in unencrypted
   channels with `message.encryption_mismatch`.
+- `thread_id` names the thread the message belongs to (§7e), null for messages of the channel itself. A message
+  that started a thread carries the summary `thread` of that thread (absent otherwise).
 - `author_kind` is the author's `kind` (`user`, `bot`, `webhook`, …) so every client can show the BOT or WEBHOOK
   badge (`APPLICATIONS.md` §1.5) without loading the author.
 - `webhook` (messages of an incoming webhook only, set by the node, `APPLICATIONS.md` §6.1): `{ id, name }` with the
@@ -1036,6 +1044,137 @@ Two paths, one search box (details, index format and privacy guarantees: `SEARCH
 - **Encrypted channels and DMs: the client's local encrypted index.** DMs and group DMs are always encrypted, so there
   is no node search for them (no `/conversations/{id}/search`). Clients index what they decrypt (text and file names
   only) in a local index sealed under the local store key and search it on the device.
+
+## 7e. Threads, forum and announcement channels (design notes 4.3, 4.4; `threads`, `forum`, `announcement`)
+
+Nodes announce the capabilities `threads`, `forum` and `announcement` when they implement this section. A
+**thread** is a sub-conversation inside a room channel: its messages are ordinary messages of the channel whose
+envelope carries `thread_id`. They live in the same conversation, so an encrypted channel's threads use the
+channel's MLS group and epochs (no new groups, no new keys); history sharing (`ENCRYPTION.md` §7b), the search
+index (§7d), pins, reactions, bots and the channel's permission checks work for them unchanged. Threads exist in
+channels of kind `text`, `announcement` and `forum` (`400 thread.unsupported_channel` elsewhere; DMs and group DMs
+have none, a `thread_id` there is `404 thread.not_found`). Threads live on the node hosting the room; members of
+other nodes use the same routes with their federated session. Nothing crosses node boundaries.
+
+**The thread object.**
+
+```json
+{ "id": "01J…", "room_id": "01J…", "channel_id": "01J…",
+  "root_message_id": "01J…", "root_deleted": false,
+  "encrypted": true, "title": "<plaintext, or ciphertext in encrypted channels>", "title_epoch": 7,
+  "title_author": "alice@node.example", "title_device_id": "01J…",
+  "tags": ["01J…"], "created_by": "alice@node.example", "created_by_id": "01J…", "created_at": "…",
+  "last_message_id": "01J…", "last_message_at": "…", "message_count": 12, "participant_ids": ["01J…"],
+  "archived_at": null, "locked": false,
+  "me": { "following": true, "last_read_message_id": "01J…", "unread_count": 0, "mention_count": 0 },
+  "root_message": { "…": "message envelope (§7)" }, "first_message": null }
+```
+
+- `root_message_id`: the channel message a text-channel thread was started from (it stays in the channel, with
+  `thread_id` null); null for standalone threads and forum posts. One thread per root message. When the root is
+  deleted the thread stays, `root_deleted` becomes true and clients show "(original message deleted)".
+- **Titles** are 1–100 characters. In encrypted channels the node never sees them: `title` is encrypted content
+  format 1 (`ENCRYPTION.md` §5.2) of the JSON object `{ "type": "thread.title", "body": "<title>" }`, encrypted and
+  signed by the device that set it (`title_author`, `title_device_id`) under `title_epoch`; the node applies the
+  ciphertext checks of `ENCRYPTION.md` §5.3 (`400 thread.title_invalid` for a malformed one, at most 2048
+  characters, plus `message.epoch_mismatch`, `message.epoch_unknown`, `e2ee.device_not_attested`) and clients
+  decrypt and verify it like message content and drop anything whose `type` is not `thread.title` or whose body is
+  longer than 100 characters. In unencrypted channels `title` is plaintext (trimmed, 1–100 characters,
+  `400 thread.title_invalid`) and `title_epoch` is null.
+- `tags`: forum posts only, ids out of the channel's tag list (below). `message_count` counts the thread's
+  messages (the root not included); `participant_ids` names up to three users who wrote in the thread most
+  recently (newest first), for avatars.
+- `archived_at`: archived threads are hidden from the default list and reopen with the next message (unless
+  locked). `locked`: only members with `manage_threads` can write in it.
+- `me` (the requester's state, absent in events): `following`, the per-thread read marker and the unread and
+  mention counts of followed threads (both 0 for threads the user does not follow; mentions and the notification
+  settings of the channel apply as in §6).
+- `root_message` (text threads) and `first_message` (forum posts: the oldest message of the thread, the "preview"
+  of a post card) are the enriched envelopes the requester may see (the history cut of `ENCRYPTION.md` §7b applies;
+  null otherwise). Messages carry a summary of the thread they started in `thread`
+  (`{ id, message_count, last_message_id, last_message_at, participant_ids, archived_at, locked }`, absent on
+  other messages), so clients can render "N replies · last reply 5 min ago" under the root.
+
+**Routes** (all need room membership and `view_channel`, `403 room.not_member` / `channel.view_forbidden`):
+
+- `POST /rooms/{room_id}/channels/{channel_id}/threads { title, title_epoch?, root_message_id?, tags?, message? }` →
+  `201 Thread`. `message` is a message create body (§7, `POST …/messages`) posted as the thread's first message.
+  Text and announcement channels: `create_threads` (`403 thread.create_forbidden`); `root_message_id` must be a
+  message of the channel outside any thread (`400 thread.root_invalid`), at most one thread per root
+  (`409 thread.exists`, `meta.thread_id`); `tags` are refused (`400 thread.tags_invalid`). Forum channels (a post):
+  `send_messages` (`403 message.send_forbidden`; `create_threads` is not needed there), `message` is required
+  (`400 thread.message_required`), no root, at most 5 tags of the channel (`400 thread.tags_invalid`). The creator
+  follows the thread. Rate limit: 10 threads per user and minute (`429`). Events: `thread.create`, then
+  `message.create` for the first message.
+- `GET /rooms/{room_id}/channels/{channel_id}/threads?archived=&tag=&sort=&before=&limit=` →
+  `{ items: [Thread], next }`. `archived`: `false` (default: active threads), `true` (archived only) or `all`;
+  `sort`: `activity` (default, newest `last_message_at` first) or `created` (newest first); `tag`: forum posts
+  carrying this tag; `before`: the id of the last thread of the previous page; `limit` 1–50 (default 25). Errors:
+  `400 thread.filter_invalid`, `400 validation.id`.
+- `GET /threads/{thread_id}` → `Thread`; `404 thread.not_found` for unknown threads and threads of channels the
+  requester cannot view.
+- `PATCH /threads/{thread_id} { title?, title_epoch?, tags?, archived?, locked? }` → `Thread`: the thread's creator
+  or `manage_threads` (`403 thread.manage_forbidden`); `tags` only in forum channels (others' posts with
+  `manage_threads`). Changes by someone other than the creator are audit-logged (`thread.update`). Event
+  `thread.update`.
+- `DELETE /threads/{thread_id}` → `204`: deletes the thread with all its messages and their uploads permanently
+  (the root message stays in the channel). Its creator may delete it while it contains only their own messages,
+  otherwise `manage_threads` is needed (`403 thread.delete_forbidden`). Audit-logged (`thread.delete`, with the
+  number of deleted messages); event `thread.delete`.
+- `PUT /threads/{thread_id}/read { last_read_message_id }` → `ThreadReadState`
+  (`{ thread_id, channel_id, room_id, following, last_read_message_id, unread_count, mention_count }`): moves the
+  per-thread read marker forward (never backwards; the message must belong to the thread, `404 message.not_found`),
+  rate-limited like `PUT …/read`. The user's connections get `thread.read` with the same object.
+- `POST /threads/{thread_id}/follow` and `DELETE /threads/{thread_id}/follow` → `ThreadReadState`: follow or
+  unfollow; `thread.read` to the user's connections. Creating a thread or writing in it follows it automatically.
+- `GET /rooms/{room_id}/followed-threads` → `{ items: [ThreadReadState] }`: the requester's followed threads in
+  channels they can view, most recent activity first, at most 200 (clients use it for badges and to decide which
+  thread messages notify).
+- **Messages.** `POST …/messages { …, thread_id }` writes into a thread: it needs what a channel message needs plus
+  `create_threads` in text and announcement channels (`403 thread.reply_forbidden`; forum channels need only
+  `send_messages`), a locked thread needs `manage_threads` (`403 thread.locked`), and an archived thread reopens
+  (`thread.update`). `thread_id` cannot change on edit. `GET …/messages?thread=<thread_id>` pages one thread like a
+  channel (`before`, `after`, `around`, the history cut); without `thread` the channel's list leaves thread
+  messages out (`epoch=<n>` lists the epoch's messages of the whole channel, threads included, for the key checks of
+  `ENCRYPTION.md` §7b). Deleting a message of a thread updates its counters.
+- **Read state.** Thread messages count towards the channel's `unread_count` and `mention_count` (§6) only for users
+  who follow the thread (counted after the thread's read marker, or after following when there is none); the
+  channel's `last_message_id` and its own marker ignore thread messages. `notify` hints (`FEDERATION.md` §5.2) for a
+  thread message go to followers (and to users it mentions directly); `@everyone` inside a thread reaches followers
+  only. Clients apply the same rule to their in-app notifications.
+
+**Events** (room members unless noted): `thread.create { room_id, thread }`, `thread.update { room_id, thread }`
+(rename, tags, archive, lock, new messages: counters and `last_message_*`), `thread.delete { room_id, channel_id,
+id }`, `thread.read` (the user's own connections: a `ThreadReadState`). `message.*` events of thread messages carry
+`thread_id` in the envelope. Bots receive `thread.*` with the scope `messages:read`.
+
+**Auto-archive.** Channels carry `auto_archive_minutes` (60–43200, default 10080 = 7 days; `PATCH
+/rooms/{room_id}/channels/{channel_id}` with `manage_channels`, `400 validation.range`). The node archives every
+thread whose last activity is older than that (hourly housekeeping, `thread.update` per thread).
+
+**Forum channels** (`kind = "forum"`): the channel itself has no messages outside threads
+(`400 message.thread_required`); every post is a thread with a title, a first message and tags. Channels carry
+`tags` `[{ id, name, emoji }]`: at most 20, names 1–32 characters, unique ignoring case, `emoji` null, a Unicode
+emoji or a custom emoji token (§7b); replaced as a whole with `PATCH …/channels/{channel_id} { tags: [{ id?, name,
+emoji? }] }` (`manage_channels`; entries without `id` get a new one; `400 channel.tags_invalid`), audit-logged as
+`channel.tags`. A post's tags change with `PATCH /threads/{id} { tags }`. Tag ids of deleted tags are dropped from
+the posts' `tags` when they are returned. Tag names are channel metadata and never encrypted; the titles and messages
+of posts in encrypted forums are.
+
+**Announcement channels** (`kind = "announcement"`): writing outside threads needs `manage_messages` in addition to
+`send_messages` (`403 message.announcement_forbidden`); everybody else may react and reply in threads
+(`create_threads`). Clients show a notice instead of the composer to members who cannot post. Cross-posting to
+other rooms is not part of v1.
+
+**Permissions** (`permissions.md`): `create_threads` (bit 6) starts threads and writes in them; `manage_threads`
+(bit 36) renames, archives, locks and deletes other people's threads and edits the tags of any post;
+`manage_messages` keeps deleting single messages.
+
+**Privacy.** The node sees the thread structure (which message started a thread, which messages belong to which
+thread, counters, tags, archive and lock state) like the reply references of §7, never the content or the titles of
+threads in encrypted channels. A title ciphertext is bound to the conversation, epoch and setting device like
+message content (`ENCRYPTION.md` §5.4) but not to one thread: a hostile node could show one of the author's titles
+on another thread of the same channel; clients treat titles as display text only.
 
 ## 8. Encryption marker (mandatory for all clients)
 
