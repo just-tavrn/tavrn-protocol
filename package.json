@@ -1,6 +1,6 @@
 {
   "name": "@tavrn/protocol",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "The tavrn protocol: OpenAPI description, test vectors and permission tables",
   "license": "Apache-2.0 AND CC-BY-4.0",
   "author": "The tavrn authors",
