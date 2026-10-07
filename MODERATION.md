@@ -164,7 +164,7 @@ rules editor.
 | `id` | assigned by the node (kept when a rule is sent back with it) |
 | `name` | 1–64 characters, unique in the room; named in the error a blocked sender sees |
 | `enabled` | default `true` |
-| `terms` | at most 500 words or phrases, each 1–100 characters; `*` matches any run of non-space characters (`spam*`, `*coin`, `fr*e`, at most 5 per term) |
+| `terms` | at most 500 words or phrases, each 1–100 characters; `*` matches any run of non-space characters (`spam*`, `*coin`, `fr*e`, at most 5 per term; in a phrase with spaces only at its start or end) |
 | `whole_word` | the match must start and end at a word boundary (letters, digits and `_` are word characters) |
 | `links` | `off`, `block_all` (any link), `allow_list` (links to other domains than `domains`), `block_list` (links to `domains`) |
 | `domains` | at most 500 domains; a domain also covers its subdomains |
