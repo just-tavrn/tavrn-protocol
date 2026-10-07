@@ -11385,6 +11385,26 @@
         ]
       }
     },
+    "/api/v1/push/vapid": {
+      "get": {
+        "tags": [],
+        "summary": "VAPID key for web push.",
+        "description": "Whether this node sends web pushes (`TAVRN_PUSH`) and the VAPID public key (RFC 8292) browsers subscribe with\n(`applicationServerKey`). Public; `public_key` is null while push is off.",
+        "operationId": "vapid",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VapidInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reports": {
       "post": {
         "tags": [],
@@ -20869,6 +20889,234 @@
         ]
       }
     },
+    "/api/v1/users/me/push-subscriptions": {
+      "get": {
+        "tags": [],
+        "summary": "List the own push subscriptions.",
+        "description": "Every registered push subscription of the account's devices, oldest first; `current_device` marks those of the\nrequesting device. Keys and endpoints are not returned, only the push service's origin.",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PushRegistration"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [],
+        "summary": "Register a push subscription.",
+        "description": "Registers the browser's push subscription (`PushSubscription.toJSON()`) for the requesting device, or updates\nthe one with the same endpoint (a browser that signs in again, also as another account, takes its endpoint\nover). `201` when new, `200` when updated. The endpoint must be an `https://` URL of a public host (`400\npush.endpoint_invalid`), `keys.p256dh` an uncompressed P-256 point and `keys.auth` 16 bytes, both base64url\n(`400 push.keys_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30 registrations per\nhour (`429`). `404 push.disabled` while push is off. The subscription is deleted with the device and when its\nsessions are revoked (sign-out).",
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushRegistration"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushRegistration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/push-subscriptions/test": {
+      "post": {
+        "tags": [],
+        "summary": "Send a test push.",
+        "description": "Queues a push of type `test` to every deliverable subscription of the account, even while a device is connected\n(the settings' test button). `202`; at most 5 per 10 minutes (`429`), `404 push.disabled` while push is off.",
+        "operationId": "test",
+        "responses": {
+          "202": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/push-subscriptions/{subscription_id}": {
+      "delete": {
+        "tags": [],
+        "summary": "Delete a push subscription.",
+        "description": "Deletes one push subscription of the account (any of its devices). Clients call it when the user turns push off\non a device and before signing out. `404 push.subscription_not_found` otherwise.",
+        "operationId": "remove",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "description": "Subscription id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/secret-storage": {
       "get": {
         "tags": [
@@ -27135,6 +27383,10 @@
           "mode": {
             "$ref": "#/components/schemas/Mode"
           },
+          "push_text": {
+            "type": "boolean",
+            "description": "Web push (PROTOCOL.md §6d): include a preview of unencrypted messages (default off; never for encrypted\nconversations). Left out of the document while off."
+          },
           "sound": {
             "type": "boolean",
             "description": "Play a sound for notifications (client side)."
@@ -30736,6 +30988,105 @@
           "reauth"
         ]
       },
+      "PushRegistration": {
+        "type": "object",
+        "description": "A registered push subscription (the keys and the endpoint are never returned). Named apart from the browser's\n`PushSubscription`.",
+        "required": [
+          "id",
+          "device_id",
+          "push_service",
+          "current_device",
+          "created_at",
+          "failures"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "current_device": {
+            "type": "boolean",
+            "description": "The subscription belongs to the requesting device."
+          },
+          "device_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failures": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Failed deliveries in a row (the node backs off and deletes the subscription after 30)."
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "push_service": {
+            "type": "string",
+            "description": "Origin of the push service (`https://host`), to tell the subscriptions apart."
+          }
+        }
+      },
+      "PushSubscriptionKeys": {
+        "type": "object",
+        "description": "The browser's keys of a subscription (`PushSubscription.toJSON().keys`).",
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "properties": {
+          "auth": {
+            "type": "string",
+            "description": "Base64url of the 16-byte authentication secret."
+          },
+          "p256dh": {
+            "type": "string",
+            "description": "Base64url of the browser's P-256 public key (65 bytes, uncompressed)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PushSubscriptionRequest": {
+        "type": "object",
+        "description": "A browser push subscription (`PushSubscription.toJSON()`) of the requesting device.",
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "properties": {
+          "device_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The requesting device (optional; another device is refused with `400 push.device_invalid`)."
+          },
+          "endpoint": {
+            "type": "string",
+            "description": "The push service URL (`https://`, at most 2048 characters, a public host)."
+          },
+          "expiration_time": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "`expirationTime` of the browser: Unix milliseconds or null."
+          },
+          "keys": {
+            "$ref": "#/components/schemas/PushSubscriptionKeys"
+          }
+        }
+      },
       "PutAutomodRequest": {
         "type": "object",
         "description": "Body of `PUT /rooms/{room_id}/automod`.",
@@ -33686,6 +34037,26 @@
           "size": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "VapidInfo": {
+        "type": "object",
+        "description": "Whether the node sends web pushes and the key browsers subscribe with.",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "`TAVRN_PUSH`: the node sends web pushes (capability `push.webpush`)."
+          },
+          "public_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The VAPID public key (RFC 8292): base64url of the uncompressed P-256 point, the `applicationServerKey` of\n`PushManager.subscribe()`. Null while push is off."
           }
         }
       },
