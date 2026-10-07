@@ -13864,8 +13864,8 @@
       },
       "post": {
         "tags": [],
-        "summary": "Start a thread (`create_threads`) or, in a forum channel, a post (`send_messages`).",
-        "description": "Starts a thread inside a text or announcement channel (from a root message of the channel or standalone, `create_threads`) or a post in a forum channel (title, tags and the first message in one request, `send_messages`). In encrypted channels the title is ciphertext. The creator follows the thread; `thread.create` and then `message.create` for the first message are sent to the room.",
+        "summary": "Start a thread (`send_messages` and `create_threads`) or, in a forum channel, a post (`send_messages`).",
+        "description": "Starts a thread inside a text or announcement channel (from a root message of the channel or standalone, `send_messages` and `create_threads`) or a post in a forum channel (title, tags and the first message in one request, `send_messages`). In encrypted channels the title is ciphertext. The creator follows the thread; `thread.create` and then `message.create` for the first message are sent to the room.",
         "operationId": "create_thread",
         "parameters": [
           {
