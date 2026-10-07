@@ -549,6 +549,9 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
   replay, or damaged/undecryptable content.
 - A second message with the same `(epoch, nonce)` is a replay and MUST be shown as a duplicate or hidden.
 - Edits are encrypted the same way under the current epoch.
+- Thread titles in encrypted channels (`PROTOCOL.md` §7e) use the same format with the JSON object
+  `{ "type": "thread.title", "body": "…" }`; `author` and `device_id` are the thread's `title_author` and
+  `title_device_id`, `epoch` its `title_epoch`.
 
 ### 5.3 Node checks
 

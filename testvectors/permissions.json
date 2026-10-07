@@ -6,7 +6,7 @@
       "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false,
       "channel_overrides": [{ "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 1 }]
     },
-    "expected": "4611686087146864639"
+    "expected": "4611686155866341375"
   },
   {
     "name": "The administrator role beats all overrides",
@@ -15,7 +15,7 @@
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }],
       "channel_overrides": [], "sync_with_category": true, "timed_out": false
     },
-    "expected": "4611686087146864639"
+    "expected": "4611686155866341375"
   },
   {
     "name": "Only @everyone, no overrides",
@@ -161,7 +161,7 @@
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
       "sync_with_category": true, "timed_out": false, "kind": "bot"
     },
-    "expected": "68719476735"
+    "expected": "137438953471"
   },
   {
     "name": "Users are not affected by the no-bots flag",
@@ -217,7 +217,7 @@
       "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false, "system_channel": true,
       "channel_overrides": []
     },
-    "expected": "4611686086979092373"
+    "expected": "4611686155698569109"
   },
   {
     "name": "System channel: a role allowed to send, attach and pin still cannot",
@@ -283,5 +283,23 @@
       "sync_with_category": true, "timed_out": false, "kind": "bot", "no_bots": true
     },
     "expected": "0"
+  },
+  {
+    "name": "Bot: the moderation scope covers manage_threads (bit 36), not create_threads",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 68719476804]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["moderation"]
+    },
+    "expected": "68719476741"
+  },
+  {
+    "name": "Bot: messages:write covers create_threads (bit 6), not manage_threads",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 68719476804]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["messages:write"]
+    },
+    "expected": "65"
   }
 ]

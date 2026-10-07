@@ -8479,7 +8479,7 @@
           {
             "name": "epoch",
             "in": "query",
-            "description": "Only encrypted messages of this MLS epoch (used to check shared history keys, ENCRYPTION.md §7b).",
+            "description": "Only encrypted messages of this MLS epoch (used to check shared history keys, ENCRYPTION.md §7b). Lists\nthe messages of the whole channel, threads included.",
             "required": false,
             "schema": {
               "type": [
@@ -8487,6 +8487,30 @@
                 "null"
               ],
               "format": "int64"
+            }
+          },
+          {
+            "name": "thread",
+            "in": "query",
+            "description": "Page this thread of the channel (PROTOCOL.md §7e); without it the channel's list leaves thread messages out.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "threads",
+            "in": "query",
+            "description": "`all`: the channel's messages including those of its threads (clients syncing their local search index).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -13707,7 +13731,7 @@
           {
             "name": "epoch",
             "in": "query",
-            "description": "Only encrypted messages of this MLS epoch (used to check shared history keys, ENCRYPTION.md §7b).",
+            "description": "Only encrypted messages of this MLS epoch (used to check shared history keys, ENCRYPTION.md §7b). Lists\nthe messages of the whole channel, threads included.",
             "required": false,
             "schema": {
               "type": [
@@ -13715,6 +13739,30 @@
                 "null"
               ],
               "format": "int64"
+            }
+          },
+          {
+            "name": "thread",
+            "in": "query",
+            "description": "Page this thread of the channel (PROTOCOL.md §7e); without it the channel's list leaves thread messages out.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "threads",
+            "in": "query",
+            "description": "`all`: the channel's messages including those of its threads (clients syncing their local search index).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -14278,6 +14326,241 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/channels/{channel_id}/threads": {
+      "get": {
+        "tags": [],
+        "summary": "List a channel's threads (`view_channel`).",
+        "description": "Pages the threads of a channel: active ones by default, archived ones with `archived=true` (or both with `all`), the newest activity first (`sort=activity`) or the newest threads first (`sort=created`), forum posts filtered by `tag`. Each thread carries the requester's follow and unread state, the root message (text threads) or the first message (forum posts).",
+        "operationId": "list_threads",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "description": "`false` (default: active threads), `true` (archived only) or `all`.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Forum posts carrying this tag id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "`activity` (default, the newest last message first) or `created` (newest first).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "The id of the last thread of the previous page.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–50 (default 25).",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [],
+        "summary": "Start a thread (`send_messages` and `create_threads`) or, in a forum channel, a post (`send_messages`).",
+        "description": "Starts a thread inside a text or announcement channel (from a root message of the channel or standalone, `send_messages` and `create_threads`) or a post in a forum channel (title, tags and the first message in one request, `send_messages`). In encrypted channels the title is ciphertext. The creator follows the thread; `thread.create` and then `message.create` for the first message are sent to the room.",
+        "operationId": "create_thread",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateThreadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Thread"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {
@@ -15396,6 +15679,61 @@
         "responses": {
           "200": {
             "description": "Bild"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/followed-threads": {
+      "get": {
+        "tags": [],
+        "summary": "The requester's followed threads in a room.",
+        "description": "Lists the threads the requester follows in channels of the room they can view, the most recent activity first (at most 200), with their read markers and unread and mention counts.",
+        "operationId": "followed_threads",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowedThreads"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -18191,6 +18529,373 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/threads/{thread_id}": {
+      "get": {
+        "tags": [],
+        "summary": "Get a thread (`view_channel`).",
+        "description": "Returns one thread with the requester's state and its root or first message. Threads of channels the requester cannot view are `404 thread.not_found`.",
+        "operationId": "get_thread",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Thread"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [],
+        "summary": "Delete a thread with its messages (its creator while it holds only their messages, otherwise `manage_threads`).",
+        "description": "Deletes the thread with all its messages and their uploads permanently; the root message stays in the channel. The creator may delete a thread holding only their own messages, otherwise `manage_threads` is needed. Audit-logged as `thread.delete`; the room gets `thread.delete`.",
+        "operationId": "delete_thread",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [],
+        "summary": "Rename, retag, archive or lock a thread (its creator or `manage_threads`).",
+        "description": "Changes the title, the tags (forum posts), the archive or the lock state of a thread. The thread's creator or a member with `manage_threads` may do so; changes by others are audit-logged (`thread.update`). The room gets `thread.update`.",
+        "operationId": "update_thread",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateThreadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Thread"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/threads/{thread_id}/follow": {
+      "post": {
+        "tags": [],
+        "summary": "Follow a thread.",
+        "description": "Follows a thread: its messages count towards the user's unread counts and notifications from now on. The user's connections get `thread.read`.",
+        "operationId": "follow",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadReadState"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [],
+        "summary": "Stop following a thread.",
+        "description": "Stops following a thread: it no longer counts towards unread counts and notifications. The user's connections get `thread.read`.",
+        "operationId": "unfollow",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadReadState"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/threads/{thread_id}/read": {
+      "put": {
+        "tags": [],
+        "summary": "Move the per-thread read marker (members with `view_channel`).",
+        "description": "Moves the requester's read marker of a thread forward (never backwards); the message must belong to the thread. The user's connections get `thread.read`.",
+        "operationId": "mark_read",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadReadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadReadState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/unfurl": {
@@ -24248,6 +24953,11 @@
           "user_limit"
         ],
         "properties": {
+          "auto_archive_minutes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Threads without a message for this many minutes are archived (60–43200, default 10080 = 7 days;\nPROTOCOL.md §7e)."
+          },
           "bitrate_kbps": {
             "type": "integer",
             "format": "int64"
@@ -24311,6 +25021,13 @@
               "null"
             ],
             "description": "Set on default channels (`general`, `voice`) so that clients localize the name; NULL after a rename."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForumTag"
+            },
+            "description": "Forum channels: the tags posts can carry (at most 20); empty for other kinds."
           },
           "topic": {
             "type": "string"
@@ -25502,6 +26219,13 @@
               "type": "string"
             },
             "description": "Plaintext only: the attachments (a subset of `attachments`) shown as spoilers.\nEncrypted messages carry `spoiler: true` in the attachment entries of the encrypted content."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Write into this thread of the channel (PROTOCOL.md §7e): needs `create_threads` in text and announcement\nchannels, `manage_threads` in a locked thread; an archived thread reopens."
           }
         }
       },
@@ -25663,6 +26387,51 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "CreateThreadRequest": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "message": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CreateMessageRequest",
+                "description": "The thread's first message (required for forum posts), like `POST …/messages`."
+              }
+            ]
+          },
+          "root_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Text and announcement channels: the channel message the thread starts from."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Forum posts: at most 5 tag ids of the channel."
+          },
+          "title": {
+            "type": "string",
+            "description": "1–100 characters; in encrypted channels content-format ciphertext of `{ \"type\": \"thread.title\", \"body\" }`."
+          },
+          "title_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Encrypted channels: the epoch of the title ciphertext."
           }
         }
       },
@@ -27185,6 +27954,20 @@
           }
         }
       },
+      "FollowedThreads": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ThreadReadState"
+            }
+          }
+        }
+      },
       "ForgotPasswordRequest": {
         "type": "object",
         "required": [
@@ -27194,6 +27977,30 @@
           "account": {
             "type": "string",
             "description": "Username or email address"
+          }
+        }
+      },
+      "ForumTag": {
+        "type": "object",
+        "description": "A tag of a forum channel (PROTOCOL.md §7e).",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "emoji": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A Unicode emoji or a custom emoji token, null without."
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "1–32 characters, unique in the channel ignoring case."
           }
         }
       },
@@ -28651,6 +29458,17 @@
               "null"
             ],
             "description": "Plaintext messages only: device signature `base64url(nonce(16) || Ed25519 signature(64))` over\nthe envelope fields and the content (FEDERATION.md §10.3), stored as sent by the author's\ndevice. Null for encrypted and unsigned messages. The node does not verify it; clients do."
+          },
+          "thread": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadSummary",
+                "description": "On a message that started a thread: the thread's summary (PROTOCOL.md §7e). Absent otherwise."
+              }
+            ]
           },
           "thread_id": {
             "type": [
@@ -32875,6 +33693,31 @@
           }
         }
       },
+      "TagInput": {
+        "type": "object",
+        "description": "A tag entry of `PATCH …/channels/{id} { tags }`.",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "emoji": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Keep this existing tag (absent: a new tag)."
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "TermsStatus": {
         "type": "object",
         "description": "The terms acceptance state of a user.",
@@ -32912,6 +33755,305 @@
           "pending": {
             "type": "boolean",
             "description": "The current version still needs the user's acceptance."
+          }
+        }
+      },
+      "Thread": {
+        "type": "object",
+        "description": "A thread (PROTOCOL.md §7e).",
+        "required": [
+          "id",
+          "room_id",
+          "channel_id",
+          "root_deleted",
+          "encrypted",
+          "title",
+          "title_author",
+          "tags",
+          "created_by",
+          "created_by_id",
+          "created_at",
+          "last_message_at",
+          "message_count",
+          "participant_ids",
+          "locked"
+        ],
+        "properties": {
+          "archived_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string",
+            "description": "Address of the creator."
+          },
+          "created_by_id": {
+            "type": "string"
+          },
+          "encrypted": {
+            "type": "boolean",
+            "description": "The title is ciphertext (content format 1 of `{ \"type\": \"thread.title\", \"body\" }`, ENCRYPTION.md §5.2)."
+          },
+          "first_message": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Message",
+                "description": "Forum posts: the first message of the thread as the requester may see it."
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_message_at": {
+            "type": "string"
+          },
+          "last_message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "locked": {
+            "type": "boolean",
+            "description": "Only members with `manage_threads` write in a locked thread."
+          },
+          "me": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadUserState",
+                "description": "The requester's state (absent in events)."
+              }
+            ]
+          },
+          "message_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Messages in the thread (the root not included)."
+          },
+          "participant_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to three users who wrote in the thread most recently, newest first."
+          },
+          "room_id": {
+            "type": "string"
+          },
+          "root_deleted": {
+            "type": "boolean",
+            "description": "The root message was deleted (the thread stays)."
+          },
+          "root_message": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Message",
+                "description": "Text threads: the root message as the requester may see it."
+              }
+            ]
+          },
+          "root_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The channel message the thread was started from; null for standalone threads and forum posts."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Forum posts: tag ids of the channel."
+          },
+          "title": {
+            "type": "string",
+            "description": "1–100 characters; ciphertext when `encrypted`."
+          },
+          "title_author": {
+            "type": "string",
+            "description": "Who set the title (author of the title ciphertext)."
+          },
+          "title_device_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The device that set the title (verifies the ciphertext's signature)."
+          },
+          "title_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The epoch of an encrypted title (null for plaintext)."
+          }
+        }
+      },
+      "ThreadList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Thread"
+            }
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`before` of the next page; null on the last page."
+          }
+        }
+      },
+      "ThreadReadRequest": {
+        "type": "object",
+        "required": [
+          "last_read_message_id"
+        ],
+        "properties": {
+          "last_read_message_id": {
+            "type": "string",
+            "description": "Newest message of the thread the user has seen; the marker never moves backwards."
+          }
+        }
+      },
+      "ThreadReadState": {
+        "type": "object",
+        "description": "The requester's per-thread read state (`PUT /threads/{id}/read`, event `thread.read`).",
+        "required": [
+          "thread_id",
+          "channel_id",
+          "room_id",
+          "following",
+          "unread_count",
+          "mention_count"
+        ],
+        "properties": {
+          "channel_id": {
+            "type": "string"
+          },
+          "following": {
+            "type": "boolean"
+          },
+          "last_read_message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mention_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "room_id": {
+            "type": "string"
+          },
+          "thread_id": {
+            "type": "string"
+          },
+          "unread_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ThreadSummary": {
+        "type": "object",
+        "description": "The summary of the thread a message started (PROTOCOL.md §7e), on the root message only.",
+        "required": [
+          "id",
+          "message_count",
+          "last_message_at",
+          "participant_ids",
+          "locked"
+        ],
+        "properties": {
+          "archived_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_message_at": {
+            "type": "string"
+          },
+          "last_message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "message_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "participant_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to three users who wrote in the thread most recently, newest first."
+          }
+        }
+      },
+      "ThreadUserState": {
+        "type": "object",
+        "description": "The requester's state in a thread.",
+        "required": [
+          "following",
+          "unread_count",
+          "mention_count"
+        ],
+        "properties": {
+          "following": {
+            "type": "boolean"
+          },
+          "last_read_message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mention_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Of those, mentions of the user, one of their roles or @everyone (notification settings applied)."
+          },
+          "unread_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Messages of others after the marker, at most 999; 0 for threads the user does not follow."
           }
         }
       },
@@ -33155,6 +34297,14 @@
       "UpdateChannelRequest": {
         "type": "object",
         "properties": {
+          "auto_archive_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Threads without a message for this many minutes are archived (60–43200; PROTOCOL.md §7e)."
+          },
           "bitrate_kbps": {
             "type": [
               "integer",
@@ -33221,6 +34371,16 @@
               "boolean",
               "null"
             ]
+          },
+          "tags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TagInput"
+            },
+            "description": "Forum channels: the complete new tag list (at most 20; entries without `id` are new tags). Audit-logged."
           },
           "topic": {
             "type": [
@@ -33542,6 +34702,47 @@
               "null"
             ],
             "description": "New name (1–32 characters)."
+          }
+        }
+      },
+      "UpdateThreadRequest": {
+        "type": "object",
+        "properties": {
+          "archived": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "locked": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Forum posts: the new tag ids."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New title (ciphertext with `title_epoch` in encrypted channels)."
+          },
+          "title_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },
