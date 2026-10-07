@@ -179,8 +179,8 @@ token are needed. The web client saves the answer as `tavrn-export-<username>-<d
 ### 3.2 Erasure (Art. 17): `DELETE /users/me`
 
 Body `{ confirm: <username>, delete_messages }`, reauth token required (`403 auth.reauth_required`),
-`400 account.confirm_mismatch`, `409 account.owns_rooms` (`meta.rooms`: delete the rooms first; there is no
-ownership transfer yet), `409 account.deleted`, `403 federation.local_only` for remote users. The deletion is
+`400 account.confirm_mismatch`, `409 account.owns_rooms` (`meta.rooms`: transfer the rooms to another member,
+`POST /rooms/{id}/transfer` of `MODERATION.md` §4, or delete them first), `409 account.deleted`, `403 federation.local_only` for remote users. The deletion is
 immediate (no admin step) and answers `202` with `{ id, state, delete_messages, messages_total, messages_done,
 purge_after, status_token }`; `GET /account-deletions/{id}?token=` shows the progress (same `404` for every miss).
 
