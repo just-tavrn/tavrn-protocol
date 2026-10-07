@@ -545,7 +545,7 @@ federation.payload_too_large`, checked before reading further):
 | `session.revoke` | the user's home node | user (domain = `iss`) → receiving domain | `{ device: id \| null }` | §2.9 |
 | `node.announce` | the announcing node | domain = `iss` → receiving domain | §7.2 | §7.2 |
 | `ban.notify` | the room's node | room node domain → user | `{ room: { node, id, name }, scope: "room" \| "node" }` | Information only (no enforcement): optional notice to the user; no reason is transmitted |
-| `notify` | the conversation's node | node domain → user | `{ node, conversation_id, room_id, mention: bool }` | Push hint without content: H forwards it as web push (phase 5) and as WS `notify` to the user's connections on H |
+| `notify` | the conversation's node | node domain → user | `{ node, conversation_id, room_id, mention: bool }` | Push hint without content: H forwards it as web push (PROTOCOL.md §6d) to the user's devices without a connection and as WS `notify` to the user's connections on H |
 | `app.install` | the room's node | room node domain → bot address | `{ room: { node, id, name }, installed_by }` (`room.node` = `iss`) | H checks that the recipient is a bot with an enabled application (else `404 federation.recipient_unknown`), adds the room to the application's install index and emits WS `application.install` to the bot (`APPLICATIONS.md` §4.5) |
 | `app.uninstall` | the room's node | room node domain → bot address | `{ room: { node, id }, reason }` (`room.node` = `iss`) | H removes the index entry and emits WS `application.uninstall` |
 | `app.changed` | the bot's home node | bot address (domain = `iss`) → receiving domain | `{ application_id, commands_version, deleted }` | Only for a bot the receiver knows as that application: refetch its profile (name, avatar) and, from step 3, the commands; `deleted: true` uninstalls the bot from every local room and disables its stub (installations and logins refused) |
@@ -1151,8 +1151,9 @@ otherwise.
   `friend.remote` and `conversation.member_remote` are gone).
 - **notify**: sent for DMs and group DMs, and for mentions (`mentions` or `@everyone`) in channels, to remote
   members without an open WebSocket on the node (counted in memory), coalesced in memory per member and
-  conversation for 60 seconds. The `push_relay` setting is not implemented yet (phase 5, with web push).
-  Received hints are stored in `push_hints` (newest 500 per user, 7 days) and forwarded as WS `notify`.
+  conversation for 60 seconds. The `push_relay` setting is not implemented yet.
+  Received hints are stored in `push_hints` (newest 500 per user, 7 days), forwarded as WS `notify` and, while
+  the user has no connection on H, as a web push (PROTOCOL.md §6d, phase 5).
 - **ban.notify**: received hints are forwarded as WS `ban.notify { room, scope }`. Sending is an operator
   setting of the whole node (`TAVRN_FEDERATION_NOTIFY_BANS`, default off) instead of a room setting
   `notify_bans` (see the leftovers below).

@@ -110,7 +110,7 @@ Custom capabilities of third-party clients carry a reverse-domain prefix (for ex
 announced by nodes while `TAVRN_VOICE_ENABLED` (and for `screenshare` also `TAVRN_SCREENSHARE_ENABLED`) is on.
 `unfurl` (link previews for the node's own users, §7b) is announced while `TAVRN_UNFURL` is on. `webhooks.v1`
 (incoming webhooks, event subscriptions, hook tokens and embeds, `APPLICATIONS.md` §6) is announced while
-`TAVRN_WEBHOOKS_ENABLED` is on.
+`TAVRN_WEBHOOKS_ENABLED` is on. `push.webpush` (web push to browsers, §6d) is announced while `TAVRN_PUSH` is on.
 
 `content.signed1` is a client capability (FEDERATION.md §10.3): a client announcing it signs every plaintext
 message it sends with its device key, and a node MAY then refuse unsigned plaintext messages of that device
@@ -701,7 +701,7 @@ connections get `notifications.update`. Remote users with a federated session ar
 (`403 federation.local_only`): settings live on the home node.
 
 ```json
-{ "global":   { "mode": "all", "sound": true, "browser": false },
+{ "global":   { "mode": "all", "sound": true, "browser": false, "push_text": false },
   "rooms":    { "<room id>": { "mode": "mentions", "muted_until": null, "suppress_everyone": true } },
   "channels": { "<conversation id>": { "mode": "nothing", "muted_until": "forever" } } }
 ```
@@ -715,6 +715,75 @@ connections get `notifications.update`. Remote users with a federated session ar
   a hint for a muted conversation, a non-mention under `mentions`, anything under `nothing` and a pure
   `@everyone` under `suppress_everyone` is neither stored nor forwarded. `sound` and `browser` are applied by
   clients (sound and Notification API when the tab is in the background); in-app toasts follow `mode`.
+- `push_text` (optional, default `false`, left out while off): web pushes (§6d) of unencrypted conversations carry
+  a preview of the message text. Never for encrypted conversations.
+
+## 6d. Web push (`push.webpush`, design note 4.9)
+
+A node with `push.webpush` sends web pushes (RFC 8030, payload encryption RFC 8291 `aes128gcm`, VAPID RFC 8292) to
+the browsers and installed web apps of its **local** users while they have **no open WebSocket** on the node, for
+whatever would notify them under their notification settings (§6c). Push is per node and home-node only: the home
+node holds the settings and receives the `notify` hints of the other nodes (FEDERATION.md §5.2), so a client
+registers its subscription with its home node only (`403 federation.local_only` for remote users, `403
+app.bot_forbidden` for bots).
+
+Routes:
+
+- `GET /push/vapid` (public) → `{ enabled, public_key }`: whether the node sends pushes and the VAPID public key
+  (base64url of the uncompressed P-256 point, the `applicationServerKey` of `PushManager.subscribe()`; `null` while
+  off). The key is long-lived: when an operator replaces it, every subscription stops working and clients
+  subscribe again (they compare the key they subscribed with).
+- `PUT /users/me/push-subscriptions { endpoint, keys: { p256dh, auth }, device_id?, expiration_time? }` (the
+  browser's `PushSubscription.toJSON()`; `expirationTime` is accepted too) registers the subscription for the
+  requesting device → `201` (new) or `200` (an existing endpoint, also one of another account on the same browser,
+  is taken over). `endpoint`: `https://` URL of a public host, at most 2048 characters (`400 push.endpoint_invalid`);
+  `p256dh` a base64url uncompressed P-256 point, `auth` base64url of 16 bytes (`400 push.keys_invalid`);
+  `device_id` must be the requesting device (`400 push.device_invalid`); `expiration_time` Unix milliseconds in the
+  future or null (`400 push.expiration_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30
+  registrations per hour (`429`), `404 push.disabled` while off. Response `PushRegistration { id, device_id,
+  push_service, current_device, created_at, last_used_at, expires_at, failures }` (keys and endpoint are never
+  returned; `push_service` is the endpoint's origin).
+- `GET /users/me/push-subscriptions` → the account's subscriptions; `DELETE /users/me/push-subscriptions/{id}` →
+  `204` (`404 push.subscription_not_found`); `POST /users/me/push-subscriptions/test` → `202`, a push of type
+  `test` to every subscription, also while connected (5 per 10 minutes, `429`).
+- A subscription belongs to its device: it is deleted when the device is removed or its sessions are revoked
+  (sign-out), when the push service answers `404`/`410`, and after 30 failed deliveries in a row. Clients delete
+  their subscription before signing out and when the user turns push off.
+
+When a push is sent:
+
+- A new message in a channel, DM or group DM hosted by the node: for every member with a subscription who has no
+  open WebSocket, may read the conversation (room member with `view_channel`, an accepted DM), has not blocked or
+  been blocked by the author and is not the author, and whose settings let the message through: nothing while the
+  channel or room is muted or under `nothing`; DMs and group DMs follow their own mode, else every message unless
+  the global mode is `nothing`, and always count as mentions; channels follow their mode, `mentions` lets through
+  mentions of the user or one of their roles and `@everyone` unless the room suppresses it. Welcome and system
+  channels never push.
+- A call ring in a DM or group DM hosted by the node, unless the conversation is muted or under `nothing`.
+- A `notify` hint received from another node (FEDERATION.md §5.2) that passed the user's settings: DMs, group DMs and
+  mentions of conversations on other nodes, and call rings. Messages of remote channels under mode `all` do not
+  push (the hosting node sends hints only for DMs and mentions).
+- At most one push per conversation and user every 30 seconds (call rings excepted) and `TAVRN_PUSH_MAX_PER_MINUTE`
+  per user (default 10); with several instances both counters are shared. Delivery is best-effort in the
+  background; `TTL` 6 hours (call rings 45 seconds), `Urgency: high` for DMs, mentions and calls, `Topic` per
+  conversation (a newer push replaces one not yet delivered).
+
+Payload (JSON, encrypted for the subscription; the service worker decides how to show it):
+
+```json
+{ "v": 1, "type": "message", "node": "example.org", "local": true,
+  "conversation_id": "<id>", "room_id": "<id>", "conversation_kind": "channel",
+  "room": "Tavern", "conversation": "general", "sender": "Alice", "text": "Hello", "encrypted": false }
+```
+
+- `type`: `message` (channel message), `mention`, `dm`, `call`, `test`, or `notice` (other features, with `title`
+  and `body`). `node` hosts the conversation; `local` is `false` for pushes forwarded from a `notify` hint (then
+  `conversation_kind` is `channel` or `direct`, `sender` is the caller's address of a ring, and there are no names).
+  `conversation_kind`: `channel`, `dm`, `group` (or `direct`); `room` and `conversation` are the room and channel
+  name or the group DM name (at most 100 characters); `sender` is the author's room nickname or display name.
+- Encrypted conversations (`encrypted: true`) never carry ciphertext, plaintext or message ids. `text` (at most 120
+  characters) appears only for unencrypted messages and only with `push_text` (§6c).
+- Unknown fields and types are ignored; clients show a generic notification for unknown types.
 
 ## 7. Message envelope
 
