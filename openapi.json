@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "tavrn Node API",
-    "description": "API eines tavrn-Knotens. Clients, Bots und andere Knoten benutzen dieselben Routen. Fehler folgen RFC 9457 (Problem Details).",
+    "description": "API of a tavrn node. Clients, bots and other nodes use the same routes. Errors follow RFC 9457 (Problem Details).",
     "license": {
       "name": "Apache-2.0"
     },
@@ -14,7 +14,7 @@
         "tags": [
           "wellknown"
         ],
-        "summary": "Discovery-Dokument. Wird von Clients und anderen Knoten gelesen; 5 Minuten cachebar.",
+        "summary": "Discovery document. Read by clients and other nodes; cacheable for 5 minutes.",
         "operationId": "get_well_known",
         "responses": {
           "200": {
@@ -83,7 +83,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Vorschau einer Konto-Einladung (öffentlich): gültig oder nicht.",
+        "summary": "Preview of an account invite (public): valid or not.",
         "operationId": "check_account_invite",
         "parameters": [
           {
@@ -97,7 +97,7 @@
         ],
         "responses": {
           "200": {
-            "description": "gültig"
+            "description": "valid"
           },
           "404": {
             "description": "",
@@ -638,7 +638,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Knotenweites Audit-Log (Registrierungen, Admin-Aktionen).",
+        "summary": "Node-wide audit log (registrations, admin actions).",
         "operationId": "audit_log",
         "parameters": [
           {
@@ -692,7 +692,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Knotenweite Bans.",
+        "summary": "Node-wide bans.",
         "operationId": "list_bans",
         "responses": {
           "200": {
@@ -719,7 +719,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Knotenweiter Ban für `user@domain` oder eine ganze Domain.",
+        "summary": "Node-wide ban for `user@domain` or an entire domain.",
         "operationId": "ban",
         "requestBody": {
           "content": {
@@ -755,7 +755,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Knotenweiten Ban aufheben (ein lokales Konto wird dabei nicht automatisch entsperrt).",
+        "summary": "Lift a node-wide ban (a local account is not automatically re-enabled).",
         "operationId": "unban",
         "parameters": [
           {
@@ -1991,7 +1991,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Konto-Einladungen auflisten.",
+        "summary": "List account invites.",
         "operationId": "list_invites",
         "responses": {
           "200": {
@@ -2018,7 +2018,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Konto-Einladung erzeugen (für `TAVRN_REGISTRATION=invite`).",
+        "summary": "Create an account invite (for `TAVRN_REGISTRATION=invite`).",
         "operationId": "create_invite",
         "requestBody": {
           "content": {
@@ -2054,7 +2054,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Konto-Einladung löschen.",
+        "summary": "Delete an account invite.",
         "operationId": "delete_invite",
         "parameters": [
           {
@@ -2660,7 +2660,7 @@
         "tags": [
           "emojis"
         ],
-        "summary": "Purge the cached copies of another node's emoji or clip (node admins, abuse cases; PLAN.md 4.13). The origin's\nown deletion never reaches cached copies.",
+        "summary": "Purge the cached copies of another node's emoji or clip (node admins, abuse cases). The origin's\nown deletion never reaches cached copies.",
         "operationId": "purge_cache",
         "parameters": [
           {
@@ -2714,7 +2714,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Übersicht für Knoten-Admins: Zahlen und wirksame Konfiguration.",
+        "summary": "Overview for node admins: counts and effective configuration.",
         "operationId": "overview",
         "responses": {
           "200": {
@@ -2992,7 +2992,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Lokale Nutzer suchen und auflisten.",
+        "summary": "Search and list local users.",
         "operationId": "list_users",
         "parameters": [
           {
@@ -3057,7 +3057,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Nutzer sperren/entsperren, Admin-Recht setzen, Raum-Erstellung freigeben.",
+        "summary": "Disable/enable a user, set the admin permission, grant room creation.",
         "operationId": "update_user",
         "parameters": [
           {
@@ -3247,7 +3247,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Alle Nachrichten und Dateien eines Nutzers auf diesem Knoten endgültig löschen (Vorschau, dann Bestätigung).",
+        "summary": "Permanently delete all messages and files of a user on this node (preview, then confirmation).",
         "operationId": "purge_user",
         "parameters": [
           {
@@ -5274,7 +5274,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Passwort-Reset per E-Mail anfordern. Antwortet immer 204, damit keine Konten erraten werden können.",
+        "summary": "Request a password reset by email. Always answers 204, so no accounts can be guessed.",
         "operationId": "forgot_password",
         "requestBody": {
           "content": {
@@ -5308,7 +5308,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Anmeldung mit Benutzername und Passwort. Liefert ein Pre-Auth-Token: `second_factor_required`\n(verify a factor) or `enrollment_required` (the account has no factor yet). The session for the\nnew device follows the second factor.",
+        "summary": "Login with username and password. Returns a pre-auth token: `second_factor_required`\n(verify a factor) or `enrollment_required` (the account has no factor yet). The session for the\nnew device follows the second factor.",
         "operationId": "login",
         "requestBody": {
           "content": {
@@ -5369,7 +5369,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Abmelden: alle Sitzungen dieses Geräts widerrufen. An SSO session answers `200` with the provider's\nlogout URL when the provider has one (APPLICATIONS.md §8.6), otherwise `204`.",
+        "summary": "Log out: revoke all sessions of this device. An SSO session answers `200` with the provider's\nlogout URL when the provider has one (APPLICATIONS.md §8.6), otherwise `204`.",
         "operationId": "logout",
         "parameters": [
           {
@@ -5898,7 +5898,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Neues Access-Token; das Refresh-Token wird rotiert. Parallel refreshes with the same token, and the previous token\nwithin 30 seconds of its rotation, get the same new pair; an older reuse revokes the session (PROTOCOL.md §5b).",
+        "summary": "New access token; the refresh token is rotated. Parallel refreshes with the same token, and the previous token\nwithin 30 seconds of its rotation, get the same new pair; an older reuse revokes the session (PROTOCOL.md §5b).",
         "operationId": "refresh",
         "requestBody": {
           "content": {
@@ -5939,7 +5939,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Konto anlegen. Je nach Knoten-Einstellung offen, per Einladung oder geschlossen. The answer is\na pre-auth token in stage `enroll`: the account becomes usable once a second factor is enrolled.",
+        "summary": "Create an account: open, by invite or closed, depending on the node setting. The answer is\na pre-auth token in stage `enroll`: the account becomes usable once a second factor is enrolled.",
         "operationId": "register",
         "requestBody": {
           "content": {
@@ -6000,7 +6000,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Passwort mit dem per Mail erhaltenen Token setzen; alle Sitzungen werden abgemeldet.",
+        "summary": "Set the password with the token received by email; all sessions are signed out.",
         "operationId": "reset_password",
         "requestBody": {
           "content": {
@@ -6286,7 +6286,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "E-Mail-Adresse mit dem per Mail erhaltenen Token bestätigen.",
+        "summary": "Verify the email address with the token received by email.",
         "operationId": "verify_email",
         "requestBody": {
           "content": {
@@ -6662,7 +6662,7 @@
         "tags": [
           "attachments"
         ],
-        "summary": "Blob herunterladen (Mitglied mit `view_channel` in der Konversation).",
+        "summary": "Download a blob (member with `view_channel` in the conversation).",
         "operationId": "download",
         "parameters": [
           {
@@ -6676,7 +6676,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Dateiinhalt"
+            "description": "File content"
           },
           "404": {
             "description": "",
@@ -9859,7 +9859,7 @@
         "tags": [
           "emojis"
         ],
-        "summary": "The image of any emoji of this node, room or personal (PLAN.md 4.13), without authentication: content of\nevery conversation references emojis by id (`<:name:ID@host>`), and readers on every node load them from\nhere. Ids are random; nothing about rooms or owners is revealed. `?still=1`: the still variant.",
+        "summary": "The image of any emoji of this node, room or personal, without authentication: content of\nevery conversation references emojis by id (`<:name:ID@host>`), and readers on every node load them from\nhere. Ids are random; nothing about rooms or owners is revealed. `?still=1`: the still variant.",
         "operationId": "public_image",
         "parameters": [
           {
@@ -10466,13 +10466,13 @@
         "tags": [
           "emojis"
         ],
-        "summary": "GIF-Suche über den vom Knoten konfigurierten Anbieter (Giphy oder Tenor).",
+        "summary": "GIF search through the provider the node configured (Giphy or Tenor).",
         "operationId": "gifs",
         "parameters": [
           {
             "name": "q",
             "in": "query",
-            "description": "Suchbegriff; leer = Trends",
+            "description": "Search term; empty = trending",
             "required": false,
             "schema": {
               "type": [
@@ -10727,7 +10727,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Vorschau einer Einladung (Raumname, Regeln), ohne beizutreten.",
+        "summary": "Preview of an invite (room name, rules), without joining.",
         "operationId": "get_invite",
         "parameters": [
           {
@@ -10768,7 +10768,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Per Einladung beitreten.",
+        "summary": "Join by invite.",
         "operationId": "join_by_invite",
         "parameters": [
           {
@@ -11178,7 +11178,7 @@
         "tags": [
           "node"
         ],
-        "summary": "Öffentliche Kurzinfo des Knotens für den Client (Anmeldeseite, Kopfzeile).",
+        "summary": "Public summary of the node for the client (sign-in page, header).",
         "operationId": "get_node",
         "responses": {
           "200": {
@@ -11228,7 +11228,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Räume, in denen ich Mitglied bin.",
+        "summary": "Rooms I am a member of.",
         "operationId": "list_my_rooms",
         "responses": {
           "200": {
@@ -11255,7 +11255,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Raum anlegen (mit @everyone-Rolle, Standardkategorie, Text- und Sprachchannel).",
+        "summary": "Create a room (with @everyone role, default category, text and voice channel).",
         "operationId": "create_room",
         "requestBody": {
           "content": {
@@ -11301,7 +11301,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Öffentliche Räume dieses Knotens (\"Entdecken\").",
+        "summary": "Public rooms of this node (\"Discover\").",
         "operationId": "discover_rooms",
         "responses": {
           "200": {
@@ -11325,7 +11325,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Raum mit Kategorien, Channels, Rollen und eigenen Rechten.",
+        "summary": "Room with categories, channels, roles and own permissions.",
         "operationId": "get_room",
         "parameters": [
           {
@@ -11379,7 +11379,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Raum endgültig löschen (nur Eigentümer oder Knoten-Admin).",
+        "summary": "Permanently delete a room (owner or node admin only).",
         "operationId": "delete_room",
         "parameters": [
           {
@@ -11416,7 +11416,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Raum-Einstellungen ändern (`manage_room`).",
+        "summary": "Change room settings (`manage_room`).",
         "operationId": "update_room",
         "parameters": [
           {
@@ -11656,7 +11656,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Audit-Log des Raums (`view_audit_log`).",
+        "summary": "Audit log of the room (`view_audit_log`).",
         "operationId": "audit_log",
         "parameters": [
           {
@@ -11718,7 +11718,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Bans des Raums.",
+        "summary": "Bans of the room.",
         "operationId": "list_bans",
         "parameters": [
           {
@@ -11755,7 +11755,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Bannen (`ban_members`). Mitglieder werden entfernt; Domains sperren alle Nutzer dieser Domain.",
+        "summary": "Ban (`ban_members`). Members are removed; a domain ban bans all users of that domain.",
         "operationId": "ban",
         "parameters": [
           {
@@ -11801,7 +11801,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Ban aufheben.",
+        "summary": "Lift a ban.",
         "operationId": "unban",
         "parameters": [
           {
@@ -11848,7 +11848,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Kategorie anlegen (`manage_channels`).",
+        "summary": "Create a category (`manage_channels`).",
         "operationId": "create_category",
         "parameters": [
           {
@@ -11904,7 +11904,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Kategorie löschen; enthaltene Channels bleiben ohne Kategorie bestehen.",
+        "summary": "Delete a category; its channels remain, without a category.",
         "operationId": "delete_category",
         "parameters": [
           {
@@ -11939,7 +11939,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Kategorie ändern.",
+        "summary": "Update a category.",
         "operationId": "update_category",
         "parameters": [
           {
@@ -11993,7 +11993,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Channel anlegen (`manage_channels`).",
+        "summary": "Create a channel (`manage_channels`).",
         "operationId": "create_channel",
         "parameters": [
           {
@@ -12049,7 +12049,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Channel samt gesamtem Verlauf endgültig löschen (`manage_channels`).",
+        "summary": "Permanently delete a channel with its entire history (`manage_channels`).",
         "operationId": "delete_channel",
         "parameters": [
           {
@@ -12084,7 +12084,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Channel ändern (`manage_channels`).",
+        "summary": "Update a channel (`manage_channels`).",
         "operationId": "update_channel",
         "parameters": [
           {
@@ -13025,7 +13025,7 @@
         "tags": [
           "messages"
         ],
-        "summary": "Nachrichten eines Channels, neueste zuerst (`view_channel`).",
+        "summary": "Messages of a channel, newest first (`view_channel`).",
         "operationId": "list_messages",
         "parameters": [
           {
@@ -13139,7 +13139,7 @@
         "tags": [
           "messages"
         ],
-        "summary": "Nachricht senden (`send_messages`; `mention_everyone` für @everyone).",
+        "summary": "Send a message (`send_messages`; `mention_everyone` for @everyone).",
         "operationId": "create_message",
         "parameters": [
           {
@@ -13223,7 +13223,7 @@
         "tags": [
           "messages"
         ],
-        "summary": "Nachricht endgültig löschen: eigene immer, fremde mit `manage_messages`.",
+        "summary": "Permanently delete a message: own ones always, others' with `manage_messages`.",
         "operationId": "delete_message",
         "parameters": [
           {
@@ -13276,7 +13276,7 @@
         "tags": [
           "messages"
         ],
-        "summary": "Eigene Nachricht bearbeiten.",
+        "summary": "Edit an own message.",
         "operationId": "edit_message",
         "parameters": [
           {
@@ -13338,7 +13338,7 @@
         "tags": [
           "attachments"
         ],
-        "summary": "Reaktion hinzufügen (`add_reactions`).",
+        "summary": "Add a reaction (`add_reactions`).",
         "operationId": "add_reaction",
         "parameters": [
           {
@@ -13396,7 +13396,7 @@
         "tags": [
           "attachments"
         ],
-        "summary": "Eigene Reaktion entfernen.",
+        "summary": "Remove an own reaction.",
         "operationId": "remove_reaction",
         "parameters": [
           {
@@ -13456,7 +13456,7 @@
         "tags": [
           "attachments"
         ],
-        "summary": "Angepinnte Nachrichten eines Channels.",
+        "summary": "Pinned messages of a channel.",
         "operationId": "list_pins",
         "parameters": [
           {
@@ -13500,7 +13500,7 @@
         "tags": [
           "attachments"
         ],
-        "summary": "Nachricht anpinnen (`pin_messages`), höchstens 50 je Channel.",
+        "summary": "Pin a message (`pin_messages`), at most 50 per channel.",
         "operationId": "pin",
         "parameters": [
           {
@@ -13550,7 +13550,7 @@
         "tags": [
           "attachments"
         ],
-        "summary": "Anpinnen aufheben (`pin_messages`).",
+        "summary": "Unpin a message (`pin_messages`).",
         "operationId": "unpin",
         "parameters": [
           {
@@ -13602,7 +13602,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Asks to play a clip in a voice channel (PLAN.md 4.13): `use_soundboard` and `speak` always, and\n`use_external_sounds` for any clip that is not one of this room's (`403 soundboard.external_forbidden`).\nThe client plays the clip only after this succeeded; the SFU cannot stop a modified client from mixing\naudio into its microphone, so this is the cooperative gate (like the stream limits).",
+        "summary": "Asks to play a clip in a voice channel: `use_soundboard` and `speak` always, and\n`use_external_sounds` for any clip that is not one of this room's (`403 soundboard.external_forbidden`).\nThe client plays the clip only after this succeeded; the SFU cannot stop a modified client from mixing\naudio into its microphone, so this is the cooperative gate (like the stream limits).",
         "operationId": "play_sound",
         "parameters": [
           {
@@ -13686,7 +13686,7 @@
         "tags": [
           "attachments"
         ],
-        "summary": "Datei hochladen (`attach_files`). Body ist die Rohdatei; Name über `Tavrn-File-Name` (UTF-8, URL-kodiert),\nTyp über `Content-Type`. Der Blob gehört zum Channel und wird beim Senden der Nachricht gebunden; ungenutzte\nUploads werden nach 24 Stunden gelöscht. In verschlüsselten Unterhaltungen ist der Body Chiffretext:\nder Knoten speichert dann weder Name noch Typ (`\"\"`, `application/octet-stream`, ENCRYPTION.md §6).",
+        "summary": "Upload a file (`attach_files`). The body is the raw file; the name comes via `Tavrn-File-Name` (UTF-8,\nURL-encoded), the type via `Content-Type`. The blob belongs to the channel and is bound when the message is\nsent; unused uploads are deleted after 24 hours. In encrypted conversations the body is ciphertext: the node\nthen stores neither name nor type (`\"\"`, `application/octet-stream`, ENCRYPTION.md §6).",
         "operationId": "upload",
         "parameters": [
           {
@@ -14570,7 +14570,7 @@
         "tags": [
           "emojis"
         ],
-        "summary": "Emojis des Raums.",
+        "summary": "The room's emojis.",
         "operationId": "list",
         "parameters": [
           {
@@ -14607,7 +14607,7 @@
         "tags": [
           "emojis"
         ],
-        "summary": "Upload an emoji (`manage_emojis`). Body = PNG, GIF, WebP or JPEG (at most `TAVRN_EMOJI_MAX_BYTES`), name in\n`Tavrn-Emoji-Name` (a-z, 0-9, _). The node converts it to WebP (128 px, ≤ 256 KiB, animations ≤ 5 s / 60\nframes, PLAN.md 4.13).",
+        "summary": "Upload an emoji (`manage_emojis`). Body = PNG, GIF, WebP or JPEG (at most `TAVRN_EMOJI_MAX_BYTES`), name in\n`Tavrn-Emoji-Name` (a-z, 0-9, _). The node converts it to WebP (128 px, ≤ 256 KiB, animations ≤ 5 s / 60\nframes).",
         "operationId": "create",
         "parameters": [
           {
@@ -14698,7 +14698,7 @@
         "tags": [
           "emojis"
         ],
-        "summary": "Emoji löschen (`manage_emojis`).",
+        "summary": "Delete an emoji (`manage_emojis`).",
         "operationId": "delete",
         "parameters": [
           {
@@ -14735,7 +14735,7 @@
         "tags": [
           "emojis"
         ],
-        "summary": "Emoji-Bild (Mitglieder). `?still=1`: the first frame of an animated emoji.",
+        "summary": "Emoji image (members). `?still=1`: the first frame of an animated emoji.",
         "operationId": "image",
         "parameters": [
           {
@@ -14971,7 +14971,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Einladungen des Raums (`manage_room`).",
+        "summary": "Invites of the room (`manage_room`).",
         "operationId": "list_invites",
         "parameters": [
           {
@@ -15008,7 +15008,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Einladungslink erzeugen (`create_invites`). Invites that never expire and validity beyond 30 days\nneed `manage_room`.",
+        "summary": "Create an invite link (`create_invites`). Invites that never expire and validity beyond 30 days\nneed `manage_room`.",
         "operationId": "create_invite",
         "parameters": [
           {
@@ -15160,7 +15160,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Einladung löschen (`manage_room`).",
+        "summary": "Delete an invite (`manage_room`).",
         "operationId": "delete_invite",
         "parameters": [
           {
@@ -15197,7 +15197,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Öffentlichem Raum beitreten.",
+        "summary": "Join a public room.",
         "operationId": "join_room",
         "parameters": [
           {
@@ -15253,7 +15253,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Raum verlassen (Eigentümer müssen zuerst übertragen oder löschen).",
+        "summary": "Leave a room (owners must transfer or delete it first).",
         "operationId": "leave_room",
         "parameters": [
           {
@@ -15292,7 +15292,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Mitglieder (paginiert über `after` = letzte Nutzer-ID).",
+        "summary": "Members (paginated via `after` = last user ID).",
         "operationId": "list_members",
         "parameters": [
           {
@@ -15649,7 +15649,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Mitglied entfernen (`kick_members`).",
+        "summary": "Remove a member (`kick_members`).",
         "operationId": "kick_member",
         "parameters": [
           {
@@ -15704,7 +15704,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Mitglied ändern: Spitzname (`manage_nicknames` oder eigener mit `change_nickname`), Rollen (`manage_roles`).",
+        "summary": "Change a member: nickname (`manage_nicknames`, or one's own with `change_nickname`), roles (`manage_roles`).",
         "operationId": "update_member",
         "parameters": [
           {
@@ -15842,7 +15842,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Timeout setzen oder aufheben (`moderate_members`).",
+        "summary": "Set or lift a timeout (`moderate_members`).",
         "operationId": "timeout_member",
         "parameters": [
           {
@@ -15896,7 +15896,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Massenlöschung (`purge`): erst Vorschau mit Zähler und Bestätigungs-Token, dann endgültige Löschung.",
+        "summary": "Bulk deletion (`purge`): first a preview with count and confirmation token, then permanent deletion.",
         "operationId": "purge",
         "parameters": [
           {
@@ -15952,7 +15952,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Override setzen oder (bei allow = deny = 0) entfernen (`manage_roles`).",
+        "summary": "Set an override, or remove it when allow = deny = 0 (`manage_roles`).",
         "operationId": "set_override",
         "parameters": [
           {
@@ -16121,7 +16121,7 @@
         "tags": [
           "roles"
         ],
-        "summary": "Rolle anlegen (`manage_roles`).",
+        "summary": "Create a role (`manage_roles`).",
         "operationId": "create_role",
         "parameters": [
           {
@@ -16177,7 +16177,7 @@
         "tags": [
           "roles"
         ],
-        "summary": "Rolle löschen (`manage_roles`), nicht `@everyone`.",
+        "summary": "Delete a role (`manage_roles`), not `@everyone`.",
         "operationId": "delete_role",
         "parameters": [
           {
@@ -16212,7 +16212,7 @@
         "tags": [
           "roles"
         ],
-        "summary": "Rolle ändern (`manage_roles`). `@everyone` erlaubt nur Rechte.",
+        "summary": "Update a role (`manage_roles`). `@everyone` allows only permissions.",
         "operationId": "update_role",
         "parameters": [
           {
@@ -17366,7 +17366,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "The audio of any clip of this node, room or personal (PLAN.md 4.13), without authentication: players of\nevery node fetch clips they are allowed to play from here. Ids are random; nothing else is revealed.",
+        "summary": "The audio of any clip of this node, room or personal, without authentication: players of\nevery node fetch clips they are allowed to play from here. Ids are random; nothing else is revealed.",
         "operationId": "public_sound_audio",
         "parameters": [
           {
@@ -17512,7 +17512,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Eigenes Konto.",
+        "summary": "Own account.",
         "operationId": "me",
         "responses": {
           "200": {
@@ -18503,7 +18503,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Eigene Geräte.",
+        "summary": "Own devices.",
         "operationId": "devices",
         "responses": {
           "200": {
@@ -18601,7 +18601,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Gerät abmelden und entfernen (nicht das aktuelle). Needs a reauth token (`Tavrn-Reauth`, PROTOCOL.md §5c).",
+        "summary": "Sign out and remove a device (not the current one). Needs a reauth token (`Tavrn-Reauth`, PROTOCOL.md §5c).",
         "operationId": "delete_device",
         "parameters": [
           {
@@ -20002,7 +20002,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Passwort ändern. Alle anderen Geräte werden abgemeldet.",
+        "summary": "Change the password. All other devices are signed out.",
         "operationId": "change_password",
         "requestBody": {
           "content": {
@@ -20704,7 +20704,7 @@
         "tags": [
           "whiteboard"
         ],
-        "summary": "Convert a background image for a whiteboard through the media pipeline (PLAN.md 4.9: PNG, JPEG, GIF,\nWebP, MP4, WebM by magic bytes, ≤ 20 MB, fit into 1280 px, metadata removed) and return the still image\n(WebP; PNG/JPEG without ffmpeg). Nothing is stored: the client puts the image into its encrypted board.",
+        "summary": "Convert a background image for a whiteboard through the media pipeline (PNG, JPEG, GIF,\nWebP, MP4, WebM by magic bytes, ≤ 20 MB, fit into 1280 px, metadata removed) and return the still image\n(WebP; PNG/JPEG without ffmpeg). Nothing is stored: the client puts the image into its encrypted board.",
         "operationId": "convert_background",
         "requestBody": {
           "content": {
@@ -21658,7 +21658,7 @@
         "tags": [
           "health"
         ],
-        "summary": "Lebt der Prozess? Antwortet immer 200, solange der Server läuft; meldet den Zustand von LiveKit.",
+        "summary": "Is the process alive? Always answers 200 while the server runs; reports the state of LiveKit.",
         "operationId": "healthz",
         "responses": {
           "200": {
@@ -21679,7 +21679,7 @@
         "tags": [
           "health"
         ],
-        "summary": "Kann der Knoten Anfragen bedienen? Prüft die Datenbank, mit Sprache, ob LiveKit antwortet, und mit\n`TAVRN_CACHE_URL` den gemeinsamen Cache.",
+        "summary": "Can the node serve requests? Checks the database, with voice whether LiveKit answers, and with\n`TAVRN_CACHE_URL` the shared cache.",
         "operationId": "readyz",
         "responses": {
           "200": {
@@ -21811,7 +21811,7 @@
           "max_uses": {
             "type": "integer",
             "format": "int64",
-            "description": "0 = unbegrenzt"
+            "description": "0 = unlimited"
           },
           "note": {
             "type": "string"
@@ -22366,7 +22366,7 @@
           },
           "sha256": {
             "type": "string",
-            "description": "Base64url des SHA-256 der Datei"
+            "description": "Base64url of the file's SHA-256"
           },
           "size": {
             "type": "integer",
@@ -22374,7 +22374,7 @@
           },
           "spoiler": {
             "type": "boolean",
-            "description": "Plaintext messages: shown blurred until clicked (PLAN.md 4.13); encrypted messages carry the flag\ninside the encrypted content."
+            "description": "Plaintext messages: shown blurred until clicked; encrypted messages carry the flag\ninside the encrypted content."
           }
         }
       },
@@ -22711,7 +22711,7 @@
           },
           "subject": {
             "type": "string",
-            "description": "`alice@domain` oder nur `domain`"
+            "description": "`alice@domain` or just `domain`"
           }
         }
       },
@@ -22726,7 +22726,7 @@
           },
           "subject": {
             "type": "string",
-            "description": "Nutzerkennung `alice@domain` oder ganze Domain."
+            "description": "User address `alice@domain` or an entire domain."
           }
         }
       },
@@ -23017,7 +23017,7 @@
               "string",
               "null"
             ],
-            "description": "Gesetzt bei Standardkategorien (`general`), damit Clients den Namen lokalisieren; NULL nach Umbenennung."
+            "description": "Set on default categories (`general`) so that clients localize the name; NULL after a rename."
           }
         }
       },
@@ -23082,7 +23082,7 @@
           },
           "kind": {
             "type": "string",
-            "description": "text | voice | announcement | forum | files (files channel, PLAN.md 4.13) | system (the welcome channel)"
+            "description": "text | voice | announcement | forum | files (files channel) | system (the welcome channel)"
           },
           "name": {
             "type": "string"
@@ -23114,7 +23114,7 @@
               "string",
               "null"
             ],
-            "description": "Gesetzt bei Standard-Channels (`general`, `voice`), damit Clients den Namen lokalisieren; NULL nach Umbenennung."
+            "description": "Set on default channels (`general`, `voice`) so that clients localize the name; NULL after a rename."
           },
           "topic": {
             "type": "string"
@@ -23741,7 +23741,7 @@
               "string",
               "null"
             ],
-            "description": "The requester's read marker (only in `GET /conversations`; PLAN.md 4.4)."
+            "description": "The requester's read marker (only in `GET /conversations`)."
           },
           "members": {
             "type": "array",
@@ -23769,7 +23769,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Addresses of members who have not accepted the conversation yet (message requests, PLAN.md 4.9)."
+            "description": "Addresses of members who have not accepted the conversation yet (message requests)."
           },
           "unread_count": {
             "type": [
@@ -23948,12 +23948,12 @@
           "expires_hours": {
             "type": "integer",
             "format": "int64",
-            "description": "Stunden, 0 = unbegrenzt"
+            "description": "Hours, 0 = unlimited"
           },
           "max_uses": {
             "type": "integer",
             "format": "int64",
-            "description": "0 = unbegrenzt"
+            "description": "0 = unlimited"
           },
           "note": {
             "type": "string"
@@ -24081,7 +24081,7 @@
               "boolean",
               "null"
             ],
-            "description": "Nur für text/announcement/forum abschaltbar. DMs und Sprache sind immer verschlüsselt."
+            "description": "Can be switched off only for text/announcement/forum. DMs and voice are always encrypted."
           },
           "kind": {
             "type": "string",
@@ -24250,7 +24250,7 @@
           "max_uses": {
             "type": "integer",
             "format": "int64",
-            "description": "0 = unbegrenzt"
+            "description": "0 = unlimited"
           }
         }
       },
@@ -24265,10 +24265,10 @@
             "items": {
               "type": "string"
             },
-            "description": "IDs zuvor hochgeladener Blobs dieses Channels (höchstens 10)."
+            "description": "IDs of previously uploaded blobs of this channel (at most 10)."
           },
           "content": {
-            "description": "Klartext: Inhaltsobjekt (`{\"type\":\"text\",\"body\":\"…\"}`); verschlüsselt: Base64url-String."
+            "description": "Plaintext: content object (`{\"type\":\"text\",\"body\":\"…\"}`); encrypted: base64url string."
           },
           "epoch": {
             "type": [
@@ -24276,7 +24276,7 @@
               "null"
             ],
             "format": "int64",
-            "description": "MLS-Epoche (nur verschlüsselt)"
+            "description": "MLS epoch (encrypted only)"
           },
           "mentions": {
             "type": "array",
@@ -24305,7 +24305,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Plaintext only: the attachments (a subset of `attachments`) shown as spoilers (PLAN.md 4.13).\nEncrypted messages carry `spoiler: true` in the attachment entries of the encrypted content."
+            "description": "Plaintext only: the attachments (a subset of `attachments`) shown as spoilers.\nEncrypted messages carry `spoiler: true` in the attachment entries of the encrypted content."
           }
         }
       },
@@ -24370,7 +24370,7 @@
               "string",
               "null"
             ],
-            "description": "Dezimal-String der Bitmaske"
+            "description": "Bitmask as a decimal string"
           },
           "position": {
             "type": [
@@ -24398,7 +24398,7 @@
               "string",
               "null"
             ],
-            "description": "public | invite (Standard)"
+            "description": "public | invite (default)"
           },
           "name": {
             "type": "string"
@@ -25144,7 +25144,7 @@
               "null"
             ],
             "format": "int64",
-            "description": "MLS-Epoche (nur verschlüsselt; Bearbeitungen nutzen die aktuelle Epoche)"
+            "description": "MLS epoch (encrypted only; edits use the current epoch)"
           },
           "mentions": {
             "type": "array",
@@ -25214,7 +25214,7 @@
         "properties": {
           "animated": {
             "type": "boolean",
-            "description": "Animated WebP (`GET /emojis/{id}/image`); `?still=1` gives the first frame (PLAN.md 4.13)."
+            "description": "Animated WebP (`GET /emojis/{id}/image`); `?still=1` gives the first frame."
           },
           "created_at": {
             "type": "string"
@@ -25227,7 +25227,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Kurzname ohne Doppelpunkte, z. B. `pogchamp` für `:pogchamp:`"
+            "description": "Short name without colons, e.g. `pogchamp` for `:pogchamp:`"
           },
           "room_id": {
             "type": "string"
@@ -25890,7 +25890,7 @@
         "properties": {
           "account": {
             "type": "string",
-            "description": "Benutzername oder E-Mail-Adresse"
+            "description": "Username or email address"
           }
         }
       },
@@ -26037,14 +26037,14 @@
           },
           "preview_url": {
             "type": "string",
-            "description": "Kleine Vorschau"
+            "description": "Small preview"
           },
           "title": {
             "type": "string"
           },
           "url": {
             "type": "string",
-            "description": "Volle Animation (GIF oder MP4)"
+            "description": "Full animation (GIF or MP4)"
           },
           "width": {
             "type": "integer",
@@ -26869,7 +26869,7 @@
         "properties": {
           "accept_rules": {
             "type": "boolean",
-            "description": "Muss `true` sein, wenn der Raum Regeln hat."
+            "description": "Must be `true` if the room has rules."
           }
         }
       },
@@ -27007,7 +27007,7 @@
       },
       "LegalInfo": {
         "type": "object",
-        "description": "`legal` of `GET /node` (PLAN.md 4.14).",
+        "description": "`legal` of `GET /node`.",
         "required": [
           "notices",
           "pages",
@@ -27164,7 +27164,7 @@
               "string",
               "null"
             ],
-            "description": "Per-room profile (\"server profile\", PLAN.md 4.11): the nickname in this room. Clients prefer it\nover the display name everywhere in the room."
+            "description": "Per-room profile (\"server profile\"): the nickname in this room. Clients prefer it\nover the display name everywhere in the room."
           },
           "nickname": {
             "type": [
@@ -27241,7 +27241,7 @@
           },
           "author_deleted": {
             "type": "boolean",
-            "description": "The author's account was deleted (PLAN.md 4.14 item 3): clients show \"Deleted user\" without avatar, profile\nor link. `content` `{\"type\":\"system.deleted\"}` means the content was deleted with the account."
+            "description": "The author's account was deleted: clients show \"Deleted user\" without avatar, profile or link.\n`content` `{\"type\":\"system.deleted\"}` means the content was deleted with the account."
           },
           "author_id": {
             "type": "string"
@@ -27262,7 +27262,7 @@
             ]
           },
           "content": {
-            "description": "Klartext: JSON-Inhaltsobjekt. Verschlüsselt: Base64url-Chiffretext als String; sealed webhook messages\n(`webhook` set, APPLICATIONS.md §6.1a): `{ \"type\": \"webhook.sealed\", \"epoch\", \"sealed\", \"sealed_by\" }`."
+            "description": "Plaintext: JSON content object. Encrypted: base64url ciphertext as a string; sealed webhook messages\n(`webhook` set, APPLICATIONS.md §6.1a): `{ \"type\": \"webhook.sealed\", \"epoch\", \"sealed\", \"sealed_by\" }`."
           },
           "conversation_id": {
             "type": "string"
@@ -27330,7 +27330,7 @@
           },
           "reply_deleted": {
             "type": "boolean",
-            "description": "`reply_to_id` names a message that was deleted since (clients show \"message deleted\"; PLAN.md 4.13)."
+            "description": "`reply_to_id` names a message that was deleted since (clients show \"message deleted\")."
           },
           "reply_to_id": {
             "type": [
@@ -27596,7 +27596,7 @@
               },
               {
                 "$ref": "#/components/schemas/CaptchaInfo",
-                "description": "Captcha-Einstellungen für Registrierung/Login, falls der Betreiber eines aktiviert hat."
+                "description": "Captcha settings for registration/login, if the operator enabled one."
               }
             ]
           },
@@ -27615,11 +27615,11 @@
               "string",
               "null"
             ],
-            "description": "GIF-Anbieter (`giphy`, `tenor`) oder null."
+            "description": "GIF provider (`giphy`, `tenor`) or null."
           },
           "legal": {
             "$ref": "#/components/schemas/LegalInfo",
-            "description": "Legal pages and the notice form (PLAN.md 4.14, protocol/LEGAL.md)."
+            "description": "Legal pages and the notice form (protocol/LEGAL.md)."
           },
           "name": {
             "type": "string"
@@ -27627,7 +27627,7 @@
           "preview_auto_max_bytes": {
             "type": "integer",
             "format": "int64",
-            "description": "Images up to this size (bytes) load as previews automatically where the user's `auto_preview`\nsetting allows it; larger ones wait for a click (`TAVRN_PREVIEW_AUTO_MAX_BYTES`, PLAN.md 4.12).",
+            "description": "Images up to this size (bytes) load as previews automatically where the user's `auto_preview`\nsetting allows it; larger ones wait for a click (`TAVRN_PREVIEW_AUTO_MAX_BYTES`).",
             "minimum": 0
           },
           "protocol": {
@@ -29264,7 +29264,7 @@
       },
       "PublicKeyInfo": {
         "type": "object",
-        "description": "Öffentliche Darstellung als JWK-ähnliches Objekt für `.well-known`.",
+        "description": "Public representation as a JWK-like object for `.well-known`.",
         "required": [
           "kid",
           "alg",
@@ -29283,7 +29283,7 @@
           },
           "x": {
             "type": "string",
-            "description": "Base64url (ohne Padding) des 32-Byte-Public-Keys."
+            "description": "Base64url (without padding) of the 32-byte public key."
           }
         }
       },
@@ -29388,14 +29388,14 @@
             "items": {
               "type": "string"
             },
-            "description": "Channels; leer = alle Channels des Raums."
+            "description": "Channels; empty = all channels of the room."
           },
           "confirm_token": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Token aus der Vorschau; ohne Token wird nur gezählt."
+            "description": "Token from the preview; without a token, messages are only counted."
           },
           "from": {
             "type": [
@@ -29424,11 +29424,11 @@
               "string",
               "null"
             ],
-            "description": "Token zur Ausführung (2 Minuten gültig), nur bei dry_run"
+            "description": "Token for execution (valid for 2 minutes), only with dry_run"
           },
           "dry_run": {
             "type": "boolean",
-            "description": "true = nur gezählt, nichts gelöscht"
+            "description": "true = only counted, nothing deleted"
           },
           "messages": {
             "type": "integer",
@@ -29597,7 +29597,7 @@
           },
           "me": {
             "type": "boolean",
-            "description": "Hat der Anfragende selbst reagiert?"
+            "description": "Did the requester react with it?"
           }
         }
       },
@@ -29615,7 +29615,7 @@
       },
       "ReadState": {
         "type": "object",
-        "description": "Read state of one conversation for one user (PLAN.md 4.4).",
+        "description": "Read state of one conversation for one user.",
         "required": [
           "conversation_id",
           "unread_count",
@@ -29826,14 +29826,14 @@
               "null"
             ],
             "format": "int64",
-            "description": "The version of the terms of service the user accepted (required when the node publishes terms,\n`GET /node` → `legal.pages.terms.version`; PLAN.md 4.14 item 2)."
+            "description": "The version of the terms of service the user accepted (required when the node publishes terms,\n`GET /node` → `legal.pages.terms.version`)."
           },
           "captcha_token": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Captcha-Token, falls der Knoten eines verlangt (siehe `/node`)."
+            "description": "Captcha token, if the node requires one (see `/node`)."
           },
           "device_name": {
             "type": [
@@ -29858,7 +29858,7 @@
               "string",
               "null"
             ],
-            "description": "Einladungscode, falls der Knoten nur per Einladung registriert."
+            "description": "Invite code, if the node only registers by invite."
           },
           "password": {
             "type": "string"
@@ -30159,7 +30159,7 @@
           },
           "permissions": {
             "type": "string",
-            "description": "u64-Bitmaske als Dezimal-String"
+            "description": "u64 bitmask as a decimal string"
           },
           "position": {
             "type": "integer",
@@ -30192,7 +30192,7 @@
               "null"
             ],
             "format": "int64",
-            "description": "Attachments of the room's channels are deleted after this many days (null = the node's value; a room\ncan only shorten it, PLAN.md 4.13)."
+            "description": "Attachments of the room's channels are deleted after this many days (null = the node's value; a room\ncan only shorten it)."
           },
           "banner_blob_id": {
             "type": [
@@ -30351,7 +30351,7 @@
               },
               "my_permissions": {
                 "type": "string",
-                "description": "Raumweite Rechte des Anfragenden als Dezimal-String."
+                "description": "Room-wide permissions of the requester as a decimal string."
               },
               "my_roles": {
                 "type": "array",
@@ -30370,7 +30370,7 @@
                 "items": {
                   "$ref": "#/components/schemas/ReadState"
                 },
-                "description": "Unread and mention counts of the channels the requester can view (members only; PLAN.md 4.4)."
+                "description": "Unread and mention counts of the channels the requester can view (members only)."
               },
               "roles": {
                 "type": "array",
@@ -30996,7 +30996,7 @@
               "string",
               "null"
             ],
-            "description": "Unicode emoji or custom emoji token shown on the player's tile while the clip plays (PLAN.md 4.13)."
+            "description": "Unicode emoji or custom emoji token shown on the player's tile while the clip plays."
           },
           "id": {
             "type": "string"
@@ -31171,7 +31171,7 @@
           "minutes": {
             "type": "integer",
             "format": "int64",
-            "description": "Minuten; 0 hebt den Timeout auf."
+            "description": "Minutes; 0 lifts the timeout."
           },
           "reason": {
             "type": "string"
@@ -31414,7 +31414,7 @@
               "boolean",
               "null"
             ],
-            "description": "Umschalten gilt nur für neue Nachrichten und wird im Audit-Log festgehalten."
+            "description": "Switching applies to new messages only and is recorded in the audit log."
           },
           "history_for_new_members": {
             "type": [
@@ -31543,7 +31543,7 @@
               "string",
               "null"
             ],
-            "description": "Load image previews automatically: always | friends_and_shared | never (PLAN.md 4.12)."
+            "description": "Load image previews automatically: always | friends_and_shared | never."
           },
           "bio": {
             "type": [
@@ -31684,7 +31684,7 @@
               "null"
             ],
             "format": "int64",
-            "description": "Delete attachments after this many days (1–36500; 0 = use the node's value). Effective is the\nshortest non-zero of this, the node value and room grants: a room can only shorten (PLAN.md 4.13)."
+            "description": "Delete attachments after this many days (1–36500; 0 = use the node's value). Effective is the\nshortest non-zero of this, the node value and room grants: a room can only shorten."
           },
           "bots_in_encrypted_channels": {
             "type": [
@@ -31781,7 +31781,7 @@
               "null"
             ],
             "format": "int64",
-            "description": "Verbleibende Raum-Erstellungen (Modus `invite`); null entfernt die Freigabe nicht, 0 setzt sie auf 0."
+            "description": "Remaining room creations (mode `invite`); null does not remove the grant, 0 sets it to 0."
           }
         }
       },
@@ -31933,7 +31933,7 @@
               "string",
               "null"
             ],
-            "description": "Path of the avatar on this node (`/api/v1/media/{id}`, the animated variant if there is one), null\nwithout avatar. Clients show `avatar_still` and switch to this one on hover or while the\nuser speaks (PLAN.md 4.9)."
+            "description": "Path of the avatar on this node (`/api/v1/media/{id}`, the animated variant if there is one), null\nwithout avatar. Clients show `avatar_still` and switch to this one on hover or while the\nuser speaks."
           },
           "avatar_blob_id": {
             "type": [
@@ -31954,7 +31954,7 @@
           },
           "deleted": {
             "type": "boolean",
-            "description": "A deleted account (PLAN.md 4.14 item 3): clients show \"Deleted user\" without avatar, profile or link."
+            "description": "A deleted account: clients show \"Deleted user\" without avatar, profile or link."
           },
           "display_name": {
             "type": "string"
@@ -32162,7 +32162,7 @@
                   "string",
                   "null"
                 ],
-                "description": "`GET /users/me` and `PATCH /users/me` of local users: load image previews automatically\n(`always`, `friends_and_shared` or `never`, PLAN.md 4.12)."
+                "description": "`GET /users/me` and `PATCH /users/me` of local users: load image previews automatically\n(`always`, `friends_and_shared` or `never`)."
               },
               "email": {
                 "type": [

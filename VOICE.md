@@ -395,7 +395,7 @@ Part of the web client (phase 4 part B), responsive like the rest of the client:
   `room.max_participants = TAVRN_VOICE_MAX_PARTICIPANTS`, webhooks to the node's own listener on the loopback
   interface. Crashes are restarted with an exponential backoff (1 s … 30 s), log lines are forwarded with the target
   `livekit`, shutdown sends SIGTERM. A missing binary with voice enabled stops the start with an install hint.
-  The start is logged with every address and port clients must reach (`LiveKit wird gestartet media=…`).
+  The start is logged with every address and port clients must reach (`LiveKit starting media=…`).
 - `GET /healthz` → `{ "status": "ok", "voice": "disabled" | "stopped" | "starting" | "running" | "restarting" }`, plus
   `"voice_problem": "<text>"` while a voice setup problem needs the operator (no announced hostname resolves, §10.2);
   `GET /readyz` → `{ "ready", "database", "livekit", "cache" }` (`livekit` = LiveKit answers locally, `null` without
