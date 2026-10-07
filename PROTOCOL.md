@@ -103,7 +103,8 @@ The client sends its list in the WebSocket hello and in the header
 Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, `forum`, `announcement`,
 `threads`, `reactions`, `attachments`, `pins`, `emojis`, `gifs`, `federation`, `push.webpush`, `soundboard`,
 `content.signed1`, `apps.v1`, `commands.v1`, `webhooks.v1` (`APPLICATIONS.md` §10.1; every node announces `apps.v1`
-since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set).
+since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set), `reports.v1` and `automod.v1`
+(reports and auto-moderation, `MODERATION.md`, announced by every node that implements them).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
 `voice` (voice channels, `VOICE.md`), `screenshare` (screen sharing allowed) and `soundboard` (room clips) are
@@ -540,6 +541,9 @@ connection of that device). Event types besides the room/message events of phase
 | `message.redact` | conversation audience¹ | `{ room_id, conversation_id, ids, author_id }`: the content of these messages was deleted with their author's account (§5d); the slots stay with the content `{"type":"system.deleted"}`. Clients replace cached content and drop the messages from local search indexes |
 | `user.deleted` | the rooms the user was in, friends and DM contacts | `{ user_id, address, tombstone }`: an account was deleted (§5d); its messages now name the tombstone (`author_deleted: true`) |
 | `legal.statement` | the uploader | `{ case_id, decision, counter_deadline? }`: a statement of reasons or a decision about the user's content (`LEGAL.md` §1.4); details at `GET /users/me/legal-notices` |
+| `report.create` | the users who may see the report (room moderators, node admins), except the reporter | `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`: a new report in the moderation inbox (`MODERATION.md` §1.5) |
+| `report.update` | the same audience | `{ id, scope, room_id, status }`: a report changed, was acted on or deleted (`status: "deleted"`) |
+| `moderation.alert` | the room's moderators (owner, `moderate_members`), for node rules the node admins | `{ room_id, channel_id, user, kind, at, … }`: auto-moderation acted; `kind` `spam` (flood: `deleted`, `timeout_until`) or `content` (`rule`, `scope`, `matched`, `action`), `MODERATION.md` §2 |
 
 ¹ Room channels: all room members; DMs and group DMs: their members. `message.create`, `message.update` and
 `message.delete` of DMs and group DMs go to the members' users as well (`room_id` is null).
@@ -906,13 +910,13 @@ document's continuity chain leads from the cached key to the new one).
 **Welcome channel, the room's security log (design note 4.11, 4.13 item 12).** Every room has exactly one channel of
 `kind = "system"` with `system_name = "welcome"`, created with the room (and for older rooms at node start):
 never encrypted (the encryption switch is refused with `400 channel.system_protected`), outside every category,
-`position` −1 (pinned first), read-only for everyone (`403 channel.read_only` for messages, reactions are allowed,
-moderators may delete entries), not renamable, movable or deletable (`400 channel.system_protected`; only `topic`
+`position` −1 (pinned first), read-only for everyone (`403 channel.read_only` for messages, reactions are allowed;
+its entries cannot be deleted by anyone, `403 message.system_protected`, `MODERATION.md` §3), not renamable, movable or deletable (`400 channel.system_protected`; only `topic`
 and overrides change), no whiteboard. It is always visible: `view_channel` and `read_history` are forced there
 (`permissions.md` "System channels"), so every member, including new ones, reads its whole history; overrides
 cannot hide it and the room cannot switch it off (the former setting `welcome_channel_enabled` is ignored and no
 longer returned; rooms that had it off show it again after a startup fixup). Members can still mute its
-notifications (§6c). Room purges without a channel list leave it alone.
+notifications (§6c). Room purges leave it alone, even when it is named.
 
 ## 7a. Upload categories (design note 4.11)
 

@@ -69,8 +69,9 @@ input flag `system_channel`):
   `pin_messages` | `use_whiteboard` is removed;
 - then the bot branch applies as everywhere (a bot in a "no bots" zone still has nothing).
 
-The room cannot switch the channel off (the former setting `welcome_channel_enabled` is gone); reactions and the
-deletion of entries by moderators follow the normal bits. The shared test vectors
+The room cannot switch the channel off (the former setting `welcome_channel_enabled` is gone); reactions follow the
+normal bits. Its entries cannot be deleted by anyone, `manage_messages`, owners and node admins included
+(`MODERATION.md` §3). The shared test vectors
 (`testvectors/permissions.json`) cover the forced and the denied bits.
 
 ## Upload categories
