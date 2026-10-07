@@ -20150,7 +20150,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/PushSubscription"
+                    "$ref": "#/components/schemas/PushRegistration"
                   }
                 }
               }
@@ -20194,7 +20194,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PushSubscription"
+                  "$ref": "#/components/schemas/PushRegistration"
                 }
               }
             }
@@ -20204,7 +20204,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PushSubscription"
+                  "$ref": "#/components/schemas/PushRegistration"
                 }
               }
             }
@@ -29730,9 +29730,9 @@
           "reauth"
         ]
       },
-      "PushSubscription": {
+      "PushRegistration": {
         "type": "object",
-        "description": "A registered subscription (the keys are never returned).",
+        "description": "A registered push subscription (the keys and the endpoint are never returned). Named apart from the browser's\n`PushSubscription`.",
         "required": [
           "id",
           "device_id",

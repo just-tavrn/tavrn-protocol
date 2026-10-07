@@ -740,7 +740,7 @@ Routes:
   `p256dh` a base64url uncompressed P-256 point, `auth` base64url of 16 bytes (`400 push.keys_invalid`);
   `device_id` must be the requesting device (`400 push.device_invalid`); `expiration_time` Unix milliseconds in the
   future or null (`400 push.expiration_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30
-  registrations per hour (`429`), `404 push.disabled` while off. Response `PushSubscription { id, device_id,
+  registrations per hour (`429`), `404 push.disabled` while off. Response `PushRegistration { id, device_id,
   push_service, current_device, created_at, last_used_at, expires_at, failures }` (keys and endpoint are never
   returned; `push_service` is the endpoint's origin).
 - `GET /users/me/push-subscriptions` → the account's subscriptions; `DELETE /users/me/push-subscriptions/{id}` →
