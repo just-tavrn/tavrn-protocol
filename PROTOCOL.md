@@ -1100,8 +1100,8 @@ other nodes use the same routes with their federated session. Nothing crosses no
 
 - `POST /rooms/{room_id}/channels/{channel_id}/threads { title, title_epoch?, root_message_id?, tags?, message? }` →
   `201 Thread`. `message` is a message create body (§7, `POST …/messages`) posted as the thread's first message.
-  Text and announcement channels: `create_threads` (`403 thread.create_forbidden`); `root_message_id` must be a
-  message of the channel outside any thread (`400 thread.root_invalid`), at most one thread per root
+  Text and announcement channels: `send_messages` and `create_threads` (`403 message.send_forbidden`,
+  `403 thread.create_forbidden`); `root_message_id` must be a message of the channel outside any thread (`400 thread.root_invalid`), at most one thread per root
   (`409 thread.exists`, `meta.thread_id`); `tags` are refused (`400 thread.tags_invalid`). Forum channels (a post):
   `send_messages` (`403 message.send_forbidden`; `create_threads` is not needed there), `message` is required
   (`400 thread.message_required`), no root, at most 5 tags of the channel (`400 thread.tags_invalid`). The creator
