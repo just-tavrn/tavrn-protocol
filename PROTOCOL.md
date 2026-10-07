@@ -1137,7 +1137,8 @@ other nodes use the same routes with their federated session. Nothing crosses no
   (`thread.update`). `thread_id` cannot change on edit. `GET …/messages?thread=<thread_id>` pages one thread like a
   channel (`before`, `after`, `around`, the history cut); without `thread` the channel's list leaves thread
   messages out (`epoch=<n>` lists the epoch's messages of the whole channel, threads included, for the key checks of
-  `ENCRYPTION.md` §7b). Deleting a message of a thread updates its counters.
+  `ENCRYPTION.md` §7b; `threads=all` lists the channel with its threads, for clients that sync a local search index;
+  `400 thread.filter_invalid` for other values or together with `thread`). Deleting a message of a thread updates its counters.
 - **Read state.** Thread messages count towards the channel's `unread_count` and `mention_count` (§6) only for users
   who follow the thread (counted after the thread's read marker, or after following when there is none); the
   channel's `last_message_id` and its own marker ignore thread messages. `notify` hints (`FEDERATION.md` §5.2) for a

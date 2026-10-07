@@ -8338,6 +8338,18 @@
                 "null"
               ]
             }
+          },
+          {
+            "name": "threads",
+            "in": "query",
+            "description": "`all`: the channel's messages including those of its threads (clients syncing their local search index).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -13119,6 +13131,18 @@
             "name": "thread",
             "in": "query",
             "description": "Page this thread of the channel (PROTOCOL.md §7e); without it the channel's list leaves thread messages out.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "threads",
+            "in": "query",
+            "description": "`all`: the channel's messages including those of its threads (clients syncing their local search index).",
             "required": false,
             "schema": {
               "type": [
