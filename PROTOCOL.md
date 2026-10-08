@@ -62,7 +62,8 @@ detail; this document covers the concepts and rules that span individual routes.
 - Files channels (channel kind `files`: folders and files instead of messages, never end-to-end encrypted,
   optional external WebDAV/S3 storage) are specified in `FILES.md`.
 - `web` is the origin of the node's web client (`TAVRN_WEBAUTHN_ORIGIN`, default the public URL). The connect
-  flow of `FEDERATION.md` §8 redirects to `<web>/connect`.
+  flow of `FEDERATION.md` §8 redirects to `<web>/connect`; native apps open the same page with an app session
+  (`connect.app`).
 - **Delegation**: `domain` is always the identity domain (`TAVRN_DOMAIN`); `api`, `ws` and `web` point to the
   host that serves the node (`TAVRN_PUBLIC_URL`, default `https://<domain>`), which may be any host:
   `{"domain": "tavrn.org", "api": "https://app.tavrn.org/api/v1", "ws": "wss://app.tavrn.org/api/v1/ws",
@@ -104,7 +105,9 @@ Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, 
 `threads`, `reactions`, `attachments`, `pins`, `emojis`, `gifs`, `federation`, `push.webpush`, `soundboard`,
 `content.signed1`, `apps.v1`, `commands.v1`, `webhooks.v1` (`APPLICATIONS.md` §10.1; every node announces `apps.v1`
 since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set), `reports.v1` and `automod.v1`
-(reports and auto-moderation, `MODERATION.md`, announced by every node that implements them).
+(reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
+sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
+them).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
 `threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
