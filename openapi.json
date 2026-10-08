@@ -14640,7 +14640,7 @@
       "post": {
         "tags": [],
         "summary": "Start a thread (`send_messages` and `create_threads`) or, in a forum channel, a post (`send_messages`).",
-        "description": "Starts a thread inside a text or announcement channel (from a root message of the channel or standalone, `send_messages` and `create_threads`) or a post in a forum channel (title, tags and the first message in one request, `send_messages`). In encrypted channels the title is ciphertext. The creator follows the thread; `thread.create` and then `message.create` for the first message are sent to the room.",
+        "description": "Starts a thread inside a text or announcement channel (from a root message of the channel or standalone, `send_messages` and `create_threads`) or a post in a forum channel (title, tags and the first message in one request, `send_messages`). In encrypted channels the title is ciphertext. The client may choose the thread id (`id`, a canonical ULID of about now) so the first message's signature covers its `thread_id` (`400 thread.id_invalid`, `409 thread.id_taken`). The creator follows the thread; `thread.create` and then `message.create` for the first message are sent to the room.",
         "operationId": "create_thread",
         "parameters": [
           {
@@ -21795,7 +21795,7 @@
       "put": {
         "tags": [],
         "summary": "Register a push subscription.",
-        "description": "Registers the browser's push subscription (`PushSubscription.toJSON()`) for the requesting device, or updates\nthe one with the same endpoint (a browser that signs in again, also as another account, takes its endpoint\nover). `201` when new, `200` when updated. The endpoint must be an `https://` URL of a public host (`400\npush.endpoint_invalid`), `keys.p256dh` an uncompressed P-256 point and `keys.auth` 16 bytes, both base64url\n(`400 push.keys_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30 registrations per\nhour (`429`). `404 push.disabled` while push is off. The subscription is deleted with the device and when its\nsessions are revoked (sign-out).",
+        "description": "Registers the browser's push subscription (`PushSubscription.toJSON()`) for the requesting device, or updates\nthe account's one with the same endpoint (also from another of its devices). `201` when new, `200` when\nupdated. An endpoint of another account's live subscription is refused (`409 push.endpoint_taken`: the client\nunsubscribes the browser and subscribes again); a stale one (expired, or its device has no live session) is\ntaken over. The endpoint must be an `https://` URL of a public host (`400\npush.endpoint_invalid`), `keys.p256dh` an uncompressed P-256 point and `keys.auth` 16 bytes, both base64url\n(`400 push.keys_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30 registrations per\nhour (`429`). `404 push.disabled` while push is off. The subscription is deleted with the device and when its\nsessions are revoked (sign-out).",
         "operationId": "register",
         "requestBody": {
           "content": {
@@ -25017,6 +25017,13 @@
             ],
             "description": "`error`: at most 200 characters, shown to the invoker only."
           },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`reply`: a thread of the conversation to answer in; defaults to the interaction's thread."
+          },
           "type": {
             "type": "string",
             "description": "`reply`, `defer` or `error`."
@@ -26673,6 +26680,13 @@
           "title"
         ],
         "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thread id chosen by the client, so the first message's signature can cover `thread_id`: a ULID in its\ncanonical form (uppercase) whose time is within 10 minutes of the node's clock. Without it the node picks one."
+          },
           "message": {
             "oneOf": [
               {
@@ -27648,6 +27662,13 @@
           },
           "interaction_id": {
             "type": "string"
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thread the reply belongs to (null in the conversation itself)."
           }
         }
       },
@@ -28201,6 +28222,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the conversation to write in; defaults to the interaction's thread."
           }
         },
         "additionalProperties": false
@@ -29212,6 +29240,13 @@
             ],
             "format": "int64",
             "description": "The epoch of `args_ciphertext`."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thread of the channel the command is invoked in (PROTOCOL.md §7e); answers go there."
           }
         },
         "additionalProperties": false
@@ -33605,6 +33640,13 @@
           "sealed": {
             "type": "string",
             "description": "`crypto_box_seal` of the inner JSON `{ \"content\": {…}, \"username\"? }` to the inbox key, base64url."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the channel to post into (routing metadata outside the box); required in forum channels."
           }
         },
         "additionalProperties": false
@@ -36199,6 +36241,13 @@
               "null"
             ],
             "description": "A message of the same channel this one replies to."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the channel to post into; required in forum channels (a post), which show no loose messages."
           },
           "username": {
             "type": [

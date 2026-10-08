@@ -998,6 +998,10 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
 - Verifying is optional for clients: the device key comes from the author's attested devices fetched from the
   author's home node and checked against the pinned identity key. Valid → normal; missing → "unverified" marker;
   invalid → the content is hidden behind "This message could not be verified".
+- The first message of a thread created together with it (a forum post, `PROTOCOL.md` §7e) is signed with the
+  thread id the client chose for the thread (`id` of the creation request), so one rule covers every message.
+  First messages of threads created without a client-chosen id (older clients and posts) carry no signature and
+  are shown unverified, not invalid.
 - Signing becomes mandatory with the capability `content.signed1`: a client announcing it MUST sign every
   plaintext message, and a node MAY then refuse unsigned plaintext messages from that device
   (`400 message.signature_missing`). Phase 3 decides from which release the reference client announces it;

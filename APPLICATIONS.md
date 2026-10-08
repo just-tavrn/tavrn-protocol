@@ -654,8 +654,12 @@ for the caller. Clients (normative for `commands.v1`):
 
 ```json
 { "command": "node.example/01J…/01J…", "args": { "city": "Berlin" },
-  "args_ciphertext": null, "epoch": null }
+  "args_ciphertext": null, "epoch": null, "thread_id": null }
 ```
+
+`thread_id` (optional) names the thread of the channel the command is invoked in (`PROTOCOL.md` §7e): a thread of
+the conversation (`404 thread.not_found`) the caller may write in (`403 thread.reply_forbidden`, `403
+thread.locked`); the answers go there.
 
 The node checks, in this order: (1) the caller may view the conversation and holds `send_messages` there;
 (2) the application is installed in the room (for DMs: the conversation is a DM with this bot and `dm_allowed`,
@@ -668,8 +672,9 @@ conversations `args` must be null and `args_ciphertext` is checked like message 
 `400 interaction.ciphertext_invalid`, `400 interaction.epoch_unknown`) (`400 interaction.encryption_mismatch` for
 the wrong form).
 
-The node creates an interaction `{ id, command, conversation_id, user_id, created_at, expires_at = +15 min }` (kept
-only until it expires), delivers it (§5.6) and waits **at most 3 seconds** for the first response (§5.7). The
+The node creates an interaction `{ id, command, conversation_id, thread_id, user_id, created_at, expires_at = +15
+min }` (kept only until it expires; a node of several instances keeps it in its shared cache, sealed, so any
+instance takes the responses), delivers it (§5.6) and waits **at most 3 seconds** for the first response (§5.7). The
 caller's request then returns:
 
 ```json
@@ -693,13 +698,13 @@ the interaction is dropped). The invocation itself is not a message and is not s
 
 ```json
 { "interaction_id": "01J…", "application_id": "01J…", "command": { "id": "01J…", "name": "weather" },
-  "conversation_id": "01J…", "room_id": "01J…", "channel_id": "01J…", "encrypted": true,
+  "conversation_id": "01J…", "room_id": "01J…", "channel_id": "01J…", "thread_id": null, "encrypted": true,
   "user": "alice@node.example", "user_id": "01J…", "device_id": "01J…", "permissions": "123",
   "args": null, "args_ciphertext": "<base64url>", "epoch": 42, "locale": "de", "expires_at": "…" }
 ```
 
 `permissions` is the invoker's effective mask in the channel, `locale` the first language of the invoker's
-`Accept-Language`.
+`Accept-Language`, `thread_id` the thread the command was invoked in (null outside threads).
 
 ### 5.7 Responses, follow-ups and ephemeral replies
 
@@ -709,7 +714,7 @@ the URL response body). Only the first response counts (`409 interaction.already
 
 ```json
 { "type": "reply", "content": { "type": "text", "body": "12 °C, cloudy" } | "<ciphertext>", "epoch": 43,
-  "device_id": "01J…", "ephemeral": false, "mentions": [] }
+  "device_id": "01J…", "ephemeral": false, "mentions": [], "thread_id": null }
 { "type": "defer", "ephemeral": false }
 { "type": "error", "message": "City not found" }
 ```
@@ -718,16 +723,21 @@ the URL response body). Only the first response counts (`409 interaction.already
   in URL responses the body names it and the node checks that it is an attested device of the bot) with the new
   envelope field `interaction: { id, command: "weather", application: ref, user: "alice@…" }`, and emits
   `message.create`. The bot needs `send_messages` in the channel (`403 message.send_forbidden`).
+- **Threads**: replies and follow-ups go into the interaction's `thread_id`, or into the thread of the conversation
+  the body names with `thread_id` (`404 thread.not_found`); the bot needs what writing in that thread needs
+  (`PROTOCOL.md` §7e: `create_threads` in text and announcement channels, `manage_threads` in a locked thread).
+  An archived thread reopens.
 - **reply, ephemeral**: not stored; returned to the invoker in the invocation response and as WS
   `interaction.reply` to the invoker's other connections on this node: `EphemeralReply = { interaction_id,
-  conversation_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`. Clients show it
+  conversation_id, thread_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`. Clients show it
   marked "only you can see this" and drop it on reload.
 - **defer**: clients show "WeatherBot is thinking…" until a follow-up arrives or the interaction expires.
 - **error**: a short plaintext notice (≤ 200 characters) shown to the invoker only; bots SHOULD keep it generic in
   encrypted conversations because the node sees it.
 - **Follow-ups**: `POST /interactions/{interaction_id}/messages` (app token, until `expires_at`, at most 10)
-  `{ content, epoch?, device_id?, ephemeral, mentions? }` with the same rules (`429` / `409
-  interaction.followup_limit` beyond). Later edits use the normal message routes.
+  `{ content, epoch?, device_id?, ephemeral, mentions?, thread_id? }` with the same rules (`429` / `409
+  interaction.followup_limit` beyond; a refused follow-up does not count). Later edits use the normal message
+  routes.
 
 `content` follows the conversation's mode exactly like a message: a JSON content object in unencrypted
 conversations, the ciphertext of `ENCRYPTION.md` §5.2 (author = bot, device = the bot device, current epoch) in
@@ -763,9 +773,10 @@ instances: the instance holding the interaction does not answer; see the scaling
 
 ### 6.1 Incoming webhooks
 
-A webhook posts messages into **one text or announcement channel**: plaintext in unencrypted channels, sealed boxes
-that only the channel's members can open in encrypted ones (§6.1a). The node never becomes a member of an MLS group
-and never holds a key that opens what is stored.
+A webhook posts messages into **one text, announcement or forum channel**: plaintext in unencrypted channels, sealed
+boxes that only the channel's members can open in encrypted ones (§6.1a). In a forum channel it posts into posts
+only (`thread_id`, below). The node never becomes a member of an MLS group and never holds a key that opens what
+is stored.
 
 | Route | Permission | Body → response |
 |---|---|---|
@@ -794,12 +805,17 @@ answer `404 webhook.not_found` (no oracle).
 - **Payload** (`application/json`, at most 32 KiB, `413 webhook.too_large`):
   ```json
   { "content": { "type": "text", "body": "Deploy **v1.2** finished", "embeds": [ Embed ] },
-    "username": "CI", "mentions": ["alice@node.example"], "mentions_everyone": false, "reply_to": null }
+    "username": "CI", "mentions": ["alice@node.example"], "mentions_everyone": false, "reply_to": null,
+    "thread_id": null }
   ```
   `content` is validated like a plaintext message (`PROTOCOL.md` §7, `message.*` codes) with `embeds` (§6.4);
   `username` 1–32 characters, no `@`, `#` or `:`, not `everyone` or `here` (`400 webhook.username_invalid`);
   `mentions` that are not room members are dropped; `mentions_everyone` needs `allow_mentions_everyone`, which only
-  a creator holding `mention_everyone` can set. No attachments in v1. `400 webhook.payload_invalid` for anything
+  a creator holding `mention_everyone` can set. `thread_id` posts into a thread of the webhook's channel
+  (`PROTOCOL.md` §7e; `404 thread.not_found` for unknown ids and threads of other channels, `403 thread.locked` for
+  a locked thread, an archived one reopens); webhooks need no `create_threads`, their creator decided where they
+  post. Forum channels show posts only: there `thread_id` (a post of the forum) is required, a message without it is
+  refused with `400 message.thread_required`. No attachments in v1. `400 webhook.payload_invalid` for anything
   else.
 - **Encryption switch**: the webhooks stay (§6.1a). When the channel becomes encrypted they are sealed by the sender
   and `pending_key` until a member publishes the inbox key; when it becomes unencrypted they post plaintext again.
@@ -824,7 +840,7 @@ with `PATCH`), `null` in unencrypted channels (`400 webhook.sealing_invalid` whe
 
 | `sealing` | The service | The node |
 |---|---|---|
-| `sender` (default) | fetches the key from `GET …/inbox-key`, seals `{ "content": {…}, "username"? }` itself and posts `{ "sealed": "<base64url>", "epoch": n }` | accepts only that body (`400 webhook.sealed_required` for anything else, unknown fields included), never sees the text |
+| `sender` (default) | fetches the key from `GET …/inbox-key`, seals `{ "content": {…}, "username"? }` itself and posts `{ "sealed": "<base64url>", "epoch": n, "thread_id"? }` (`thread_id` as in §6.1, outside the box) | accepts only that body (`400 webhook.sealed_required` for anything else, unknown fields included), never sees the text |
 | `node` | posts the plaintext payload of §6.1 over HTTPS as before | checks it like a plaintext payload, seals `{ content, username? }` in memory to the newest key and stores only the box; it sees the text at that moment, so its operator could read it |
 
 **Inbox key route for senders**: `GET /webhooks/{webhook_id}/{secret}/inbox-key` → `{ "epoch": n, "public_key":
@@ -1615,11 +1631,11 @@ application editor. Where the reference node deviates from or refines §6:
   (`400 message.reply_target_missing`). Webhook messages skip slowmode and auto-moderation (they have their own
   limits), cannot be edited, and are deleted, bulk-deleted and purged like any message.
 - **Additional codes**: `webhook.manage_forbidden` (403, management without `manage_webhooks` in the channel or, for
-  the room list, at room level), `channel.no_text` (400, webhooks post into `text` and `announcement` channels
-  only), `subscription.not_found` (404, `GET`/`DELETE` without a subscription).
+  the room list, at room level), `channel.no_text` (400, webhooks post into `text`, `announcement` and `forum`
+  channels only), `subscription.not_found` (404, `GET`/`DELETE` without a subscription).
 - **Transfer**: accepting a transfer deletes the event subscription and its queue (like the tokens, the URL was
   the previous owner's choice); the new owner configures it anew.
-- **Moving** a webhook (`PATCH … { channel_id }`) needs `manage_webhooks` in both channels, a text channel and room
+- **Moving** a webhook (`PATCH … { channel_id }`) needs `manage_webhooks` in both channels, a text, announcement or forum channel and room
   for it under the limits (since §6.1a also an encrypted one, which seals it). Renames and avatar changes emit
   `user.update` for the pseudo user to the room, so author caches refresh.
 - **Request logs**: the HTTP trace span logs the method, the path with `/webhooks/<id>/***` (wherever the segment

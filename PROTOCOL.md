@@ -112,7 +112,8 @@ them).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
 `threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
-node that implements §7e.
+node that implements §7e; `threads.client_ids` by every node that takes the client-chosen thread id of §7e (clients
+send `id` only to those: an older node would ignore it, and the first message's signature would not match).
 
 `voice` (voice channels, `VOICE.md`), `screenshare` (screen sharing allowed) and `soundboard` (room clips) are
 announced by nodes while `TAVRN_VOICE_ENABLED` (and for `screenshare` also `TAVRN_SCREENSHARE_ENABLED`) is on.
@@ -760,11 +761,14 @@ Routes:
   subscribe again (they compare the key they subscribed with).
 - `PUT /users/me/push-subscriptions { endpoint, keys: { p256dh, auth }, device_id?, expiration_time? }` (the
   browser's `PushSubscription.toJSON()`; `expirationTime` is accepted too) registers the subscription for the
-  requesting device → `201` (new) or `200` (an existing endpoint, also one of another account on the same browser,
-  is taken over). `endpoint`: `https://` URL of a public host, at most 2048 characters (`400 push.endpoint_invalid`);
-  `p256dh` a base64url uncompressed P-256 point, `auth` base64url of 16 bytes (`400 push.keys_invalid`);
-  `device_id` must be the requesting device (`400 push.device_invalid`); `expiration_time` Unix milliseconds in the
-  future or null (`400 push.expiration_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30
+  requesting device → `201` (new) or `200` (an existing endpoint of the account, also from another of its devices,
+  is updated). An endpoint of another account's live subscription (not expired, its device has a live session) is
+  refused with `409 push.endpoint_taken`, so knowing an endpoint URL does not cut another account off its pushes;
+  the client then unsubscribes the browser and subscribes again (a new endpoint). A stale one is taken over.
+  `endpoint`: `https://` URL of a public host, at most 2048 characters (`400 push.endpoint_invalid`); `p256dh` a
+  base64url uncompressed P-256 point, `auth` base64url of 16 bytes (`400 push.keys_invalid`); `device_id` must be
+  the requesting device (`400 push.device_invalid`); `expiration_time` Unix milliseconds in the future or null (`400
+  push.expiration_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30
   registrations per hour (`429`), `404 push.disabled` while off. Response `PushRegistration { id, device_id,
   push_service, current_device, created_at, last_used_at, expires_at, failures }` (keys and endpoint are never
   returned; `push_service` is the endpoint's origin).
@@ -1200,8 +1204,14 @@ other nodes use the same routes with their federated session. Nothing crosses no
 
 **Routes** (all need room membership and `view_channel`, `403 room.not_member` / `channel.view_forbidden`):
 
-- `POST /rooms/{room_id}/channels/{channel_id}/threads { title, title_epoch?, root_message_id?, tags?, message? }` →
-  `201 Thread`. `message` is a message create body (§7, `POST …/messages`) posted as the thread's first message.
+- `POST /rooms/{room_id}/channels/{channel_id}/threads { id?, title, title_epoch?, root_message_id?, tags?, message? }`
+  → `201 Thread`. `message` is a message create body (§7, `POST …/messages`) posted as the thread's first message.
+  `id` is the thread id chosen by the client, so the device signature of a plaintext first message
+  (`FEDERATION.md` §10.3) covers its `thread_id` like every other message of the thread: a ULID in its canonical
+  form (26 characters, uppercase) whose time lies within 10 minutes of the node's clock (`400 thread.id_invalid`),
+  not used by another thread (`409 thread.id_taken`; pick a new one). Without `id` the node picks it and the first
+  message cannot be signed. Clients send `id` whenever they send `message` and the node announces
+  `threads.client_ids` (§3).
   Text and announcement channels: `send_messages` and `create_threads` (`403 message.send_forbidden`,
   `403 thread.create_forbidden`); `root_message_id` must be a message of the channel outside any thread (`400 thread.root_invalid`), at most one thread per root
   (`409 thread.exists`, `meta.thread_id`); `tags` are refused (`400 thread.tags_invalid`). Forum channels (a post):
