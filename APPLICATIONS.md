@@ -762,9 +762,10 @@ instances: the instance holding the interaction does not answer; see the scaling
 
 ### 6.1 Incoming webhooks
 
-A webhook posts messages into **one text or announcement channel**: plaintext in unencrypted channels, sealed boxes
-that only the channel's members can open in encrypted ones (§6.1a). The node never becomes a member of an MLS group
-and never holds a key that opens what is stored.
+A webhook posts messages into **one text, announcement or forum channel**: plaintext in unencrypted channels, sealed
+boxes that only the channel's members can open in encrypted ones (§6.1a). In a forum channel it posts into posts
+only (`thread_id`, below). The node never becomes a member of an MLS group and never holds a key that opens what
+is stored.
 
 | Route | Permission | Body → response |
 |---|---|---|
@@ -793,12 +794,17 @@ answer `404 webhook.not_found` (no oracle).
 - **Payload** (`application/json`, at most 32 KiB, `413 webhook.too_large`):
   ```json
   { "content": { "type": "text", "body": "Deploy **v1.2** finished", "embeds": [ Embed ] },
-    "username": "CI", "mentions": ["alice@node.example"], "mentions_everyone": false, "reply_to": null }
+    "username": "CI", "mentions": ["alice@node.example"], "mentions_everyone": false, "reply_to": null,
+    "thread_id": null }
   ```
   `content` is validated like a plaintext message (`PROTOCOL.md` §7, `message.*` codes) with `embeds` (§6.4);
   `username` 1–32 characters, no `@`, `#` or `:`, not `everyone` or `here` (`400 webhook.username_invalid`);
   `mentions` that are not room members are dropped; `mentions_everyone` needs `allow_mentions_everyone`, which only
-  a creator holding `mention_everyone` can set. No attachments in v1. `400 webhook.payload_invalid` for anything
+  a creator holding `mention_everyone` can set. `thread_id` posts into a thread of the webhook's channel
+  (`PROTOCOL.md` §7e; `404 thread.not_found` for unknown ids and threads of other channels, `403 thread.locked` for
+  a locked thread, an archived one reopens); webhooks need no `create_threads`, their creator decided where they
+  post. Forum channels show posts only: there `thread_id` (a post of the forum) is required, a message without it is
+  refused with `400 message.thread_required`. No attachments in v1. `400 webhook.payload_invalid` for anything
   else.
 - **Encryption switch**: the webhooks stay (§6.1a). When the channel becomes encrypted they are sealed by the sender
   and `pending_key` until a member publishes the inbox key; when it becomes unencrypted they post plaintext again.
@@ -823,7 +829,7 @@ with `PATCH`), `null` in unencrypted channels (`400 webhook.sealing_invalid` whe
 
 | `sealing` | The service | The node |
 |---|---|---|
-| `sender` (default) | fetches the key from `GET …/inbox-key`, seals `{ "content": {…}, "username"? }` itself and posts `{ "sealed": "<base64url>", "epoch": n }` | accepts only that body (`400 webhook.sealed_required` for anything else, unknown fields included), never sees the text |
+| `sender` (default) | fetches the key from `GET …/inbox-key`, seals `{ "content": {…}, "username"? }` itself and posts `{ "sealed": "<base64url>", "epoch": n, "thread_id"? }` (`thread_id` as in §6.1, outside the box) | accepts only that body (`400 webhook.sealed_required` for anything else, unknown fields included), never sees the text |
 | `node` | posts the plaintext payload of §6.1 over HTTPS as before | checks it like a plaintext payload, seals `{ content, username? }` in memory to the newest key and stores only the box; it sees the text at that moment, so its operator could read it |
 
 **Inbox key route for senders**: `GET /webhooks/{webhook_id}/{secret}/inbox-key` → `{ "epoch": n, "public_key":
@@ -1613,11 +1619,11 @@ application editor. Where the reference node deviates from or refines §6:
   (`400 message.reply_target_missing`). Webhook messages skip slowmode and auto-moderation (they have their own
   limits), cannot be edited, and are deleted, bulk-deleted and purged like any message.
 - **Additional codes**: `webhook.manage_forbidden` (403, management without `manage_webhooks` in the channel or, for
-  the room list, at room level), `channel.no_text` (400, webhooks post into `text` and `announcement` channels
-  only), `subscription.not_found` (404, `GET`/`DELETE` without a subscription).
+  the room list, at room level), `channel.no_text` (400, webhooks post into `text`, `announcement` and `forum`
+  channels only), `subscription.not_found` (404, `GET`/`DELETE` without a subscription).
 - **Transfer**: accepting a transfer deletes the event subscription and its queue (like the tokens, the URL was
   the previous owner's choice); the new owner configures it anew.
-- **Moving** a webhook (`PATCH … { channel_id }`) needs `manage_webhooks` in both channels, a text channel and room
+- **Moving** a webhook (`PATCH … { channel_id }`) needs `manage_webhooks` in both channels, a text, announcement or forum channel and room
   for it under the limits (since §6.1a also an encrypted one, which seals it). Renames and avatar changes emit
   `user.update` for the pseudo user to the room, so author caches refresh.
 - **Request logs**: the HTTP trace span logs the method, the path with `/webhooks/<id>/***` (wherever the segment

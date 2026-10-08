@@ -33586,6 +33586,13 @@
           "sealed": {
             "type": "string",
             "description": "`crypto_box_seal` of the inner JSON `{ \"content\": {…}, \"username\"? }` to the inbox key, base64url."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the channel to post into (routing metadata outside the box); required in forum channels."
           }
         },
         "additionalProperties": false
@@ -36158,6 +36165,13 @@
               "null"
             ],
             "description": "A message of the same channel this one replies to."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the channel to post into; required in forum channels (a post), which show no loose messages."
           },
           "username": {
             "type": [
