@@ -111,7 +111,8 @@ them).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
 `threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
-node that implements §7e.
+node that implements §7e; `threads.client_ids` by every node that takes the client-chosen thread id of §7e (clients
+send `id` only to those: an older node would ignore it, and the first message's signature would not match).
 
 `voice` (voice channels, `VOICE.md`), `screenshare` (screen sharing allowed) and `soundboard` (room clips) are
 announced by nodes while `TAVRN_VOICE_ENABLED` (and for `screenshare` also `TAVRN_SCREENSHARE_ENABLED`) is on.
@@ -1177,8 +1178,14 @@ other nodes use the same routes with their federated session. Nothing crosses no
 
 **Routes** (all need room membership and `view_channel`, `403 room.not_member` / `channel.view_forbidden`):
 
-- `POST /rooms/{room_id}/channels/{channel_id}/threads { title, title_epoch?, root_message_id?, tags?, message? }` →
-  `201 Thread`. `message` is a message create body (§7, `POST …/messages`) posted as the thread's first message.
+- `POST /rooms/{room_id}/channels/{channel_id}/threads { id?, title, title_epoch?, root_message_id?, tags?, message? }`
+  → `201 Thread`. `message` is a message create body (§7, `POST …/messages`) posted as the thread's first message.
+  `id` is the thread id chosen by the client, so the device signature of a plaintext first message
+  (`FEDERATION.md` §10.3) covers its `thread_id` like every other message of the thread: a ULID in its canonical
+  form (26 characters, uppercase) whose time lies within 10 minutes of the node's clock (`400 thread.id_invalid`),
+  not used by another thread (`409 thread.id_taken`; pick a new one). Without `id` the node picks it and the first
+  message cannot be signed. Clients send `id` whenever they send `message` and the node announces
+  `threads.client_ids` (§3).
   Text and announcement channels: `send_messages` and `create_threads` (`403 message.send_forbidden`,
   `403 thread.create_forbidden`); `root_message_id` must be a message of the channel outside any thread (`400 thread.root_invalid`), at most one thread per root
   (`409 thread.exists`, `meta.thread_id`); `tags` are refused (`400 thread.tags_invalid`). Forum channels (a post):
