@@ -5171,7 +5171,7 @@
         "tags": [
           "connect"
         ],
-        "summary": "One-time code for the web client of another node (connect flow, FEDERATION.md §8). Needs a full\nsession of a local user; remote users get `federation.local_only`.",
+        "summary": "One-time code for the web client of another node or a native app (connect flow, FEDERATION.md §8). Needs a full\nsession of a local user; remote users get `federation.local_only`. With `origin` the page redirects the code to\nthat web client; with `session_id` the node keeps it for the app's next poll of its app session.",
         "operationId": "connect_code",
         "requestBody": {
           "content": {
@@ -5224,6 +5224,16 @@
               }
             }
           },
+          "410": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "429": {
             "description": "",
             "content": {
@@ -5240,6 +5250,128 @@
             "bearer": []
           }
         ]
+      }
+    },
+    "/api/v1/auth/connect/session": {
+      "post": {
+        "tags": [
+          "connect"
+        ],
+        "summary": "Creates an app session of the connect flow (FEDERATION.md §8 step 3, `connect.app`) for a native app without an\nhttps origin. No authentication; rate-limited per client IP and for the whole node.",
+        "operationId": "create_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/connect/session/{session_id}": {
+      "get": {
+        "tags": [
+          "connect"
+        ],
+        "summary": "Polls an app session (FEDERATION.md §8 step 3): `pending` until the user confirmed on the node's page, then\n`ready` with the one-time code exactly once, then `410 connect.session_expired`. No authentication: the code is\nuseless without the app's PKCE verifier. Rate-limited per session and per client IP.",
+        "operationId": "poll_session",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectSessionStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/auth/connect/token": {
@@ -25412,25 +25544,34 @@
       },
       "ConnectCodeRequest": {
         "type": "object",
-        "required": [
-          "origin",
-          "code_challenge"
-        ],
         "properties": {
           "code_challenge": {
-            "type": "string",
-            "description": "`BASE64URL(SHA-256(code_verifier))` (PKCE, S256)."
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`BASE64URL(SHA-256(code_verifier))` (PKCE, S256). Required with `origin`; with `session_id` optional and,\nif given, equal to the session's."
           },
           "device_name": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Name of the new device the exchange creates (default: \"Browser on <origin host>\")."
+            "description": "Name of the new device the exchange creates (default: \"Browser on <origin host>\"); ignored with\n`session_id` (the session's name)."
           },
           "origin": {
-            "type": "string",
-            "description": "Origin of the visiting web client, e.g. `https://visited.example`."
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Origin of the visiting web client, e.g. `https://visited.example`. Exactly one of `origin` and `session_id`."
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "App session of a native app (`POST /auth/connect/session`). Exactly one of `origin` and `session_id`."
           }
         }
       },
@@ -25449,6 +25590,85 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          }
+        }
+      },
+      "ConnectSessionRequest": {
+        "type": "object",
+        "required": [
+          "code_challenge"
+        ],
+        "properties": {
+          "code_challenge": {
+            "type": "string",
+            "description": "`BASE64URL(SHA-256(code_verifier))` (PKCE, S256); the app keeps the verifier for the exchange."
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of the device the exchange creates, shown on the confirmation page (at most 64 characters, default\n\"Desktop app\")."
+          }
+        }
+      },
+      "ConnectSessionResponse": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "expires_in"
+        ],
+        "properties": {
+          "expires_in": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Seconds until the session expires unconfirmed (600).",
+            "minimum": 0
+          },
+          "session_id": {
+            "type": "string",
+            "description": "The app session (43 characters of base64url) for `/connect?session=…` and the polls."
+          }
+        }
+      },
+      "ConnectSessionStatus": {
+        "type": "object",
+        "description": "State of an app session: `pending` (with the device name) until the user confirmed, then `ready` with the code\nexactly once.",
+        "required": [
+          "status",
+          "expires_in"
+        ],
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`ready`: the one-time code for `POST /auth/connect/token`."
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`pending`: the name of the device the sign-in creates."
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Seconds left: of the session (`pending`) or of the code (`ready`).",
+            "minimum": 0
+          },
+          "node": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`ready`: the identity domain of this node."
+          },
+          "status": {
+            "type": "string",
+            "description": "`pending` or `ready`."
           }
         }
       },
