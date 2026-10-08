@@ -834,7 +834,11 @@ Every node serves the web client; there is no central client (design note 3.2). 
      yields no `sealed_unlock`.
    - Trust: the same as for the browser, where the home node's web client sees the PRF output anyway. The node
      itself only ever holds ciphertext it cannot open; the code stays bound to the PKCE verifier; the window
-     without native API never sees the app's secret key.
+     without native API never sees the app's secret key. A confirmed phishing link of a `login` session (see
+     "Security" above) now also hands over the unlock of the encrypted messages when the user signs in with a PRF
+     passkey, so the confirmation page says so in its warning whenever it will seal ("Your passkey also unlocks your
+     encrypted messages in this app"). `unlock` sessions cannot be phished across accounts (the node checks the
+     user).
 4. Unlocking the master secret on the visiting origin uses the **recovery key** (PRF passkeys are bound to the
    home domain); the local key store lives in the visiting origin's storage.
 5. The client warns once: "This web client is served by visited.example. Its operator could change the code you
