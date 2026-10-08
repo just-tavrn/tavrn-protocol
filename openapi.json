@@ -28471,6 +28471,10 @@
             "type": "boolean",
             "description": "Web push (PROTOCOL.md §6d): include a preview of unencrypted messages (default off; never for encrypted\nconversations). Left out of the document while off."
           },
+          "reports": {
+            "type": "boolean",
+            "description": "Web push for new reports (MODERATION.md §1.5) to the room moderators and node admins who receive them (default\non). Left out of the document while on."
+          },
           "sound": {
             "type": "boolean",
             "description": "Play a sound for notifications (client side)."
@@ -33094,6 +33098,14 @@
             "type": "string",
             "description": "public | invite"
           },
+          "message_retention_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Messages of the room's channels are deleted after this many days (null = the node's value; a room can only\nshorten it; pinned messages and the welcome channel are exempt, PROTOCOL.md §7f)."
+          },
           "name": {
             "type": "string"
           },
@@ -34784,6 +34796,13 @@
               "$ref": "#/components/schemas/ProfileLinkInput"
             },
             "description": "Linked accounts (at most 10); replaces the list. The node derives every URL itself."
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The language of the node's mails: a language tag such as `de` or `pt-BR` (stored lowercase), `\"\"` = English."
           }
         }
       },
@@ -34941,6 +34960,14 @@
               "string",
               "null"
             ]
+          },
+          "message_retention_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Delete messages after this many days (1–36500; 0 = use the node's value, PROTOCOL.md §7f). Effective is the\nshorter non-zero of this and the node's `TAVRN_RETENTION_DAYS`: a room can only shorten."
           },
           "name": {
             "type": [
@@ -35450,6 +35477,13 @@
               "has_password": {
                 "type": "boolean",
                 "description": "`false` for accounts that sign in only with SSO (no password, APPLICATIONS.md §8.3)."
+              },
+              "locale": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "`GET /users/me` and `PATCH /users/me` of local users: the language of the node's mails (a lowercase language\ntag such as `de`; null = English). Clients send theirs when it changes."
               },
               "notification_settings": {
                 "oneOf": [
