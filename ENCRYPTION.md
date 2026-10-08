@@ -230,7 +230,9 @@ method. Unwrapping fails (`decryption_failed`) for a wrong key, account or metho
 **Client rules.**
 
 - A PRF result MUST NOT leave the client: remove `clientExtensionResults.prf.results` from the
-  credential JSON before posting it. The node rejects such requests with `400 webauthn.prf_output_sent`.
+  credential JSON before posting it. The node rejects such requests with `400 webauthn.prf_output_sent`. The
+  one exception is the sealed unlock material of a connect app session (`FEDERATION.md` §8 step 3): sealed to
+  the app's own key, which the node never sees.
 - After unwrapping, the client MUST check the master secret against the account's identity key published by the
   home node (`GET /users/{username}/keys`): the derived key (§2.1) equals the published key, **or** the published
   key is reachable from the derived key through a valid continuity chain of that document (§9a) and the
@@ -252,7 +254,10 @@ method. Unwrapping fails (`decryption_failed`) for a wrong key, account or metho
 2. *New device or cleared browser*: log in (password and second factor, or passkey-only) →
    `GET /users/me/secret-storage` → if the login used a PRF passkey with an entry, derive
    `passkey_wrap_key` from the PRF output of that same ceremony; otherwise ask for the recovery key
-   (words, compact string or file) → unwrap → check the identity key → continue with §8.
+   (words, compact string or file) → unwrap → check the identity key → continue with §8. A native app whose
+   ceremony ran on the home node's page (connect app session) receives the PRF output and credential id of that
+   ceremony as sealed unlock material, encrypted to a key only the app holds (`FEDERATION.md` §8 step 3), and
+   continues the same way.
 3. *Regenerate the recovery key* (settings, on a trusted device): new recovery key, wrap, `PUT
    …/recovery`, show and confirm the new words. The old recovery key stops working.
 4. *Add a passkey later*: register it (PROTOCOL.md §5a); if PRF is supported, evaluate the PRF and upload
