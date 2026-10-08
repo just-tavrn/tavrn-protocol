@@ -748,11 +748,14 @@ Routes:
   subscribe again (they compare the key they subscribed with).
 - `PUT /users/me/push-subscriptions { endpoint, keys: { p256dh, auth }, device_id?, expiration_time? }` (the
   browser's `PushSubscription.toJSON()`; `expirationTime` is accepted too) registers the subscription for the
-  requesting device → `201` (new) or `200` (an existing endpoint, also one of another account on the same browser,
-  is taken over). `endpoint`: `https://` URL of a public host, at most 2048 characters (`400 push.endpoint_invalid`);
-  `p256dh` a base64url uncompressed P-256 point, `auth` base64url of 16 bytes (`400 push.keys_invalid`);
-  `device_id` must be the requesting device (`400 push.device_invalid`); `expiration_time` Unix milliseconds in the
-  future or null (`400 push.expiration_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30
+  requesting device → `201` (new) or `200` (an existing endpoint of the account, also from another of its devices,
+  is updated). An endpoint of another account's live subscription (not expired, its device has a live session) is
+  refused with `409 push.endpoint_taken`, so knowing an endpoint URL does not cut another account off its pushes;
+  the client then unsubscribes the browser and subscribes again (a new endpoint). A stale one is taken over.
+  `endpoint`: `https://` URL of a public host, at most 2048 characters (`400 push.endpoint_invalid`); `p256dh` a
+  base64url uncompressed P-256 point, `auth` base64url of 16 bytes (`400 push.keys_invalid`); `device_id` must be
+  the requesting device (`400 push.device_invalid`); `expiration_time` Unix milliseconds in the future or null (`400
+  push.expiration_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30
   registrations per hour (`429`), `404 push.disabled` while off. Response `PushRegistration { id, device_id,
   push_service, current_device, created_at, last_used_at, expires_at, failures }` (keys and endpoint are never
   returned; `push_service` is the endpoint's origin).
