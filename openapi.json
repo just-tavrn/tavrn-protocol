@@ -30189,6 +30189,7 @@
           "dm_policy",
           "voice",
           "preview_auto_max_bytes",
+          "message_retention_days",
           "legal"
         ],
         "properties": {
@@ -30229,6 +30230,12 @@
           "legal": {
             "$ref": "#/components/schemas/LegalInfo",
             "description": "Legal pages and the notice form (protocol/LEGAL.md)."
+          },
+          "message_retention_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Message retention of this node in days (`TAVRN_RETENTION_DAYS`, PROTOCOL.md §7f; 0 = messages are kept). Rooms\ncan only shorten it.",
+            "minimum": 0
           },
           "name": {
             "type": "string"

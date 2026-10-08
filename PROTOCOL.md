@@ -1291,8 +1291,8 @@ count their messages again (§7e).
 - The node writes one node audit entry `retention.messages { deleted, node_days, rooms, incomplete }` per run that
   deleted something. Clients get no event: what they already loaded stays until they reload. Attachment retention
   (`ENTITLEMENTS.md` §6) is separate and may delete files earlier.
-- The account's data summary (`LEGAL.md` §3.1, `GET /users/me/data`) names the node value as
-  `retention.message_retention_days`.
+- `GET /node` names the node value as `message_retention_days` (clients show it next to the room setting); the
+  account's data summary (`LEGAL.md` §3.1, `GET /users/me/data`) as `retention.message_retention_days`.
 
 ## 8. Encryption marker (mandatory for all clients)
 
