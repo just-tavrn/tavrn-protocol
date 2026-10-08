@@ -32,7 +32,7 @@ node ──every 30 s──▶ LiveKit room service (reconciliation, no ghosts)
 ```json
 "policies": {
   "voice_enabled": true,
-  "voice_max_bitrate_kbps": 96,
+  "voice_max_bitrate_kbps": 192,
   "voice_max_participants": 50,
   "screenshare": { "enabled": true, "max_resolution": "1080p", "max_fps": 30 },
   "camera": { "enabled": true, "max_resolution": "720p", "max_fps": 30 }
@@ -46,7 +46,10 @@ screen `720p`, `1080p`, `1440p`, `4k`; camera `360p`, `720p`, `1080p`. Frame rat
 
 Channel settings (`PATCH /rooms/{room_id}/channels/{channel_id}`, `manage_channels`): `bitrate_kbps` (8–512, at most
 the node's `voice_max_bitrate_kbps`, else `400 channel.bitrate_too_high`; new voice channels default to
-`min(64, node max)`) and `user_limit` (0 = unlimited, at most 99).
+`min(64, node max)`) and `user_limit` (0 = unlimited, at most 99). The cap applies to a bitrate that is being set: a
+channel whose stored bitrate is above a cap the operator lowered later keeps it (the join caps it, §3) and its other
+settings stay editable. `TAVRN_VOICE_MAX_BITRATE_KBPS` defaults to 192, so every client preset of §4a is reachable;
+operators lower it to save traffic.
 
 ## 3. Joining
 
@@ -64,6 +67,7 @@ the node's `voice_max_bitrate_kbps`, else `400 channel.bitrate_too_high`; new vo
   "epoch": 7,
   "limits": {
     "audio_bitrate_kbps": 64,
+    "audio_fec": true,
     "screenshare": { "enabled": true, "max_resolution": "1080p", "max_fps": 30 },
     "camera": { "enabled": false, "max_resolution": "720p", "max_fps": 30 }
   },
@@ -86,7 +90,10 @@ the node's `voice_max_bitrate_kbps`, else `400 channel.bitrate_too_high`; new vo
 - `ice_aliases` are extra addresses of the media server (§10.2): clients add every host candidate LiveKit sends
   once more with each alias of the same address family (same port). Empty unless the operator configured more
   addresses than LiveKit takes.
-- `limits.audio_bitrate_kbps` = `min(channel bitrate, node maximum)`. `screenshare.enabled`/`camera.enabled` say
+- `limits.audio_bitrate_kbps` = `min(channel bitrate, node maximum)`. `limits.audio_fec`: the node's media server
+  negotiates Opus in-band forward error correction (`useinbandfec=1` in its answer), so publishers encode with it and
+  a lost packet is partly recovered from the next one; clients that configure Opus themselves switch it on when the
+  value is `true` (today always). Browsers do this from the negotiated SDP without an API call. `screenshare.enabled`/`camera.enabled` say
   whether *this participant* may publish them (node policy and permission). Clients MUST NOT publish beyond the
   limits (§4); LiveKit enforces the allowed track sources, the node enforces nothing else on media.
 
@@ -134,12 +141,52 @@ paths, `502 voice.unavailable` (LiveKit down), `503 voice.disabled`; LiveKit's o
 2. `POST …/voice/join`, then set up E2EE (§6) and `room.connect(url, token, { autoSubscribe: true })` with
    `e2ee: { keyProvider, worker }`, and `room.setE2EEEnabled(true)` before publishing.
 3. Publish within the limits: microphone with `audioPreset`/`maxBitrate = limits.audio_bitrate_kbps * 1000`, Opus
-   (DTX and RED allowed); camera with a resolution and frame rate not above `limits.camera` (simulcast on); screen
+   with DTX (off in music mode, §4a), in-band FEC when `limits.audio_fec`, RED off (it would carry every frame twice
+   through the E2EE transform); camera with a resolution and frame rate not above `limits.camera` (simulcast on); screen
    share (`setScreenShareEnabled`) with `resolution`/`frameRate` not above `limits.screenshare`, screen audio
    allowed. Codecs: VP8 or H.264 (the node's LiveKit accepts Opus, RED, VP8 and H.264 only).
 4. Report the own state with `PATCH …/voice/state` (§5) whenever the user mutes, deafens or starts/stops
    streaming or the camera.
 5. Leave with `room.disconnect()` and `POST …/voice/leave`.
+
+## 4a. Quality presets and music mode (client conventions)
+
+Opus is the only audio codec (WebRTC's mandatory, royalty-free codec; 6–510 kbps; the best quality per bit for speech
+and music). A channel has exactly one bitrate: with an SFU every listener receives what a speaker publishes (no
+transcoding), so quality is a channel setting, not a per-listener preference. Clients offer these presets for
+`bitrate_kbps` (nothing of this is stored by the node besides the number):
+
+| Preset | kbps | Opus | Use |
+|---|---|---|---|
+| Saver | 8 | narrow-band, "telephone" | still intelligible, least traffic |
+| Standard | 32 | wide-band speech | |
+| High | 64 | full-band speech | the default of new channels (§2) |
+| Studio | 128 | full-band, practically transparent for speech | |
+| Music | 192 | stereo, full-band | music mode (below) |
+| Custom | 8 – cap | | any other value |
+
+A bitrate that equals a preset shows as that preset, any other as Custom. Presets above the node's
+`voice_max_bitrate_kbps` are shown as limited by the node and cannot be chosen; a stored bitrate above the cap shows
+the preset with the bitrate the join hands out. The voice panel shows the quality of the current call (preset name,
+the kbps in a tooltip) from `limits.audio_bitrate_kbps`.
+
+**Music mode** applies when `limits.audio_bitrate_kbps` ≥ 192 (the Music preset and larger custom values):
+
+- Capture with `echoCancellation`, `noiseSuppression` and `autoGainControl` off and `channelCount: { ideal: 2 }`;
+  the client's own noise suppression is skipped too. Voice activation, noise gate and push-to-talk stay as the user
+  set them.
+- **A mono microphone is never heard on one side only.** The capture is stereo only when the captured track reports
+  `channelCount` 2; any other capture is mono and is published as mono Opus (listeners hear it in the middle). A
+  two-channel capture whose one channel stays silent (a single microphone on a two-input interface: one channel below
+  −70 dBFS while the other is above −60 dBFS) carries the live channel on both sides; it becomes stereo as soon as
+  both channels carry signal (above −60 dBFS) for 250 ms. Until the first decision both sides carry the average of
+  the two channels; a stereo capture falls back to the live channel after one side was silent for 2 s while the other
+  carried signal.
+- Publish: Opus stereo (`stereo=1`) only for a stereo capture, DTX off (it would cut quiet passages and reverb tails),
+  RED off, `maxBitrate = limits.audio_bitrate_kbps × 1000`.
+- Traffic: 192 kbps are about 86 MB per hour for every speaker and listener; the client says so next to the preset.
+
+Calls in DMs (§11) are speech: their limits carry `min(64, node maximum)`.
 
 ## 5. Presence: who is in which channel
 
@@ -340,7 +387,8 @@ Part of the web client (phase 4 part B), responsive like the rest of the client:
   (`keyringSize: 256`, key set with `onSetEncryptionKey(material, undefined, epoch % 256)`, keys of older epochs
   ignored), `room.setE2EEEnabled(true)` and `connect`; the microphone is published only after LiveKit's worker
   confirmed encryption for the local participant (`ParticipantEncryptionStatusChanged`), with
-  `maxBitrate = limits.audio_bitrate_kbps × 1000`, DTX on, RED off (E2EE). Every epoch event of the group re-keys.
+  `maxBitrate = limits.audio_bitrate_kbps × 1000`, DTX on, RED off (E2EE), and in music mode stereo and DTX off
+  (§4a). Every epoch event of the group re-keys.
 - The published microphone track is the output of a WebAudio graph (input volume → optional RNNoise worklet → a
   gate worklet for voice activation, noise gate and push-to-talk → mix with soundboard clips); device and
   processing changes rewire the graph without republishing. The gate reports levels about ten times per second.
@@ -535,7 +583,7 @@ All under `/api/v1/conversations/{conversation_id}/call`, for accepted members o
 
 `CallJoin` = `{ url, token, expires_at, room: "call:<id>", identity, conversation_id, epoch, limits, participants,
 reconnect_grace_secs, ice_aliases, call: CallState }`; the limits are the node's (DMs have no roles): audio at
-`TAVRN_VOICE_MAX_BITRATE_KBPS`, camera and screen share as the node policies allow. Errors: `400 call.not_direct`
+`min(64, TAVRN_VOICE_MAX_BITRATE_KBPS)` (speech, §4a) with `audio_fec`, camera and screen share as the node policies allow. Errors: `400 call.not_direct`
 (a room channel), `403 call.request_pending` (the requester has not accepted the conversation), `404
 conversation.not_found`, `409 call.not_active` (join/decline without a call), `409 call.full`
 (`TAVRN_VOICE_MAX_PARTICIPANTS`), `409 voice.not_connected` (state without a connection), `429`, `503 voice.disabled`.

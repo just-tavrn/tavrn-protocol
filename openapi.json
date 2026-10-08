@@ -35704,6 +35704,7 @@
         "description": "Quality limits the client applies to what it publishes.",
         "required": [
           "audio_bitrate_kbps",
+          "audio_fec",
           "screenshare",
           "camera",
           "stream_max_height",
@@ -35715,6 +35716,10 @@
             "type": "integer",
             "format": "int64",
             "description": "Channel bitrate, capped by `TAVRN_VOICE_MAX_BITRATE_KBPS`."
+          },
+          "audio_fec": {
+            "type": "boolean",
+            "description": "Opus in-band forward error correction: the node's media server negotiates it (`useinbandfec=1`), so\npublishers encode with it and a lost packet is partly recovered from the next one. DTX stays on, RED\nstays off (end-to-end encryption)."
           },
           "camera": {
             "$ref": "#/components/schemas/VideoLimits"
