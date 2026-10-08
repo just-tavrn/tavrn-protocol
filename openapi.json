@@ -5171,7 +5171,7 @@
         "tags": [
           "connect"
         ],
-        "summary": "One-time code for the web client of another node or a native app (connect flow, FEDERATION.md §8). Needs a full\nsession of a local user; remote users get `federation.local_only`. With `origin` the page redirects the code to\nthat web client; with `session_id` the node keeps it for the app's next poll of its app session.",
+        "summary": "One-time code for the web client of another node or a native app (connect flow, FEDERATION.md §8). Needs a full\nsession of a local user; remote users get `federation.local_only`. With `origin` the page redirects the code to\nthat web client; with `session_id` the node keeps it, and the optional `sealed_unlock`, for the app's next poll of\nits app session. An `unlock` session issues no code: its own user sends `sealed_unlock` and gets `204`.",
         "operationId": "connect_code",
         "requestBody": {
           "content": {
@@ -5193,6 +5193,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "Unlock session: the sealed unlock material waits for the app's poll"
           },
           "400": {
             "description": "",
@@ -5257,7 +5260,7 @@
         "tags": [
           "connect"
         ],
-        "summary": "Creates an app session of the connect flow (FEDERATION.md §8 step 3, `connect.app`) for a native app without an\nhttps origin. No authentication; rate-limited per client IP and for the whole node.",
+        "summary": "Creates an app session of the connect flow (FEDERATION.md §8 step 3, `connect.app`) for a native app without an\nhttps origin. No authentication for a sign-in; an `unlock` session needs the app's full session of a local user and\nbelongs to that user. Rate-limited per client IP and for the whole node.",
         "operationId": "create_session",
         "requestBody": {
           "content": {
@@ -5290,6 +5293,26 @@
               }
             }
           },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "429": {
             "description": "",
             "content": {
@@ -5310,7 +5333,13 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/auth/connect/session/{session_id}": {
@@ -5318,7 +5347,7 @@
         "tags": [
           "connect"
         ],
-        "summary": "Polls an app session (FEDERATION.md §8 step 3): `pending` until the user confirmed on the node's page, then\n`ready` with the one-time code exactly once, then `410 connect.session_expired`. No authentication: the code is\nuseless without the app's PKCE verifier. Rate-limited per session and per client IP.",
+        "summary": "Polls an app session (FEDERATION.md §8 step 3): `pending` until the user confirmed on the node's page, then\n`ready` with the one-time code and the sealed unlock material exactly once, then `410 connect.session_expired`.\nNo authentication: the code is useless without the app's PKCE verifier, the sealed material without the app's\nkey. Rate-limited per session and per client IP.",
         "operationId": "poll_session",
         "parameters": [
           {
@@ -25566,6 +25595,13 @@
             ],
             "description": "Origin of the visiting web client, e.g. `https://visited.example`. Exactly one of `origin` and `session_id`."
           },
+          "sealed_unlock": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "With `session_id` only: sealed unlock material for the app (base64url, 49–1024 bytes; FEDERATION.md §8 step\n3), handed out once with the code. Required for an `unlock` session. Opaque to the node."
+          },
           "session_id": {
             "type": [
               "string",
@@ -25609,6 +25645,13 @@
               "null"
             ],
             "description": "Name of the device the exchange creates, shown on the confirmation page (at most 64 characters, default\n\"Desktop app\")."
+          },
+          "purpose": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`login` (default: sign the app in, no authentication) or `unlock` (sealed unlock material only, no code; needs\nthe app's full session and binds the session to its user)."
           }
         }
       },
@@ -25633,7 +25676,7 @@
       },
       "ConnectSessionStatus": {
         "type": "object",
-        "description": "State of an app session: `pending` (with the device name) until the user confirmed, then `ready` with the code\nexactly once.",
+        "description": "State of an app session: `pending` (with the device name and purpose) until the user confirmed, then `ready`\nwith the code and the sealed unlock material exactly once.",
         "required": [
           "status",
           "expires_in"
@@ -25644,7 +25687,7 @@
               "string",
               "null"
             ],
-            "description": "`ready`: the one-time code for `POST /auth/connect/token`."
+            "description": "`ready` of a `login` session: the one-time code for `POST /auth/connect/token`."
           },
           "device_name": {
             "type": [
@@ -25665,6 +25708,20 @@
               "null"
             ],
             "description": "`ready`: the identity domain of this node."
+          },
+          "purpose": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`pending`: `login` or `unlock` (nodes that support sealed unlock material always send it)."
+          },
+          "sealed_unlock": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`ready`: the sealed unlock material the page sent, if any (base64url; only the app can open it)."
           },
           "status": {
             "type": "string",

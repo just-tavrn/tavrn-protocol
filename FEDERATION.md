@@ -737,26 +737,41 @@ Every node serves the web client; there is no central client (design note 3.2). 
    return to: its pages run on `tauri://localhost` or similar. It uses the same page and code, with an **app
    session** that it polls instead of a redirect:
 
-   1. `POST /api/v1/auth/connect/session { code_challenge (S256), device_name? }` (no authentication) →
+   1. `POST /api/v1/auth/connect/session { code_challenge (S256), device_name?, purpose? }` →
       `{ session_id, expires_in: 600 }`. The app keeps the PKCE verifier; `session_id` is 32 random bytes in
       base64url (43 characters). `device_name` (at most 64 characters, default "Desktop app") names the device
-      the exchange creates and is shown on the confirmation page.
-   2. The app opens `https://<web>/connect?session=<session_id>&state=<random>` (`web` of the home node's
-      document) in a window of its own without any native API, or in the system browser. The user signs in there
-      with any method (password and second factor, passkey, SSO, registration with captcha) and confirms "Sign
-      in to <device_name>?". The page reads the session's device name with the poll route (status `pending`)
-      before the confirmation and never afterwards.
-   3. The home client calls `POST /api/v1/auth/connect/code { session_id, code_challenge?, device_name? }` (full
-      session). Exactly one of `origin` and `session_id` is given (both or neither: `400 connect.target_invalid`).
-      `code_challenge`, if given, must equal the session's (`400 connect.challenge_invalid`); `device_name` is
-      ignored (the session's name wins). The node issues the code as for an origin (single use, 2 minutes, bound
-      to the session, the challenge and the confirming device) and stores it with the session instead of
-      redirecting. The page shows "You are signed in; return to the app" and does not redirect.
+      the exchange creates and is shown on the confirmation page. `purpose` is `"login"` (default: sign in, no
+      authentication) or `"unlock"` (unlock only, see "Sealed unlock material" below: needs a full session of a
+      local user, `401` without one, `403 federation.local_only` for remote users, `403 app.bot_forbidden` for bots, and binds the session
+      to that user); any other value is `400 connect.purpose_invalid`.
+   2. The app opens `https://<web>/connect?session=<session_id>&state=<random>[&method=…]#k=<public key>`
+      (`web` of the home node's document) in a window of its own without any native API, or in the system
+      browser. The user signs in there with any method (password and second factor, passkey, SSO, registration
+      with captcha) and confirms "Sign in to <device_name>?". The page reads the session's device name and
+      purpose with the poll route (status `pending`) before the confirmation and never afterwards.
+      - `method` (optional) starts one sign-in method at once instead of showing the whole form: `passkey` (the
+        passkey-only login), `sso` (single sign-on) or `register` (the registration; `mode=register` is the older
+        spelling and means the same). The page then shows only a short "Signing in with a passkey…" state with
+        "Use another method"; unknown values are ignored.
+      - `#k=<base64url X25519 public key, 32 bytes>` (optional) is the app's key for sealed unlock material. It
+        is in the URL **fragment**, which browsers never send to a server; the page reads it once, keeps it for
+        the page's lifetime (also across the sign-in and an SSO round trip in the same window) and removes it
+        from the address bar. A page that finds no valid key never seals anything.
+   3. The home client calls `POST /api/v1/auth/connect/code { session_id, code_challenge?, device_name?,
+      sealed_unlock? }` (full session). Exactly one of `origin` and `session_id` is given (both or neither: `400
+      connect.target_invalid`). `code_challenge`, if given, must equal the session's (`400
+      connect.challenge_invalid`); `device_name` is ignored (the session's name wins). The node issues the code
+      as for an origin (single use, 2 minutes, bound to the session, the challenge and the confirming device) and
+      stores it with the session instead of redirecting. The page shows "You are signed in; return to the app"
+      and does not redirect. `sealed_unlock` (optional, below) is stored with the session as well. For an
+      `unlock` session no code is issued: the confirming user must be the session's user (`403
+      connect.user_mismatch`), `sealed_unlock` is required, and the answer is `204`.
    4. The app polls `GET /api/v1/auth/connect/session/{session_id}` (no authentication, `Cache-Control:
       no-store`), at most every 2 seconds:
-      - `200 { status: "pending", device_name, expires_in }` until the user confirms;
-      - `200 { status: "ready", code, node, expires_in }` **exactly once** after the confirmation (`node` = the
-        home node's identity domain, `expires_in` = the code's lifetime left);
+      - `200 { status: "pending", device_name, purpose, expires_in }` until the user confirms;
+      - `200 { status: "ready", code?, node, sealed_unlock?, expires_in }` **exactly once** after the
+        confirmation (`code` for a `login` session, never for an `unlock` session; `sealed_unlock` when the page
+        sent one; `node` = the home node's identity domain, `expires_in` = the code's lifetime left);
       - then, and once the session or its code expired, `410 connect.session_expired`;
       - `404 connect.session_invalid` for an id the node does not know (never issued, or expired longer than 10
         minutes ago).
@@ -767,11 +782,11 @@ Every node serves the web client; there is no central client (design note 3.2). 
 
    Lifetimes and limits: a session is pending for at most 10 minutes; once confirmed it lives as long as its code
    (2 minutes); a session is confirmed at most once (a second confirmation: `410 connect.session_expired`), and
-   its code is handed out at most once. Creating sessions is rate-limited per client IP (reference node: 10 per
-   minute, 1000 per minute for the whole node), polling per session (60 per minute) and per client IP (600 per
-   minute), all `429` with `Retry-After`. Unknown, malformed or expired session ids at `POST /auth/connect/code`:
-   `400 connect.session_invalid` or `410 connect.session_expired`. The exchange is audited like the origin flow
-   (`user.connect`, target `app`, with the device name).
+   its code and sealed unlock material are handed out at most once. Creating sessions is rate-limited per client
+   IP (reference node: 10 per minute, 1000 per minute for the whole node), polling per session (60 per minute) and
+   per client IP (600 per minute), all `429` with `Retry-After`. Unknown, malformed or expired session ids at
+   `POST /auth/connect/code`: `400 connect.session_invalid` or `410 connect.session_expired`. The exchange is
+   audited like the origin flow (`user.connect`, target `app`, with the device name).
 
    Security: the session id only yields a code, and the code is useless without the verifier (PKCE S256), so a
    leaked session id (it is part of the page's URL) gives nothing. Codes and sessions are single use and short
@@ -779,11 +794,51 @@ Every node serves the web client; there is no central client (design note 3.2). 
    started themselves in their own app just now (a session id can be sent to a victim like a phishing link, as
    in every device authorization flow). The window that shows the home node's page has no native API. Device
    keys for end-to-end encryption are created in the app after the exchange, never by the page; the page in
-   session mode skips the encryption setup and unlocking. Unlocking the master secret in the app works as for a
-   visited origin (step 4: the recovery key). A later version may add an app-scheme callback
+   session mode skips the encryption setup and unlocking. A later version may add an app-scheme callback
    (`tavrn://connect/callback`, RFC 8252) as an accelerator; polling stays the baseline. Nodes without
    `connect.app` offer only the origin flow; apps then fall back to password and TOTP and tell the user that
    passkeys, SSO and registrations with a captcha need a browser.
+
+   **Sealed unlock material** (part of `connect.app`). A passkey with the PRF extension unlocks the master
+   secret in the same ceremony that signs the user in (ENCRYPTION.md §2.4 flow 2), but the ceremony runs on the
+   home node's page while the master secret is needed in the app. The page therefore hands the PRF output to the
+   app, encrypted to a key only the app holds:
+
+   - The app creates a fresh X25519 key pair for every app session and puts the public key into the fragment
+     (`#k=`, step 2). The secret key never leaves the app and is dropped when the session ends.
+   - After a passkey ceremony with a PRF result on the page (the passkey-only login, a passkey as second factor,
+     or, for an `unlock` session, an assertion just for the PRF), the page builds
+     `sealed_unlock = base64url(crypto_box_seal(plaintext, k))`: libsodium's sealed box, the construction of the
+     webhook inbox (ENCRYPTION.md §5b: ephemeral X25519 key, XSalsa20-Poly1305, `ephemeral public(32) ||
+     ciphertext || tag(16)`). The plaintext is the UTF-8 JSON `{ "type": "tavrn.connect.unlock.v1",
+     "session_id": "<the app session>", "credential_id": "<base64url credential id>", "prf_output":
+     "<base64url, 32 bytes>" }`; `type` separates it from every other sealed payload and `session_id` binds it
+     to this handoff (a sealed box has no associated data).
+   - The node treats `sealed_unlock` as opaque: base64url without padding, 49 to 1024 bytes decoded (`400
+     connect.sealed_unlock_invalid` otherwise, also when it comes with `origin`). It keeps it sealed in its cache
+     with the session, hands it out with the one `ready` answer and deletes it then (or when the session
+     expires). It never logs it.
+   - The app opens the box, checks `type` and `session_id`, and unlocks the master secret with the secret storage
+     entry `passkey:<credential_id>` exactly as a browser does with the PRF output of its own ceremony
+     (ENCRYPTION.md §2.4, including the identity key check). Its device keys are created in the app as before.
+     When the node returns no `sealed_unlock`, the box does not open, the content is invalid, or the entry does
+     not unwrap, the app asks for the recovery key.
+   - **`unlock` sessions** cover an app that is signed in (for example with password and TOTP) but locked: the
+     app creates the session with its own session (`purpose: "unlock"`), opens the page with `method=passkey`,
+     and the page, signed in as the same user (or after a sign-in there), runs only a passkey assertion with the
+     secret storage PRF input and sends `sealed_unlock` without a code. The node refuses a confirming user other
+     than the session's (`403 connect.user_mismatch`), so a link to someone else's unlock session is useless.
+   - Detection: a node that knows `purpose` and `sealed_unlock` returns `purpose` in every `pending` answer; an
+     app that created an `unlock` session polls once before opening the page and gives up (recovery key) when
+     the answer lacks `purpose: "unlock"`. Older nodes ignore the unknown fields, so a `login` session simply
+     yields no `sealed_unlock`.
+   - Trust: the same as for the browser, where the home node's web client sees the PRF output anyway. The node
+     itself only ever holds ciphertext it cannot open; the code stays bound to the PKCE verifier; the window
+     without native API never sees the app's secret key. A confirmed phishing link of a `login` session (see
+     "Security" above) now also hands over the unlock of the encrypted messages when the user signs in with a PRF
+     passkey, so the confirmation page says so in its warning whenever it will seal ("Your passkey also unlocks your
+     encrypted messages in this app"). `unlock` sessions cannot be phished across accounts (the node checks the
+     user).
 4. Unlocking the master secret on the visiting origin uses the **recovery key** (PRF passkeys are bound to the
    home domain); the local key store lives in the visiting origin's storage.
 5. The client warns once: "This web client is served by visited.example. Its operator could change the code you
@@ -1009,7 +1064,8 @@ address), `federation.domain_invalid` (400), `federation.target_self` (400), `fe
 (503), `federation.already_blocked` (409), `federation.not_blocked` (409), `federation.peer_unknown` (404),
 `conformance.probe_only` (403), `conformance.room_not_found` (404), `conformance.running` (409), `index.version_conflict` (412), `index.too_large` (413), `invite.wrong_user` (403),
 `connect.origin_invalid` (400), `connect.code_invalid` (400), `connect.challenge_invalid` (400),
-`connect.target_invalid` (400), `connect.session_invalid` (400/404), `connect.session_expired` (410), `connect.busy` (503), `message.signature_invalid` (400),
+`connect.target_invalid` (400), `connect.session_invalid` (400/404), `connect.session_expired` (410), `connect.busy` (503),
+`connect.purpose_invalid` (400), `connect.sealed_unlock_invalid` (400), `connect.user_mismatch` (403), `message.signature_invalid` (400),
 `message.signature_missing` (400), `directory.announce_unverified` (400), `directory.cursor_invalid` (400),
 `directory.node_not_found` (404), `room.discoverable_public_only` (400). Retired: `friend.remote`,
 `conversation.member_remote`.
@@ -1050,7 +1106,9 @@ results. Never logged: tokens, request bodies, payload contents (room names, mem
 - New inbox types, payload fields and directory fields are compatible additions; receivers ignore unknown ones.
 - `content.signed1` (§10.3) is a client capability.
 - `connect.app` (app sessions of the connect flow, §8 step 3) is announced by every node that implements them,
-  independent of `TAVRN_FEDERATION_ENABLED` (the flow serves the node's own users).
+  independent of `TAVRN_FEDERATION_ENABLED` (the flow serves the node's own users). The session `purpose` and
+  `sealed_unlock` are compatible additions to it, without a capability of their own: clients detect them by the
+  `purpose` field of the `pending` answer (§8 step 3, "Sealed unlock material").
 - Safety number, plaintext signature, listing and token formats carry version strings (`v1`, `typ`); a change
   requires a new label.
 
