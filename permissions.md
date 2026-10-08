@@ -132,6 +132,10 @@ every removal in the room's audit log as `role.everyone_restricted` (`meta`: `ki
 4. If `view_channel` is missing afterwards, the result is 0.
 5. Members in timeout keep only `view_channel` and `read_history` (a timeout limits writing, not reading).
 
+Age gates (`PROTOCOL.md` §5e) come before this evaluation: in a channel whose effective `age_gate` is
+`adults_only`, a member below it (a minor or a user of unknown age) has 0, owners and node admins included. The gate
+is not an input of `testvectors/permissions.json`; implementations apply it around the evaluation.
+
 Hierarchy: roles have a position (`@everyone` = 0). Members can only manage or assign roles below their own
 highest position, only grant permissions they hold themselves, and only kick, ban or time out members whose
 highest role is lower. Owners outrank everything, node admins as well.

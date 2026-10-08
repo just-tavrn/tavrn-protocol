@@ -50,11 +50,14 @@ detail; this document covers the concepts and rules that span individual routes.
     "screenshare": { "enabled": true, "max_resolution": "1080p", "max_fps": 30 },
     "camera": { "enabled": true, "max_resolution": "720p", "max_fps": 30 }
   },
-  "directory_listing": true
+  "directory_listing": true,
+  "age": { "self_declared": true, "gates": ["adults_only"], "minimum_age": 16 }
 }
 ```
 
 - `tavrn` is the protocol major version. A client that does not know it must not connect.
+- `age` (nodes announcing `age.v1`, §5e): how the node handles ages: `self_declared` (the date of birth is the
+  user's own statement), the room and channel `gates` it enforces, and the `minimum_age` for registration.
 - The voice policies (`voice_*`, `screenshare`, `camera`) and the voice API are specified in `VOICE.md`.
 - Per-user and per-room limits above these policies (plans, grants, admin API tokens, attachment retention) are
   node-local and specified in `ENTITLEMENTS.md`; clients read their effective values from
@@ -107,7 +110,7 @@ Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, 
 since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set), `reports.v1` and `automod.v1`
 (reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
 sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
-them).
+them), `age.v1` (date of birth, private age status and age gates, §5e, announced by every node that implements it).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
 `threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
@@ -341,7 +344,7 @@ Secret storage routes: `ENCRYPTION.md` §2.4.
 
 ### 5a.5 Client flows
 
-- **Registration**: `POST /auth/register` → pre-auth (enroll) → enroll TOTP (`totp/enroll`, show QR code
+- **Registration**: `POST /auth/register` (with the `date_of_birth`, §5e) → pre-auth (enroll) → enroll TOTP (`totp/enroll`, show QR code
   of `otpauth_url` and the base32 secret, `totp/confirm` with a code) **or** a passkey
   (`webauthn/register/start`, `navigator.credentials.create`, `webauthn/register/finish`) → the
   response carries the session and the recovery codes (show once, user confirms) → end-to-end
@@ -482,6 +485,95 @@ The full description is `LEGAL.md`; the parts every client needs:
   without avatar, profile or link, and `{"type":"system.deleted"}` content as "message deleted". A deleted account's
   password login answers `401 auth.account_deleted`.
 
+## 5e. Date of birth, age status and age gates (`age.v1`)
+
+Every node that implements this section announces `age.v1`; `GET /node` and the discovery document (§2) carry
+`age: { self_declared: true, gates: ["adults_only"], minimum_age }`. This is the self-declared slice of the age
+design: the date of birth is the user's own statement, never a verification, and the node uses it only for its
+minimum age and for the age gates below.
+
+**Date of birth at registration.** `POST /auth/register` requires `date_of_birth`, an ISO 8601 calendar date
+`YYYY-MM-DD`, on every registration path (password and passkey registration both start there; clients that
+register for a native app on the connect page send it the same way). The node checks it before anything is
+stored:
+
+| Check | Error |
+|---|---|
+| missing, not `YYYY-MM-DD`, not a real calendar date, after today (UTC) or before `1900-01-01` | `400 validation.date_of_birth` |
+| the age on today's UTC date is below the node's `minimum_age` (`TAVRN_MINIMUM_AGE`, default 16, 13–99) | `403 age.below_minimum` with `meta.minimum_age`; the detail names the minimum ("You must be at least 16 years old to register on this node") |
+
+The age is counted in whole years: a person is `n` years old from the `n`th birthday on; a birthday on 29 February
+counts on 1 March in common years.
+
+**Accounts without a date of birth** (created before `age.v1`, or provisioned by single sign-on, §5a.6) complete
+it with `PUT /users/me/date-of-birth { date_of_birth }` (same checks; `200` with the own account as in
+`GET /users/me`). Until then every authenticated route answers `403 age.status_required`, except `/users/me`
+itself, `PUT /users/me/date-of-birth`, `POST /auth/logout`, the terms and legal routes of §5d (`/legal/*`,
+`/users/me/terms`, `/users/me/terms/accept`), the data rights (`GET /users/me/data`, `GET /users/me/export`) and
+the re-authentication they need (`POST /auth/reauth`, `POST /auth/reauth/webauthn/start`); a WebSocket closes with
+`4002` and the reason `age.status_required`. Clients answer `age.status_required` with a blocking "add your date of
+birth" dialog. Bots and users of other nodes are never asked (bots follow their owner, remote users the claim of
+their home node). A date below the minimum age is refused with `403 age.below_minimum` here too, and the account
+stays blocked.
+
+**Corrections.** A user sets the date of birth once; a second `PUT` answers `409 age.date_of_birth_set`. The node
+operator corrects it on request: `PUT /admin/users/{user_id}/date-of-birth { date_of_birth }` (node admin, local
+users; `null` removes it, so the user is asked again), audited as `admin.date_of_birth` without the date itself.
+
+**The age status is private.** The node derives it on every use from the date of birth and today's UTC date:
+
+| `tier` | When |
+|---|---|
+| `adult` | 18 years or older |
+| `minor` | younger than 18 |
+| `unknown` | no date of birth (accounts that have not completed it) |
+
+`GET /users/me` of a local user carries `date_of_birth` (or null) and `age_status: { tier, method }` (`method`
+`self` for a self-declared date, `none` for `unknown`). Nothing else ever does: no profile (local or federated),
+member list, search result, event, audit entry or response about another user carries the date of birth or the
+status, and a refusal never reveals another user's status (a direct invite to a minor is created like any other;
+only the invitee's own join fails). The date of birth stays on the home node; other nodes learn only the signed
+"18 or older: yes/no/unknown" claim of `FEDERATION.md` §2.2 when the user acts there. **`unknown` counts as `minor`
+everywhere.**
+
+**Age gates.** Rooms and channels carry `age_gate`: `none` (default) or `adults_only`. A channel's effective gate is
+`adults_only` when the room's or the channel's own gate says so (the room's gate is the channel's minimum: a channel
+can be stricter than its room, never looser); `Channel` objects carry their own `age_gate` and the
+`age_gate_effective`.
+
+| Route | Permission | |
+|---|---|---|
+| `PATCH /rooms/{room_id}` `{ age_gate }` | `manage_room` | audited `room.age_gate`, event `room.update` and `channel.update` for the room's channels |
+| `POST /rooms/{room_id}/channels`, `PATCH /rooms/{room_id}/channels/{channel_id}` `{ age_gate }` | `manage_channels` | audited `channel.age_gate`, event `channel.update` |
+
+Only an adult can switch a gate to `adults_only` (`403 age.restricted`), so nobody locks themselves out by
+accident; any value other than `none` and `adults_only` is `400 validation.age_gate`.
+
+**Enforcement** on the hosting node, for its own users by their status and for users of other nodes by the claim of
+their home node (`FEDERATION.md` §2.2); every refusal is `403 age.restricted` with `meta: { age_gate:
+"adults_only" }`:
+
+- **Discover and public lists.** `GET /rooms/discover` and `GET /directory/rooms` list rooms with a gate only to
+  requests that carry the session of an adult (the `Authorization` header is optional on both routes); for
+  everybody else gated rooms are absent. Listed rooms carry `age_gate`. Other nodes fetch the directory without a
+  session, so gated rooms never enter other nodes' directories.
+- **Joining.** `POST /rooms/{room_id}/join` and `POST /invites/{code}/join` (also with an invite bound to the user,
+  `FEDERATION.md` §3.4) refuse users below the room's gate. The invite preview `GET /invites/{code}` stays public
+  and carries `room.age_gate`, so clients can explain the refusal before the user tries.
+- **Gated channels** stay in the channel list (`GET /rooms/{room_id}`) with their gate, but users below it have no
+  permission in them (the permission evaluation of `permissions.md` yields 0): messages, history, threads and forum
+  posts, pins, reactions, attachments and files, search, read markers, unread and mention counts, link previews
+  (they live in the message content), notifications and web push, whiteboard, commands, calls and voice are refused
+  (the conversation routes answer `age.restricted`); the channel's events (`message.*`, `typing`, `thread.*`,
+  `voice.state`, `files.update`, …) are not delivered to them; and they are not entitled to the channel's MLS group
+  (`ENCRYPTION.md` §4.5).
+- **Existing members.** A room that becomes gated keeps its members; for members below the gate every channel of
+  the room is locked until they are 18 or leave.
+
+Clients show a gated channel to users below the gate as locked ("This channel is for adults only") without
+messages, composer or previews, explain `age.restricted` at joins and invite links, offer the gate selectors in the
+room and channel settings, and never show another user's age or status.
+
 ## 6. Realtime (WebSocket `/api/v1/ws`)
 
 1. The client connects and sends `{"op":"hello","token":"…","capabilities":[…],"last_event_id":"…"}`.
@@ -554,9 +646,10 @@ connection of that device). Event types besides the room/message events of phase
 | `report.update` | the same audience | `{ id, scope, room_id, status }`: a report changed, was acted on or deleted (`status: "deleted"`) |
 | `moderation.alert` | the room's moderators (owner, `moderate_members`), for node rules the node admins | `{ room_id, channel_id, user, kind, at, … }`: auto-moderation acted; `kind` `spam` (flood: `deleted`, `timeout_until`) or `content` (`rule`, `scope`, `matched`, `action`), `MODERATION.md` §2 |
 
-¹ Room channels: all room members; DMs and group DMs: their members. `message.create`, `message.update` and
+¹ Room channels: all room members (except, for a channel with an age gate, the members below it, §5e); DMs and
+group DMs: their members. `message.create`, `message.update` and
 `message.delete` of DMs and group DMs go to the members' users as well (`room_id` is null).
-² Room channels: only the members who may view the channel (roles and overrides); DMs and group DMs: the members
+² Room channels: only the members who may view the channel (roles, overrides and the age gate of §5e); DMs and group DMs: the members
 who accepted them.
 
 **Ephemeral events (design note 4.10, normative: `WHITEBOARD.md` §2).** `POST /conversations/{id}/ephemeral

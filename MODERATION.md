@@ -227,6 +227,18 @@ The account deletion (`LEGAL.md` §3.2) still refuses accounts that own rooms (`
 `meta.rooms`); clients offer to transfer each room (or delete it) right in the deletion dialog and then repeat the
 deletion.
 
+## 4a. Age gates (`age.v1`)
+
+Room and channel settings carry an age gate (`age_gate: none | adults_only`, normative: `PROTOCOL.md` §5e). Holders
+of `manage_room` gate a room, holders of `manage_channels` a channel (a channel can be stricter than its room, never
+looser); only an adult can switch a gate on, and every change is in the audit log (`room.age_gate`,
+`channel.age_gate`). The gate is enforced by the hosting node for every member, moderators, owners and node admins
+included: someone below the gate cannot read, search, report from or moderate the content of a gated channel,
+because they cannot see it. Users below the gate never find a gated room in Discover and cannot join it, not even
+with an invite; existing members of a room that becomes gated keep their membership but every channel is locked
+for them. Nobody but the user's home node learns the user's age or status: moderators see neither, and a refused
+join is visible only to the person refused.
+
 ## 5. Operator settings
 
 | Variable | Default | |
@@ -237,3 +249,4 @@ deletion.
 | `TAVRN_AUTOMOD_TIMEOUT_MINUTES` | `10` | timeout after a flood |
 | `TAVRN_AUTOMOD_WORDS_FILE` | – | node word list, §2.3 |
 | `TAVRN_AUTOMOD_LINKS` | `off` | `off` or a domain blocklist file, §2.3 |
+| `TAVRN_MINIMUM_AGE` | `16` | minimum age for registration (13–99), `PROTOCOL.md` §5e |
