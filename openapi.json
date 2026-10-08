@@ -25017,6 +25017,13 @@
             ],
             "description": "`error`: at most 200 characters, shown to the invoker only."
           },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`reply`: a thread of the conversation to answer in; defaults to the interaction's thread."
+          },
           "type": {
             "type": "string",
             "description": "`reply`, `defer` or `error`."
@@ -27648,6 +27655,13 @@
           },
           "interaction_id": {
             "type": "string"
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thread the reply belongs to (null in the conversation itself)."
           }
         }
       },
@@ -28201,6 +28215,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the conversation to write in; defaults to the interaction's thread."
           }
         },
         "additionalProperties": false
@@ -29208,6 +29229,13 @@
             ],
             "format": "int64",
             "description": "The epoch of `args_ciphertext`."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thread of the channel the command is invoked in (PROTOCOL.md §7e); answers go there."
           }
         },
         "additionalProperties": false
