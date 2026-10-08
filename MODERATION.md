@@ -37,7 +37,7 @@ Who handles a report (`scope`):
   room. A report about the room's owner goes to the node admins only (`scope: node`): moderators cannot act against
   the owner. Moderators never see reports about themselves. Every moderator of the room sees a room report with its
   snapshot or evidence, also when the channel is hidden from some of them: the reporter chose to tell the room's
-  moderators.
+  moderators (see "Why every moderator sees the context" below).
 - **`node`**: a message in a DM or group DM, a user without room context, a room. The node admins of the node the
   report was sent to see it. Clients send a report to the node that hosts the conversation or room (room channels:
   the room's node, through the federated session if it is another node), and DM and group DM reports always to the
@@ -52,6 +52,15 @@ that is not in it), must belong to the room given as
 context (`403 room.not_member`), and a reported room must be one the reporter belongs to or a public room of this node
 (`404 room.not_found` otherwise). Reporting oneself is `400 report.self`; an unknown user `404 user.not_found`;
 anything malformed `400 report.target_invalid`, `report.category_invalid` or `validation.length`.
+
+**Why every moderator sees the context.** A room report, with its snapshot or released evidence, reaches every
+moderator holding `moderate_members` (and the node admins), even when the reported message lives in a channel that is
+hidden from some of them. This is deliberate: moderation needs the context. A moderator who decides about a timeout,
+kick or ban has to see what was reported, and the reporter addressed the room's moderators as a whole, not the
+readers of one channel. Restricting reports to moderators who can view the channel would leave reports from private
+channels with fewer or no moderators, would make the inbox and its badge differ between moderators of the same room,
+and would protect nothing the reporter wanted protected (the reporter chose to release it to the moderators). Rooms
+that need a separate moderation team for a private area use a separate room.
 
 Reports about a **remote user in a local room** stay on the room's node: forwarding a report to the user's home node
 is future work (a later `reports.v2`).
@@ -131,7 +140,9 @@ on another node is `409 report.target_remote`.
 - `report.create` `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`
   goes to the online users who may see the report, except the reporter (no detail, no evidence). Clients refresh their
   inbox badge and may show "New report in <room>" through their normal notification path (the user's notification
-  settings apply; reports are never pushed).
+  settings apply). Those without an open connection get a web push of type `report` with the report's kind and room
+  only (`PROTOCOL.md` §6d), unless they turned the notification setting `reports` off (`PROTOCOL.md` §6c, default
+  on); at most one per room and moderator every 30 seconds.
 - `report.update` `{ id, scope, room_id, status }` goes to the same audience after a change, an action or a deletion
   (`status: "deleted"`).
 - Resolved and dismissed reports, with their evidence and snapshot, are deleted `TAVRN_REPORTS_RETENTION_DAYS` (default
@@ -195,7 +206,8 @@ Actions of the first matching rule (rules are checked in their order):
 and lines starting with `#` are ignored; at most 10000 terms) and `TAVRN_AUTOMOD_LINKS` (`off` or the path of a file
 with one blocked domain per line) apply to every unencrypted conversation of the node, room channels and unencrypted
 DMs alike, with the action `block` and no exemptions: `403 automod.blocked` with `meta { rule: "node", scope: "node"
-}`. Node rules are checked before room rules.
+}`. Node rules are checked before room rules. The node reads both files at start and again every hour and on `SIGHUP`;
+it validates them like at start and keeps the previous lists when a file is invalid or unreadable.
 
 ### 2.4 Alerts
 
@@ -211,8 +223,9 @@ author while that report is open update it instead of adding new ones.
 
 The entries the node writes into the welcome channel (`PROTOCOL.md` §7, the room's security log) cannot be deleted by
 anyone, owners, moderators and node admins included: `DELETE …/messages/{id}` answers `403 message.system_protected`,
-purges skip the welcome channel even when it is named, and the report actions cannot remove them. Only the deletion of
-the account an entry is about (`LEGAL.md` §3.2) and a node's message retention remove them. Clients do not offer
+purges skip the welcome channel even when it is named, and the report actions cannot remove them; message retention
+(`PROTOCOL.md` §7f) skips them too. Only the deletion of the account an entry is about (`LEGAL.md` §3.2) removes
+them. Clients do not offer
 "Delete" for them.
 
 ## 4. Room ownership transfer

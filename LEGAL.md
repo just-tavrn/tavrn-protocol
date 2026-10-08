@@ -62,6 +62,11 @@ everything else is looked up here (`local`, `author`, `conversation_id`, `room_i
 counter-notice waits for the decision. Every step mails the side it concerns and is logged in the trail and in the
 node audit log (`legal.*` actions).
 
+The mails are localized (`en`, `de`, and any language the operator adds templates for): the reporter's mails follow
+the first language of the `Accept-Language` header the notice was submitted with (stored with the case), an
+uploader's mails and the stored statement of reasons follow the account's `locale` (`PROTOCOL.md` §6, `PATCH
+/users/me`); English is the fallback. Notices forwarded from another node are answered in English.
+
 Admin routes (node admins with a session; admin API tokens are refused: `403 admin_token.route_forbidden`):
 
 | Route | |

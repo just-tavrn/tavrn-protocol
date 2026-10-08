@@ -666,8 +666,13 @@ conversations. A node therefore never learns the presence of a user without a se
   `avatar` and `avatar_still`; room objects `icon`, `icon_still`, `icon_animated`. Image paths are relative to
   the node that served the object (`/api/v1/media/{id}`, `/api/v1/media/{id}/animated`); those routes are
   public, typed by the stored file, `nosniff`, sandboxed and cached for a year (the id changes with every upload).
-- `PATCH /users/me { display_name?, bio?, links?, dm_policy?, hide_activity?, auto_preview? }` (`auto_preview`:
-  §7a "Automatic previews"; private, never part of the public profile). Links: at most 10
+- `PATCH /users/me { display_name?, bio?, links?, dm_policy?, hide_activity?, auto_preview?, locale? }` (`auto_preview`:
+  §7a "Automatic previews"; private, never part of the public profile). `locale` is the language of the mails the
+  node sends the user (email confirmation, password reset, account and legal notices, app token expiry): a language
+  tag such as `de` or `pt-BR`, stored lowercase (`400 validation.locale` otherwise), `""` clears it; `GET`/`PATCH
+  /users/me` return it as `locale` (null = English). A new account starts with the first tag of the registration's
+  `Accept-Language`; clients send the language the user picked whenever it differs. The node uses its texts for the
+  most specific language it has (`de-at` → `de`) and English otherwise. Links: at most 10
   (`profile.links_too_many`); `service` one of steam, battlenet, xbox, playstation, nintendo, twitch, youtube,
   x, mastodon, website (`profile.link_service`); the node validates the value per service and derives the URL
   itself from an allowlist of https hosts (a pasted profile URL of the service is accepted; `website` takes any
@@ -730,6 +735,8 @@ connections get `notifications.update`. Remote users with a federated session ar
   clients (sound and Notification API when the tab is in the background); in-app toasts follow `mode`.
 - `push_text` (optional, default `false`, left out while off): web pushes (§6d) of unencrypted conversations carry
   a preview of the message text. Never for encrypted conversations.
+- `reports` (optional, default `true`, left out while on): web pushes (§6d) of new reports for the users who receive
+  them (room moderators and node admins, `MODERATION.md` §1.5). Clients show the switch to moderators and node admins.
 
 ## 6d. Web push (`push.webpush`, design note 4.9)
 
@@ -797,6 +804,20 @@ Payload (JSON, encrypted for the subscription; the service worker decides how to
 - Encrypted conversations (`encrypted: true`) never carry ciphertext, plaintext or message ids. `text` (at most 120
   characters) appears only for unencrypted messages and only with `push_text` (§6c).
 - Unknown fields and types are ignored; clients show a generic notification for unknown types.
+
+**Reports.** A new report (`MODERATION.md` §1.5, user reports and automod entries alike) pushes to every local user
+of its audience (the room's moderators and the node admins, never the reporter or the reported user) who has no open
+WebSocket and has not turned `global.reports` (§6c) off: `{ "v": 1, "type": "report", "node", "local": true, "room_id",
+"room", "report_kind", "encrypted": false }` with `report_kind` `message`, `user` or `room` and the room's id and name
+for room reports (node reports have neither). Nothing else of the report travels: no reporter, target, category,
+detail or evidence. At most one report push per room (node reports: per node) and user every 30 seconds, and the
+per-user limit above; the client opens its moderation inbox.
+
+**Rooms on other nodes (decision).** Push stays home-node only. A room hosted on another node sends `notify` hints to
+the member's home node only for DMs, group DMs, mentions and call rings (FEDERATION.md §5.2), so in rooms on other
+nodes a channel under notification mode `all` does **not** push for ordinary messages; mentions, DMs and calls do.
+Clients say so next to the notification settings. Registering subscriptions with every node of the user was rejected:
+it would need the notification settings replicated to those nodes and double pushes avoided across them.
 
 ## 7. Message envelope
 
@@ -1253,6 +1274,25 @@ thread, counters, tags, archive and lock state) like the reply references of §7
 threads in encrypted channels. A title ciphertext is bound to the conversation, epoch and setting device like
 message content (`ENCRYPTION.md` §5.4) but not to one thread: a hostile node could show one of the author's titles
 on another thread of the same channel; clients treat titles as display text only.
+
+## 7f. Message retention
+
+A node may delete old messages (`TAVRN_RETENTION_DAYS`, default `0` = keep forever, at most 36500): its hourly
+housekeeping deletes messages of the channels, DMs and group DMs it hosts, encrypted or not, once they are older than
+the retention of their conversation, together with their attachments, reactions, pins and search entries; threads
+count their messages again (§7e).
+
+- A room may set a **shorter** retention for its channels: `PATCH /rooms/{room_id} { message_retention_days }`
+  (owner or `manage_room`, 1–36500, `0` = the node's value, `400 validation.range` otherwise; audited in `room.update`
+  with `meta.message_retention_days`). Room objects carry `message_retention_days` (null = the node's value). The
+  effective retention is the shorter non-zero of the room's and the node's value: a room can never extend the node's.
+- Never deleted by retention: **pinned** messages (unpinning lets them expire) and the entries of the room's
+  **welcome channel** (the room's security log, `MODERATION.md` §3).
+- The node writes one node audit entry `retention.messages { deleted, node_days, rooms, incomplete }` per run that
+  deleted something. Clients get no event: what they already loaded stays until they reload. Attachment retention
+  (`ENTITLEMENTS.md` §6) is separate and may delete files earlier.
+- The account's data summary (`LEGAL.md` §3.1, `GET /users/me/data`) names the node value as
+  `retention.message_retention_days`.
 
 ## 8. Encryption marker (mandatory for all clients)
 

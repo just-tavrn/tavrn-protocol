@@ -228,7 +228,8 @@ A token is a named **bot device** (§3.2): creating a token creates a device, re
 create/reset: 10 per hour per application. Audited `app.token_create`, `app.token_reset`, `app.token_revoke`
 (token id and name, never the secret). Seven days and one day before `expires_at` the owner and the bot get a WS
 event `application.token_expiring { application_id, token_id, expires_at, days }` (once per threshold and secret; a
-reset or rotation starts over), and the owner an email when the node has SMTP and the owner a verified address.
+reset or rotation starts over), and the owner an email when the node has SMTP and the owner a verified address (once
+per threshold and secret too, in the owner's language, naming the application and linking its settings).
 
 ### 2.3 Verification
 
@@ -1536,7 +1537,8 @@ refines §1.8 and §4:
 - **`TAVRN_APPS_PER_ROOM`** (default 25, 0–1000) limits installations per room (`409 app.room_limit`, `meta.max`).
 - **Token expiry notices** (§2.2, leftover of step 1): the hourly housekeeping sends `application.token_expiring`
   seven days and one day before a secret expires, to the owner and the bot, once per threshold and secret
-  (`application_tokens.expiry_notified_days`); the e-mail of §2.2 is not sent yet. The draft named 14 and 3 days;
+  (`application_tokens.expiry_notified_days`); the e-mail of §2.2 followed later (localized like the other mails of the
+  node). The draft named 14 and 3 days;
   the phase 5 task set 7 and 1, and §2.2 now says so.
 - **Tests.** `app_install_flow.rs` (12 tests: granted ⊆ installer ∩ requested with the role position,
   administrator and non-subset refused, private application, `manage_roles` missing, name collisions, owner and bot
