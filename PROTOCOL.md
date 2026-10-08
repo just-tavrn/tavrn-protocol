@@ -50,7 +50,8 @@ detail; this document covers the concepts and rules that span individual routes.
     "screenshare": { "enabled": true, "max_resolution": "1080p", "max_fps": 30 },
     "camera": { "enabled": true, "max_resolution": "720p", "max_fps": 30 }
   },
-  "directory_listing": true
+  "directory_listing": true,
+  "webauthn": { "rp_id": "node.example" }
 }
 ```
 
@@ -320,6 +321,10 @@ Secret storage routes: `ENCRYPTION.md` §2.4.
   registrable parent domain of it (WebAuthn rule; the node refuses to start otherwise), so with delegation
   (`tavrn.org` served at `app.tavrn.org`) passkeys stay bound to `tavrn.org` and survive a move of the app host. Attestation `none`, user verification **required** (the webauthn-rs passkey policy;
   security keys need a PIN), resident key preferred, algorithms as listed in `pubKeyCredParams`.
+- The node publishes its relying party id as `webauthn.rp_id` in `GET /api/v1/node` and in
+  `/.well-known/tavrn`. Clients that build an assertion themselves (the local secret storage PRF evaluation,
+  `ENCRYPTION.md` §2.4, which never involves the node) MUST pass it as `rpId`: without it the browser uses the
+  page's host, which differs from the relying party id under delegation, and the assertion fails.
 - `options` is the JSON form of `PublicKeyCredentialCreationOptions` / `…RequestOptions` wrapped in
   `{ "publicKey": … }` with binary values in base64url, suitable for
   `PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`. The node adds
