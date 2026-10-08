@@ -168,7 +168,9 @@ for application URLs only.
 - Clients follow the same rules where a browser allows (HTTPS, size cap, `domain` check, resolution step 1;
   when the domain serves no document (`404`) or the browser cannot fetch it at all, e.g. without CORS headers,
   they ask the node they were loaded from, `GET /federation/resolve/{domain}`, which runs the whole order
-  including SRV); they cache the endpoints per domain for at most 1 hour.
+  including SRV); they cache the endpoints per domain for at most 1 hour. Native apps that can query DNS (the
+  desktop app, before its first sign-in, has no node to ask) run the whole order themselves: well-known, then SRV
+  after a `404` or without an HTTPS server, then the direct domain after a `404` only.
   The stored session of a node keeps both the identity domain (addresses, display) and its endpoints
   (requests).
 
@@ -730,6 +732,58 @@ Every node serves the web client; there is no central client (design note 3.2). 
    checks `state` and calls `POST https://home.example/api/v1/auth/connect/token { code, code_verifier }` →
    session response for a new device. Errors: `400 connect.origin_invalid` (not `https://<valid domain>`;
    `http://` origins are accepted only with `--dev`), `400 connect.code_invalid`.
+
+   **App sessions** (capability `connect.app`). A native app (the desktop app) has no `https://<domain>` origin to
+   return to: its pages run on `tauri://localhost` or similar. It uses the same page and code, with an **app
+   session** that it polls instead of a redirect:
+
+   1. `POST /api/v1/auth/connect/session { code_challenge (S256), device_name? }` (no authentication) →
+      `{ session_id, expires_in: 600 }`. The app keeps the PKCE verifier; `session_id` is 32 random bytes in
+      base64url (43 characters). `device_name` (at most 64 characters, default "Desktop app") names the device
+      the exchange creates and is shown on the confirmation page.
+   2. The app opens `https://<web>/connect?session=<session_id>&state=<random>` (`web` of the home node's
+      document) in a window of its own without any native API, or in the system browser. The user signs in there
+      with any method (password and second factor, passkey, SSO, registration with captcha) and confirms "Sign
+      in to <device_name>?". The page reads the session's device name with the poll route (status `pending`)
+      before the confirmation and never afterwards.
+   3. The home client calls `POST /api/v1/auth/connect/code { session_id, code_challenge?, device_name? }` (full
+      session). Exactly one of `origin` and `session_id` is given (both or neither: `400 connect.target_invalid`).
+      `code_challenge`, if given, must equal the session's (`400 connect.challenge_invalid`); `device_name` is
+      ignored (the session's name wins). The node issues the code as for an origin (single use, 2 minutes, bound
+      to the session, the challenge and the confirming device) and stores it with the session instead of
+      redirecting. The page shows "You are signed in; return to the app" and does not redirect.
+   4. The app polls `GET /api/v1/auth/connect/session/{session_id}` (no authentication, `Cache-Control:
+      no-store`), at most every 2 seconds:
+      - `200 { status: "pending", device_name, expires_in }` until the user confirms;
+      - `200 { status: "ready", code, node, expires_in }` **exactly once** after the confirmation (`node` = the
+        home node's identity domain, `expires_in` = the code's lifetime left);
+      - then, and once the session or its code expired, `410 connect.session_expired`;
+      - `404 connect.session_invalid` for an id the node does not know (never issued, or expired longer than 10
+        minutes ago).
+   5. The app exchanges `POST /api/v1/auth/connect/token { code, code_verifier, device? }` → session response
+      for a new device (or the device it proves to hold, ENCRYPTION.md §3.4), exactly as above. A code bound to an
+      app session is accepted without an `Origin` check: the verifier alone proves the app (a code bound to an
+      origin still requires that `Origin`).
+
+   Lifetimes and limits: a session is pending for at most 10 minutes; once confirmed it lives as long as its code
+   (2 minutes); a session is confirmed at most once (a second confirmation: `410 connect.session_expired`), and
+   its code is handed out at most once. Creating sessions is rate-limited per client IP (reference node: 10 per
+   minute, 1000 per minute for the whole node), polling per session (60 per minute) and per client IP (600 per
+   minute), all `429` with `Retry-After`. Unknown, malformed or expired session ids at `POST /auth/connect/code`:
+   `400 connect.session_invalid` or `410 connect.session_expired`. The exchange is audited like the origin flow
+   (`user.connect`, target `app`, with the device name).
+
+   Security: the session id only yields a code, and the code is useless without the verifier (PKCE S256), so a
+   leaked session id (it is part of the page's URL) gives nothing. Codes and sessions are single use and short
+   lived. The confirmation page names the device and warns that the user must only confirm a sign-in they
+   started themselves in their own app just now (a session id can be sent to a victim like a phishing link, as
+   in every device authorization flow). The window that shows the home node's page has no native API. Device
+   keys for end-to-end encryption are created in the app after the exchange, never by the page; the page in
+   session mode skips the encryption setup and unlocking. Unlocking the master secret in the app works as for a
+   visited origin (step 4: the recovery key). A later version may add an app-scheme callback
+   (`tavrn://connect/callback`, RFC 8252) as an accelerator; polling stays the baseline. Nodes without
+   `connect.app` offer only the origin flow; apps then fall back to password and TOTP and tell the user that
+   passkeys, SSO and registrations with a captcha need a browser.
 4. Unlocking the master secret on the visiting origin uses the **recovery key** (PRF passkeys are bound to the
    home domain); the local key store lives in the visiting origin's storage.
 5. The client warns once: "This web client is served by visited.example. Its operator could change the code you
@@ -954,7 +1008,8 @@ address), `federation.domain_invalid` (400), `federation.target_self` (400), `fe
 `federation.payload_too_large` (413), `federation.envelope_invalid` (400: malformed inbox envelope or payload), `federation.keys_unavailable` (503), `federation.conformance_pending`
 (503), `federation.already_blocked` (409), `federation.not_blocked` (409), `federation.peer_unknown` (404),
 `conformance.probe_only` (403), `conformance.room_not_found` (404), `conformance.running` (409), `index.version_conflict` (412), `index.too_large` (413), `invite.wrong_user` (403),
-`connect.origin_invalid` (400), `connect.code_invalid` (400), `message.signature_invalid` (400),
+`connect.origin_invalid` (400), `connect.code_invalid` (400), `connect.challenge_invalid` (400),
+`connect.target_invalid` (400), `connect.session_invalid` (400/404), `connect.session_expired` (410), `connect.busy` (503), `message.signature_invalid` (400),
 `message.signature_missing` (400), `directory.announce_unverified` (400), `directory.cursor_invalid` (400),
 `directory.node_not_found` (404), `room.discoverable_public_only` (400). Retired: `friend.remote`,
 `conversation.member_remote`.
@@ -994,6 +1049,8 @@ results. Never logged: tokens, request bodies, payload contents (room names, mem
   formats) get `federation.v2` and run in parallel for at least 12 months.
 - New inbox types, payload fields and directory fields are compatible additions; receivers ignore unknown ones.
 - `content.signed1` (§10.3) is a client capability.
+- `connect.app` (app sessions of the connect flow, §8 step 3) is announced by every node that implements them,
+  independent of `TAVRN_FEDERATION_ENABLED` (the flow serves the node's own users).
 - Safety number, plaintext signature, listing and token formats carry version strings (`v1`, `typ`); a change
   requires a new label.
 
