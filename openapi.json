@@ -17066,6 +17066,7 @@
           "channels"
         ],
         "summary": "Set an override, or remove it when allow = deny = 0 (`manage_roles`).",
+        "description": "Overrides are layered (protocol permissions.md \"Evaluation\"): a category's overrides apply to the role base of\nevery channel in it, the channel's own on top; a bit an override neither allows nor denies inherits from the\nlayer below. Only channel-scoped bits are accepted (`400 permissions.not_channel_scoped`).",
         "operationId": "set_override",
         "parameters": [
           {
@@ -17097,6 +17098,36 @@
                   "items": {
                     "$ref": "#/components/schemas/PermissionOverride"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -25115,7 +25146,6 @@
           "topic",
           "position",
           "encrypted",
-          "sync_with_category",
           "slowmode_secs",
           "bitrate_kbps",
           "user_limit"
@@ -25179,9 +25209,6 @@
           "slowmode_secs": {
             "type": "integer",
             "format": "int64"
-          },
-          "sync_with_category": {
-            "type": "boolean"
           },
           "system_name": {
             "type": [
@@ -34713,7 +34740,9 @@
             "type": [
               "boolean",
               "null"
-            ]
+            ],
+            "description": "Deprecated and ignored (protocol permissions.md \"Changes\", 2026-10-09): overrides are layered, a channel\nalways inherits its category's overrides underneath its own. Accepted for one release, then unknown.",
+            "deprecated": true
           },
           "tags": {
             "type": [
