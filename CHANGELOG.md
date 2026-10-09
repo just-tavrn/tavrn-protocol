@@ -11,10 +11,11 @@ Changes of the protocol that implementations must follow, newest first. Versions
   with the reason `key_changed` until the user acknowledges (§3.3, §4.6). Senders do not send after a failed
   catch-up; nodes accept new content only under the current epoch or the previous one within 60 seconds of its
   commit, otherwise `409 mls.epoch_stale` with `meta.epoch` (§5.3). The sample message of a history key check must
-  carry a valid content signature (§7b step 4). Notes: old secret-storage entries stay valid until an identity reset
-  (§2.4), history shares are readable by every current member (§7b), forced rejoin (§11). New reference values in
-  `testvectors/encryption.json`: `content_context`, `history_share`, `local_storage_key`, `whiteboard_scene`,
-  `device_login`, `sealed_unlock`.
+  carry a valid content signature; a message whose author device cannot be verified at all (the recipient's own
+  device from before an identity reset) is passed over for the next one (§7b step 4). Notes: old secret-storage
+  entries stay valid until an identity reset (§2.4), history shares are readable by every current member (§7b),
+  forced rejoin (§11). New reference values in `testvectors/encryption.json`: `content_context`, `history_share`,
+  `local_storage_key`, `whiteboard_scene`, `device_login`, `sealed_unlock`.
 - **Authorization audit, round 2.** Metadata audiences (`PROTOCOL.md` §6 "Audiences of the room's metadata"):
   `channel.*` and a channel's `override.update` reach only the members to whom the channel is listed, `category.*`
   and a category's `override.update` those to whom the category is listed; members who gain a channel get

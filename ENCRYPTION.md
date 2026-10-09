@@ -885,8 +885,10 @@ shares and for each:
    preferring a message whose author is not the sharer): the key must open the message's AES-256-GCM ciphertext
    (same AAD, nonce and tag, §5.2) **and** the decrypted content's signature must verify with the key of its author
    device (attested, or retired for its time, §5.2): a tag alone proves nothing, whoever knows a key can make one.
-   Keys that fail, or whose epoch has no such message in the recipient's window, are dropped (a poisoned key never
-   reaches the store);
+   A message whose author device the recipient cannot verify at all (neither attested nor retired, such as its own
+   device from before an identity reset, §2.3) tells nothing and is passed over for the next message of the epoch, the
+   sharer's own last. Keys that fail, or whose epoch has no such message in the recipient's window, are dropped (a
+   poisoned key never reaches the store);
 5. stores the accepted keys only in the key store, exactly like its own epoch keys (`Client.importEpochKey`; never
    overwriting a known key), which also puts them into the history backup (§7);
 6. acknowledges the share.
