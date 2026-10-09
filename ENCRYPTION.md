@@ -874,11 +874,14 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
    the conversation, which enforces every rule below, knows the reset of every member. A rotation (§9a) keeps the
    master secret and the old history and sets nothing. A new membership (a re-join) starts without `key_reset_at`.
    For a membership with `key_reset_at`:
-   - `GET …/messages` additionally cuts encrypted messages older than `key_reset_at`, until a restore of the membership
-     is approved; from then on the normal window applies again.
-   - The **reset epoch** of a conversation is the highest epoch of an encrypted message of the conversation older than
-     `key_reset_at` (none: there is nothing before the reset). Epochs up to and including it are the **pre-reset
-     range**; the automatic window of the member starts after it, never earlier, whatever the policy.
+   - The member's history window (`GET …/messages`, and the records of files channels, `FILES.md` §8.7) additionally
+     starts at `key_reset_at`, until a restore of the membership is approved; from then on the normal window applies
+     again.
+   - The **reset epoch** of a conversation is the epoch its group had at the reset; the node records it per encrypted
+     room channel of the membership at that moment (no group yet: nothing before the reset). Epochs up to and
+     including it are the **pre-reset range**, whatever the channel's kind (messages, the entry records of files
+     channels, `FILES.md` §8.7); the automatic window of the member starts after it, never earlier, whatever the
+     policy.
    - Pending marks: when a device of the user joins the group after the reset (policy not `since_join`, `view_channel`
      and `read_history` as above) and there are encrypted messages since `key_reset_at`, the node marks the member
      pending once per reset, also if the user still had (now unattested) leaves in the group. `history.pending` and
@@ -908,9 +911,11 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
 
    `HistoryRequest` = `{ id, room_id, user, display_name, message, status, joined_at, key_reset_at, created_at,
    decided_at, decided_by, reason, partial, channels }`: `status` is `open`, `approved`, `denied` or `cancelled`;
-   `decided_by` an address; `channels` (filled for members with `restore_history`, else empty) lists the encrypted
-   channels the requester may view as `{ channel_id, window_start }`, `window_start` being the requester's normal window
-   start in that channel (the policy and `read_history` from `joined_at`; null = everything).
+   `decided_by` an address; `channels` (filled for members with `restore_history`, else empty) lists every encrypted
+   channel of the room the requester may view, whatever its kind (text, announcement, forum, files; voice channels
+   store no content and are left out), as `{ channel_id, kind, window_start, reset_epoch }`: `window_start` is the
+   requester's normal window start in that channel (the policy and `read_history` from `joined_at`; null =
+   everything), `reset_epoch` the recorded reset epoch (null: nothing before the reset).
 3. **Decision.** `restore_history` is never granted to `@everyone`, no app-token scope covers it, and the owner and
    `administrator` hold it as always.
    - `POST /api/v1/rooms/{room_id}/history-requests/{request_id}/approve` `{ partial? }` → `200 HistoryRequest`. The request
@@ -929,19 +934,21 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
 
    **Approval is the key share itself.** Right after approving, the approver's client sends restore shares from its
    device for every encrypted channel of `channels` that it can read and in which a device of the requester is in the
-   group: every epoch it holds from the oldest epoch of the encrypted messages after `window_start` (`GET
-   …/messages?after=<ULID floor>&limit=20`; everything for null) up to the epoch before the current one, chunked as in
-   "Sharing" step 2. Before approving it shows the request, the requester, its join date, the channels and epoch ranges
+   group: every epoch it holds from the oldest epoch of the channel's encrypted content after `window_start` (messages:
+   `GET …/messages?after=<ULID floor>&limit=20`; files channels: `GET …/records?since=<window start>&limit=1`, `FILES.md`
+   §8.7; everything for null) up to the epoch before the current one, chunked as in "Sharing" step 2. Before approving it shows the request, the requester, its join date, the channels and epoch ranges
    that will be shared and whether its device holds all of them (`partial`), and recommends verifying the person's
    identity on another channel (a call, in person): an approval gives whoever controls the account now everything the
    member could read before. Other members with `restore_history` may fill gaps while the restore is valid.
 4. **Clients.** A sharing client applies the reset window itself, also with nodes that do not announce
    `history.restore`: a recipient whose keys document (§2.3) shows an `identity_reset_at` later than the pending item's
    `since` is treated as if `key_reset_at` were that time, and without `min_epoch` the client shares nothing up to the
-   epoch of the newest encrypted message before the reset (`GET …/messages?before=<ULID floor>&limit=1`). Such a member
+   epoch of the newest encrypted content before the reset (`GET …/messages?before=<ULID floor>&limit=1`; nothing at
+   all when it cannot tell). Such a member
    gets automatic shares only from the reset on. The requester's client shows its state (`…/mine`) with the request form
-   in a room whose encrypted history it lost, receives the restore shares like any other share (also under
-   `since_join`), and afterwards says which messages stayed locked (`partial`, or keys that did not arrive).
+   in a room whose encrypted history it lost (in the channel view and in the file browser of files channels),
+   receives the restore shares like any other share (also under `since_join`), and afterwards says which messages or
+   entries stayed locked (`partial`, or keys that did not arrive).
 
 Compatibility: nodes without `history.restore` keep the behaviour above, where clients that implement rule 4 still
 share nothing from before a reset; clients without it send pre-reset shares that nodes with `history.restore` refuse.
