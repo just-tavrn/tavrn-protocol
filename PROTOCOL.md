@@ -991,7 +991,7 @@ Every message consists of an envelope (readable by the node) and content (opaque
 - `device_id` is the sending (or last editing) device, null for system and webhook messages; `epoch` is set for
   encrypted messages only. For
   encrypted content the node checks `ENCRYPTION.md` §5.3 (`message.ciphertext_invalid`,
-  `message.epoch_mismatch`, `message.epoch_unknown`, `e2ee.device_not_attested`).
+  `message.epoch_mismatch`, `message.epoch_unknown`, `409 mls.epoch_stale`, `e2ee.device_not_attested`).
 - `signature` (plaintext only, optional on create and edit): `base64url(nonce(16) || Ed25519 signature(64))`
   by the sending device over the envelope fields `conversation` (qualified), `author`, `device_id`,
   `reply_to_id`, `thread_id`, `mentions_everyone`, `mentions`, `attachments` (id, size, sha256) and the
@@ -1293,7 +1293,7 @@ other nodes use the same routes with their federated session. Nothing crosses no
   format 1 (`ENCRYPTION.md` §5.2) of the JSON object `{ "type": "thread.title", "body": "<title>" }`, encrypted and
   signed by the device that set it (`title_author`, `title_device_id`) under `title_epoch`; the node applies the
   ciphertext checks of `ENCRYPTION.md` §5.3 (`400 thread.title_invalid` for a malformed one, at most 2048
-  characters, plus `message.epoch_mismatch`, `message.epoch_unknown`, `e2ee.device_not_attested`) and clients
+  characters, plus `message.epoch_mismatch`, `message.epoch_unknown`, `mls.epoch_stale`, `e2ee.device_not_attested`) and clients
   decrypt and verify it like message content and drop anything whose `type` is not `thread.title` or whose body is
   longer than 100 characters. In unencrypted channels `title` is plaintext (trimmed, 1–100 characters,
   `400 thread.title_invalid`) and `title_epoch` is null. `encrypted` says which of the two the stored title is

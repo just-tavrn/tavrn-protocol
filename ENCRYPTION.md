@@ -265,6 +265,13 @@ method. Unwrapping fails (`decryption_failed`) for a wrong key, account or metho
 5. *Password change*: nothing to do; the secret storage does not depend on the password.
 6. *Everything lost* (no trusted device, no recovery key, no PRF passkey): identity reset (§9).
 
+**Old entries stay valid.** Regenerating the recovery key (flow 3) or removing a passkey (flow 4) replaces or deletes
+that entry on the node, but it does not invalidate a copy made before: whoever kept an old entry (a backup of the
+node's database, an earlier download) together with the old recovery key or the PRF output of the removed passkey can
+still unwrap the master secret from it, because the master secret itself did not change. Only an identity reset (§9)
+creates a new master secret and so makes every old entry worthless. Clients say this where the user regenerates a
+recovery key or removes a passkey because it may have leaked, and offer the reset for that case.
+
 ## 3. Devices
 
 **Bot devices** (`APPLICATIONS.md` §3): every app token is bound to exactly one bot device (`dev`); the bot process
@@ -314,6 +321,14 @@ Clients pin `identity_pk` per user address on first use (TOFU). For every device
 roster, message author), clients MUST verify the attestation against the pinned identity key and that the
 MLS leaf signature key equals `device_public_key`. A changed identity key of a known contact is shown as
 "security key changed" (design note 5.3) and re-pinned only after the notice was shown.
+
+Until the user **acknowledges** that warning (or verifies the new key, FEDERATION.md §10.2), devices attested under the
+new key do not count: the client does not add them to DMs and group DMs (§4.2, no KeyPackage is claimed, no Welcome
+sent), and the ghost check reports their leaves with the reason `key_changed` (§4.6), which holds back sending like
+every ghost warning. A home node that swaps a user's key therefore cannot place a device of its own in that user's
+conversations before the other side saw the warning. Acknowledging makes the devices count at once: the client adds
+the missing devices to the DMs and group DMs and checks the rosters again. The devices' messages are shown meanwhile
+(with the warning next to the author); only membership waits.
 
 Exception, the **rotation** (§9a): when the keys document of the user's home node carries a continuity chain that
 leads from the pinned key to the published one with valid statements, the client pins the new key at once and shows
@@ -476,7 +491,9 @@ the member list served by the node and the device attestations:
 
 - every leaf identity's user MUST be in the node's member list of the conversation;
 - every leaf MUST have a valid attestation under the user's pinned identity key, with matching signature key;
-- no identity may appear twice.
+- no identity may appear twice;
+- a leaf attested under a changed identity key whose warning the user has not acknowledged yet (§3.3) is reported
+  with the reason `key_changed`; it is no ghost once the user acknowledged the change.
 
 - a leaf whose user is a bot (`kind` from the user's home node, §2.3) in a conversation whose effective "no bots"
   flag is set is a ghost member, even if the node lists the bot as a member (`APPLICATIONS.md` §3.5). The effective
@@ -542,7 +559,21 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
   the envelope's `device_id` (the device that sent or last edited the message), `epoch` MUST equal the
   envelope's `epoch`.
 - `json` is the UTF-8 JSON content object of PROTOCOL.md §7 (it MUST be an object).
-- Senders always use the current epoch of their local group.
+- **Signed context.** The AAD binds conversation, epoch, author and device, but not the envelope fields `thread_id`
+  and `reply_to_id`. Senders of a message therefore put them into the signed JSON as
+  `"ctx": { "thread_id": <thread id or null>, "reply_to": <message id or null> }`, exactly the values the envelope
+  will carry (edits repeat the message's values). Receivers compare `ctx`, when present, with the envelope they were
+  served: a different value, or a malformed `ctx` (not an object with exactly these two fields, each a string or
+  null), is shown as `envelope_mismatch`, like a bad signature, never as content; clients do not show `ctx` itself.
+  This keeps the node from moving an encrypted reply into another thread or the main channel, or pointing it at
+  another message (plaintext signatures cover the same fields, FEDERATION.md §10.3). Content without `ctx` (older
+  clients) is accepted as before; the node cannot see `ctx` and accepts both forms. A sender that cannot know the
+  thread id (a new thread on a node that does not announce `threads.client_ids`, PROTOCOL.md §7e) omits `ctx`.
+  Thread titles, history shares and ephemeral events carry no `ctx`. Test vector: `content_context`.
+- Senders always use the current epoch of their local group. Before encrypting, the client processes the handshake log
+  (§4.3); when that fails (network error, a node error), it does **not** send: the composer shows the error and offers
+  to retry, so a message never goes out under an epoch that removed members may still hold. The ghost check (§4.6) runs
+  again after commits were processed there, since a processed commit may have brought a new device.
 - Receivers look up the content key of the header epoch, decrypt, verify the signature with the author
   device's key and then parse the JSON. The device key is taken from the current MLS roster (leaf
   `<author>/<device_id>`); if the device is no longer a member (history), from its verified attestation
@@ -551,7 +582,7 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
   show such messages normally with a subtle note ("sent from a device that was later removed"). Ephemeral events
   (no server time) never come from retired devices. Any failure is shown as such, never as content, with the reason
   told apart: no key for the epoch (`missing_key`), sending device not confirmed (`unknown_device`), bad signature,
-  replay, or damaged/undecryptable content.
+  a signed context that does not match the envelope (`envelope_mismatch`), replay, or damaged/undecryptable content.
 - A second message with the same `(epoch, nonce)` is a replay and MUST be shown as a duplicate or hidden.
 - Edits are encrypted the same way under the current epoch.
 - Thread titles in encrypted channels (`PROTOCOL.md` §7e) use the same format with the JSON object
@@ -564,6 +595,14 @@ The node cannot decrypt. For `encrypted = true` it MUST check that `content` is 
 `1 + 8 + 12 + 16 + 64` bytes, version `0x01`, that the header epoch equals the envelope `epoch` and is not
 newer than the group's current epoch, that the sending device is attested (§9) and the usual size limits
 (`tavrn_crypto::content_header`). The plaintext/ciphertext rules of PROTOCOL.md §7 stay unchanged.
+
+The node accepts new content (messages and their edits, thread titles, interaction responses, records of files
+channels) only under the group's **current** epoch, or under the epoch before it within 60 seconds after the commit
+that ended that epoch (content that was encrypted while the commit was on its way). Older content is refused with
+`409 mls.epoch_stale` (`meta.epoch` = the current epoch), a newer epoch with `400 message.epoch_unknown` as before. A
+client that gets `mls.epoch_stale` processes the missing commits and encrypts again. This bounds how long a removed
+member's key (the epoch before its removal) can still be used to post, and keeps a lagging client from writing under
+keys that new members cannot read.
 
 ### 5.4 Security properties
 
@@ -844,8 +883,10 @@ shares and for each:
    every epoch is an integer within `[epoch_from, epoch_to]`, listed once, with a 32-byte key;
 4. **checks every key it does not hold yet** against a stored message of that epoch (`GET …/messages?epoch=n`,
    preferring a message whose author is not the sharer): the key must open the message's AES-256-GCM ciphertext
-   (same AAD, nonce and tag, §5.2). Keys that fail, or whose epoch has no such message in the recipient's window,
-   are dropped (a poisoned key never reaches the store);
+   (same AAD, nonce and tag, §5.2) **and** the decrypted content's signature must verify with the key of its author
+   device (attested, or retired for its time, §5.2): a tag alone proves nothing, whoever knows a key can make one.
+   Keys that fail, or whose epoch has no such message in the recipient's window, are dropped (a poisoned key never
+   reaches the store);
 5. stores the accepted keys only in the key store, exactly like its own epoch keys (`Client.importEpochKey`; never
    overwriting a known key), which also puts them into the history backup (§7);
 6. acknowledges the share.
@@ -861,7 +902,14 @@ channel; afterwards the history loads lazily as before.
   old messages gone" (design note 5.3) is untouched, it concerns the user's own keys.
 - The node learns that a share happened (who to whom, the epoch range, its size), not its content. It cannot
   forge a share (device signature), redirect one (`to` and `conversation` are inside the signed payload and the
-  ciphertext is bound to the conversation by the AAD) or plant keys (the per-key check against stored messages).
+  ciphertext is bound to the conversation by the AAD) or plant keys (the per-key check against stored, signed
+  messages).
+- **Shares are readable by every current member.** A share is encrypted under the group's current epoch (§5.2), so
+  every device in the group at that epoch can decrypt a share addressed to someone else; `to` only tells the
+  recipient that it is meant for it. The node's routing is the only barrier: it serves a share to its recipient alone
+  (`GET …/history-keys`) and drops it after the acknowledgement. A node that leaks shares to other members hands them
+  keys of epochs before their own join, within the channel's policy (they could have received them by a share of
+  their own). Sealing each share to the recipient's devices is planned.
 - A replayed share only repeats keys the recipient already validated or holds; keys are never overwritten.
 - A member could post a message under a forged key and then "prove" that key with it; the recipient therefore
   prefers messages of other authors for the check. The residual risk equals what any member can do anyway (show
@@ -1080,6 +1128,12 @@ Consistent with design note 5.4:
 - **Malicious member**: reads what members read; cannot forge other devices' messages; can disturb the group
   (for example with a commit whose MLS membership tag is invalid, which the node cannot check). Clients
   detect failed processing and rejoin by external commit.
+- **Forced rejoin**: together with the node, a malicious member can make the other devices rejoin (a broken commit,
+  §4.3) and serve them a GroupInfo of its own making. The rejoined group is still checked like every group: the ghost
+  check (§4.6) verifies every leaf against the node's member list and the pinned identity keys (TOFU, §3.3, with
+  `key_changed` leaves held back until acknowledged), so a device of a non-member or under an unknown key is shown,
+  not trusted. The new epochs' keys are fresh, so the rejoin exposes no history; what remains is denial of service
+  and what any member can do anyway.
 - **The web client is code served by a node.** A malicious node can serve a modified web client and read
   everything that client decrypts. This is the inherent limit of browser-based E2EE; the native apps
   (phase 6) and reproducible builds mitigate it.

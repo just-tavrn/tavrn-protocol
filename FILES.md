@@ -229,7 +229,8 @@ under the channel's content key of the current epoch, signed by the writing devi
   one metadata change (`PATCH parent_id`) as in unencrypted channels.
 - Records are checked by the node like message content (`ENCRYPTION.md` §5.3): base64url, version `0x01`, at least
   `1 + 8 + 12 + 16 + 64` and at most 8 KiB of bytes (`400 files.record_invalid`), `record_epoch` equal to the header's
-  epoch and not newer than the group (`400 message.epoch_mismatch` / `message.epoch_unknown`), the session's device
+  epoch and not newer than the group (`400 message.epoch_mismatch` / `message.epoch_unknown`), not older than the
+  group's current epoch or the one before it within 60 s of its commit (`409 mls.epoch_stale`), the session's device
   attested (`403 e2ee.device_not_attested`). The node sets `record_author`, `record_device_id` and `record_at` from
   the session.
 
