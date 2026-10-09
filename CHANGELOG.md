@@ -5,6 +5,18 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **Authorization audit, round 2.** Metadata audiences (`PROTOCOL.md` §6 "Audiences of the room's metadata"):
+  `channel.*` and a channel's `override.update` reach only the members to whom the channel is listed, `category.*`
+  and a category's `override.update` those to whom the category is listed; members who gain a channel get
+  `channel.create` (and `category.create`), members who lose one `channel.delete` / `category.delete` with the new
+  field `hidden: true`. `GET /rooms/{id}` lists only the overrides of listed channels and categories. Moving
+  channels (`permissions.md` "Moving channels"): deleting a category or moving a channel out of it copies the
+  category's overrides into the channel (audit `channel.overrides_copied`); moving into a category that grants more
+  needs `manage_roles`. Timeouts: typing needs `send_messages`, ephemeral events answer `403 member.timed_out`
+  (`WHITEBOARD.md` §2.1). Voice participants who lose `view_channel` or `connect` are disconnected, members leaving
+  a group DM leave its call (`VOICE.md` §5, §11). Federation (`FEDERATION.md` §1.5, §3.5, §5.2): per-domain limits
+  only after the signature check, per address before it; the receiver's own users named as inviter, caller or claim
+  requester must have signed in on the sending node; `notify` hints only for recipients who did.
 - **Permissions: layered overrides** (`permissions.md` "Evaluation", "Channel-scoped bits", "Changes"). The
   evaluation applies the role base, then the category's overrides, then the channel's own overrides; a neutral bit
   inherits from the layer below. The channel field `sync_with_category` is removed (`GET` no longer returns it,

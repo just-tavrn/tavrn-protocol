@@ -188,6 +188,8 @@ The evaluation is layered (since 2026-10-09; it replaced the earlier "synced wit
    a channel override always wins over the category, which wins over the role base.
 4. If `view_channel` is missing afterwards, the result is 0.
 5. Members in timeout keep only `view_channel` and `read_history` (a timeout limits writing, not reading).
+   Typing notices need `send_messages`; ephemeral events (cursors, whiteboard strokes) are refused in a timeout
+   (`403 member.timed_out`, `WHITEBOARD.md` §2.1).
 
 Age gates (`PROTOCOL.md` §5e) come before this evaluation: in a channel whose effective `age_gate` is
 `adults_only`, a member below it (a minor or a user of unknown age) has 0, owners and node admins included. The gate
@@ -198,6 +200,18 @@ allows `view_channel` for `@everyone`: every member sees that channel. A categor
 target for viewing: clients show it as soon as at least one of its channels is visible. A category that allows
 `view_channel` and a channel in it that denies it: the channel is hidden. The shared test vectors cover these
 cases ("Layered: …").
+
+**Moving channels.** A channel that leaves its category (the category is deleted, or the channel moves to another
+category or to none) would lose the category layer. The node first writes the category's overrides into the
+channel's own: per subject, a bit the channel's override sets stays, a bit it leaves neutral takes the category's
+value; a bit the channel's `@everyone` override decides is decided for everybody in the channel layer and is not
+copied. One layer cannot express every pair of layers (a category allow for one role and a channel deny for another
+role a member also holds: in one layer the allow would win), so a member who would still gain a permission gets a
+member override denying it. Nothing becomes visible or allowed that was not; the result may be narrower. Audited as
+`channel.overrides_copied` (`{ category_id, to, overrides, members_denied }`), announced as `override.update`.
+Moving a channel without a category **into** one applies the category's overrides underneath the channel's from
+then on; when that grants anybody more than before, the actor needs `manage_roles` in that category
+(`403 role.manage_forbidden`), as for setting those overrides.
 
 Hierarchy: roles have a position (`@everyone` = 0). Members can only manage or assign roles below their own
 highest position, only grant permissions they hold themselves, and only kick, ban or time out members whose
@@ -236,3 +250,6 @@ closes. Reference: `no_bots_effective` / `noBotsEffective`, vectors in `testvect
   channel did; a channel with own overrides now also inherits its category's overrides underneath. Overrides carry
   `CHANNEL_SCOPED` bits only (`400 permissions.not_channel_scoped`, start-up strip with `role.override_restricted`).
   Node and client ship together in this development phase, so there is no capability for the change.
+- **2026-10-09, moving channels**: deleting a category or moving a channel out of it copies the category's
+  overrides into the channel ("Moving channels" above); moving a channel into a category that grants more needs
+  `manage_roles`. Before, a private channel became public when its category was deleted.

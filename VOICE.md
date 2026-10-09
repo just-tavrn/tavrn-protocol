@@ -229,7 +229,10 @@ reserved: participants of a call take the connection quality from LiveKit).
   LiveKit too). A client that hangs up calls it (LiveKit also reports `CLIENT_INITIATED`), so the participant is gone
   at once; a dropped connection gets the grace period of §5a. Leaving a room, being kicked, banned or timed out, a deleted channel or room end the voice connection
   automatically (the node removes the participants in LiveKit and sends `voice.state`, or `channel.delete` and
-  `room.delete` for deletions).
+  `room.delete` for deletions). So does losing `view_channel` or `connect` in the channel through a role, override,
+  membership or age change: the node checks the participants of a room after every event that changes who may view
+  what, and all rooms with participants at least once a minute (changes without an event), and removes those who
+  lost access (`voice.state`).
 
 ## 5a. Dropped connections and reconnects
 
@@ -565,7 +568,9 @@ A DM or group DM can hold one call at a time. It runs on the node hosting the co
 `FEDERATION.md` §6.1) as LiveKit room `call:<conversation id>`, with the same end-to-end encryption as voice channels:
 the frame keys come from the conversation's MLS group (`ENCRYPTION.md` §5a; the client commits a self update when it
 joins). Participants and their identities work as in §1 and §5a (reservations, webhooks, reconnect grace,
-reconciliation). Only members who accepted the conversation take part (message requests can neither call nor ring).
+reconciliation). Only members who accepted the conversation take part (message requests can neither call nor ring);
+a member who leaves the group DM, is removed from it or deletes the account leaves its running call at once
+(`call.update`; the call goes on for the others or ends as usual).
 Calls live in the node's memory; a restart ends them.
 
 ### 11.1 Routes
