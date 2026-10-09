@@ -12080,6 +12080,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "keep_external",
+            "in": "query",
+            "description": "Files channels on an external store that are not end-to-end encrypted: keep the objects on the store\n(FILES.md §9; ignored for encrypted channels, whose objects are unreadable without the channel's keys).",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -12848,7 +12857,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Permanently delete a channel with its entire history (`manage_channels`).",
+        "summary": "Permanently delete a channel with its entire history (`manage_channels`). The files of a files channel go\nwith it: stored on the node at once, on an external store in the background (FILES.md §9).",
         "operationId": "delete_channel",
         "parameters": [
           {
@@ -12865,6 +12874,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "keep_external",
+            "in": "query",
+            "description": "Files channels on an external store that are not end-to-end encrypted: keep the objects on the store\n(FILES.md §9; ignored for encrypted channels, whose objects are unreadable without the channel's keys).",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -13365,6 +13383,195 @@
         ]
       }
     },
+    "/api/v1/rooms/{room_id}/channels/{channel_id}/files/mine": {
+      "get": {
+        "tags": [],
+        "summary": "The requester's own entries with ids, kinds, sizes and dates, never records or names (`view_channel`): a member\nwho lost their keys can still find and delete their uploads (FILES.md §8.8).",
+        "operationId": "mine",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200, default 100.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor: the last entry id of the previous page.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MineList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/channels/{channel_id}/files/records": {
+      "get": {
+        "tags": [],
+        "summary": "Entry records of an encrypted files channel in the order they were written (`view_channel`), only inside the\nrequester's history window (FILES.md §8.7): for the key checks of history shares and the clients' search sync.",
+        "operationId": "records",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "epoch",
+            "in": "query",
+            "description": "Only records of this epoch.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "description": "Only records written at or after this time (RFC 3339).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor: the last entry id of the previous page.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200, default 100.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/rooms/{room_id}/channels/{channel_id}/files/upload": {
       "post": {
         "tags": [],
@@ -13802,6 +14009,165 @@
             "description": "Range not satisfiable"
           },
           "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/channels/{channel_id}/files/{entry_id}/thumbnail": {
+      "get": {
+        "tags": [],
+        "summary": "The thumbnail ciphertext of a file in an encrypted channel (`view_channel`).",
+        "operationId": "get_thumbnail",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thumbnail ciphertext"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [],
+        "summary": "Store the client-made thumbnail of a file in an encrypted channel (own entries `attach_files`, others'\n`manage_files`): ciphertext of the part `thumbnail` (FILES.md §8.3), at most 1 MiB; replaces an earlier one.",
+        "operationId": "put_thumbnail",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
             "description": "",
             "content": {
               "application/json": {
@@ -26278,7 +26644,7 @@
               "boolean",
               "null"
             ],
-            "description": "Can be switched off only for text/announcement/forum. DMs and voice are always encrypted."
+            "description": "Can be switched off only for text/announcement/forum. DMs and voice are always encrypted. Files channels:\nchosen here (default `true`) and fixed afterwards (FILES.md §1)."
           },
           "kind": {
             "type": "string",
@@ -26338,12 +26704,20 @@
       },
       "CreateFolderRequest": {
         "type": "object",
-        "required": [
-          "name"
-        ],
         "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted channels: the client-chosen id (a fresh ULID), the entry record and its epoch (FILES.md §8.5)."
+          },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Unencrypted channels: the name (refused in encrypted channels)."
           },
           "parent_id": {
             "type": [
@@ -26351,6 +26725,19 @@
               "null"
             ],
             "description": "Parent folder (`null` or absent: top level)."
+          },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -26825,7 +27212,34 @@
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Empty in encrypted channels (the name is in the folder's record)."
+          },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted channels: the folder's record as in [`FileEntry`] (absent elsewhere)."
+          },
+          "record_author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_device_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -28014,7 +28428,8 @@
           "size",
           "sha256",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "thumbnail_size"
         ],
         "properties": {
           "channel_id": {
@@ -28051,6 +28466,40 @@
             ],
             "description": "The folder it is in; `null` at the top level."
           },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted channels: the entry record (content format 1 with name, type and file key, FILES.md §8.4);\n`null` in unencrypted channels and when it was written before the requester's history window (§8.7)."
+          },
+          "record_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the record was written."
+          },
+          "record_author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Address of the user whose device wrote the record."
+          },
+          "record_device_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
           "sha256": {
             "type": "string",
             "description": "SHA-256 of the content, base64url (files)."
@@ -28059,6 +28508,11 @@
             "type": "integer",
             "format": "int64",
             "description": "Size in bytes (files; 0 for folders)."
+          },
+          "thumbnail_size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Size of the stored thumbnail (encrypted channels; 0 = none)."
           },
           "updated_at": {
             "type": "string"
@@ -28125,6 +28579,7 @@
           "max_upload_bytes",
           "backend",
           "encrypt_files",
+          "encrypted",
           "can_upload",
           "can_manage",
           "can_configure",
@@ -28142,6 +28597,20 @@
           "backend": {
             "type": "string",
             "description": "`internal`, `webdav` or `s3`."
+          },
+          "backend_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Members with `manage_channels`: the external store's host (`\"\"` for the node's storage), for the deletion\ndialog (FILES.md §9); `null` for everybody else."
+          },
+          "backend_prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Members with `manage_channels`: the object prefix on the external store (`\"\"` for the node's storage)."
           },
           "can_configure": {
             "type": "boolean",
@@ -28162,6 +28631,10 @@
           "encrypt_files": {
             "type": "boolean",
             "description": "External store with encryption (files unreadable outside tavrn)."
+          },
+          "encrypted": {
+            "type": "boolean",
+            "description": "The channel is end-to-end encrypted (FILES.md §8)."
           },
           "executables_allowed": {
             "type": "boolean"
@@ -29829,6 +30302,43 @@
           },
           "text": {
             "type": "string"
+          }
+        }
+      },
+      "MineList": {
+        "type": "object",
+        "required": [
+          "entries",
+          "files",
+          "folders",
+          "bytes"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileEntry"
+            },
+            "description": "The requester's entries, oldest first, without records."
+          },
+          "files": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Totals of all the requester's entries in the channel (bytes: files and thumbnails)."
+          },
+          "folders": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "next_after": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -32558,6 +33068,27 @@
           }
         }
       },
+      "RecordList": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileEntry"
+            },
+            "description": "Entries with a record inside the requester's history window, oldest record first."
+          },
+          "next_after": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "RecoveryCodes": {
         "type": "object",
         "required": [
@@ -34760,7 +35291,7 @@
               "string",
               "null"
             ],
-            "description": "New name."
+            "description": "New name (unencrypted channels)."
           },
           "parent_id": {
             "type": [
@@ -34768,6 +35299,20 @@
               "null"
             ],
             "description": "New folder (`null`: top level; absent: unchanged)."
+          },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted channels: a new entry record (rename) and its epoch (FILES.md §8.5)."
+          },
+          "record_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },

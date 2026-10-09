@@ -620,7 +620,9 @@ nothing (`all`). Plaintext messages are never cut; owners and administrators fol
 are not members, and DMs, are not cut; group DM members start at their own join. A re-join starts a new window.
 `GET …/messages?epoch=<n>` lists only encrypted messages of that epoch (within the window), for key checks. The
 history key routes `POST|GET /conversations/{id}/history-keys`, `DELETE /conversations/{id}/history-keys/{share_id}`
-and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b.
+and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b. Files channels differ: their
+policy is `all` (their default) or `since_join`, never `days:<n>`, and entry records take the place of messages
+(`FILES.md` §8.7).
 
 **Channels with webhooks.** Channels carry `has_webhooks` (computed, announced with `channel.update` when a webhook
 is created, moved or deleted). In encrypted channels with webhooks the device that commits an epoch publishes the
