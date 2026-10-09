@@ -222,9 +222,19 @@ Issued by H for one target node, proves "this client acts for `alice@h.example` 
 | `pv` | the user's current `profile_version` (§2.7), a signed hint for profile refreshes |
 | `app` | bots only (`APPLICATIONS.md` §2.8): the application ULID on H; T shows the bot with `application_id = <iss>/<app>` |
 | `scopes` | bots only: the effective scopes of the bot's app token (array of strings); T applies them like H. Absent (older H) = all scopes; T ignores scope strings it does not know. Users' tokens carry neither claim (`401 federation.token_invalid`) |
+| `age_over_18` | `age.v1` (PROTOCOL.md §5e): `true` when H's account is 18 or older by its date of birth, `false` when it is younger, `null` when the account has no date of birth (`unknown`); bots carry their owner's value. Absent (older H) = `null`. Any other type makes the token invalid (`401 federation.token_invalid`) |
 
 Note that `sub` of a federation token is an **address**, while `sub` of a session token is the
 node-local user ULID.
+
+**The age claim (`age.v1`).** `age_over_18` is the only age information that ever leaves the home node: never the
+date of birth, never in the profile (§2.7), the directory or any event. H signs it into every federation token, so
+the claim travels with each federated login, and a user who turns 18 is an adult on T from the next login. T
+stores the claim of the latest federated login with the remote user (a stub user that never logged in has none),
+treats `false` and `null` alike as "below 18", enforces its age gates with it at join, read, search, notifications
+and voice exactly as for its own users (PROTOCOL.md §5e), and never exposes it: not in the federated session
+response, not in `GET /users/me` on T, not to other users, not in errors (`403 age.restricted` names the gate,
+never the status).
 
 ### 2.3 Node token (`typ = "s2s"`)
 
@@ -274,7 +284,8 @@ federation.bots_refused`) and not on T's application blocklist (`403 app.blocked
 remote-user quotas (`403 federation.remote_limit`). There is **no password,
 captcha or second factor on T**: H already enforced them before issuing the token.
 
-T then creates or updates the remote user (§2.6) and a device record for the home device:
+T then creates or updates the remote user (§2.6, including the age claim of §2.2) and a device record for the home
+device:
 
 - The device identity used everywhere on T (session claim `dev`, MLS committer checks, Welcomes, message
   `device_id`) is the home device id from the token's `device` claim, because MLS credentials and
@@ -685,6 +696,10 @@ unreachable for 30 days are removed. At most 10 000 entries; beyond that the lea
 - `GET /api/v1/directory/rooms?q=&node=&local=&limit=50&cursor=…` → `{ items: [ { node, room_id, name,
   description, icon_url, member_count, listing } ], next }`: the node's own discoverable rooms plus cached
   rooms of peers (`remote_rooms`), searchable by name/description; `local=true` returns only the node's own.
+- Items carry `age_gate` (`none` or `adults_only`, PROTOCOL.md §5e). Rooms with a gate are listed only to requests
+  with the session of an adult (the route accepts an optional `Authorization` header); for anonymous requests, and
+  so for the directory refreshes of other nodes, they are absent. Gated rooms therefore never enter other nodes'
+  `remote_rooms`; users of other nodes reach them through invite links.
 - Rooms appear only when their owner (or a holder of `manage_room`) marked them **discoverable**
   (`PATCH /api/v1/rooms/{room_id} { discoverable: true }`, only for `join_mode = public`, audited). The
   existing `GET /api/v1/rooms/discover` returns only discoverable rooms from phase 3 on.
