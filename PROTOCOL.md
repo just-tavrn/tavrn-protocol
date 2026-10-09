@@ -600,8 +600,17 @@ room and channel settings, and never show another user's age or status.
    events are filtered by the token's scopes (an event a scope does not cover is dropped); a revoked, reset or
    expired token closes the connection with `4001`.
 
-Events are addressed to a room (all members), to users (all their connections) or to devices (only the
-connection of that device). Event types besides the room/message events of phase 1:
+Events are addressed to a room, to users (all their connections) or to devices (only the connection of that
+device). Room events that concern a channel (`message.*`, reactions and pins as `message.update`, `typing`,
+`thread.*`, `voice.state`, `files.*`, `mls.*`, `history.pending`, `message.redact`, …: every event whose `data`
+names a `conversation_id` or `channel_id` of the room, directly or in an embedded `thread` or `message`) reach only
+**all room members who can view the channel** at delivery time: `view_channel` after roles and overrides
+(`permissions.md`) and the age gate of §5e; a change of roles, overrides or membership applies to the next event.
+`message.purge` (`conversation_ids`) reaches the members who can view at least one of its channels. The room's
+metadata events (`room.*`, `channel.*`, `category.*`, `role.*`, `member.*`, `override.update`, `emoji.update`,
+`soundboard.update`, `commands.update`, `user.*`) reach all room members. The same check gates web push (§6d)
+and the `notify` hints to other nodes (`FEDERATION.md` §5.2). Event types besides the room/message events of
+phase 1:
 
 | Type | Audience | `data` |
 |---|---|---|
@@ -618,18 +627,18 @@ connection of that device). Event types besides the room/message events of phase
 | `conversation.create` | members (and a newly added member) | `{ conversation }` |
 | `conversation.update` | members | `{ conversation }` (members or name changed) |
 | `conversation.leave` | the removed user | `{ conversation_id }` |
-| `typing` | room members (channels) or the members of a DM/group DM | `{ room_id, channel_id, user_id }` or `{ conversation_id, user_id }` |
+| `typing` | room members who can view the channel (channels; a typing operation in a channel the sender cannot view is dropped) or the members of a DM/group DM | `{ room_id, channel_id, user_id }` or `{ conversation_id, user_id }` |
 | `read.update` | the user (all of their connections) | `{ conversation_id, last_read_message_id }`: the read marker moved |
 | `room.invite`, `conversation.invite` | the invited user (on the home node) | `{ invite }`: a new entry of the invite list (`FEDERATION.md` §4) |
 | `notify` | the user (on the home node) | `{ node, conversation_id, room_id, mention, everyone }`: push hint for a conversation on another node, no content; `everyone` = the mention is only `@everyone`. The home node drops hints the user's notification settings do not want (§6c) |
 | `notifications.update` | the user (all of their connections) | `{ settings }`: the notification settings changed (§6c) |
 | `ban.notify` | the user (on the home node) | `{ room: { node, id, name }, scope }`: information that a room or node banned the user |
 | `federation.undeliverable` | the sending user | `{ type, to }`: a friend request or invitation to another node could not be delivered |
-| `voice.state` | room members | `{ room_id, channel_id, epoch, participants: [{ user, user_id, device_id, identity, muted, deafened, streaming, camera, server_muted, joined_at }] }`: the complete participant list of a voice channel after every change (`VOICE.md` §5) |
+| `voice.state` | room members who can view the channel | `{ room_id, channel_id, epoch, participants: [{ user, user_id, device_id, identity, muted, deafened, streaming, camera, server_muted, joined_at }] }`: the complete participant list of a voice channel after every change (`VOICE.md` §5) |
 | `voice.move` | the moved user | `{ room_id, from_channel_id, channel_id, user_id }`: a moderator moved the user; the client joins `channel_id` (`VOICE.md` §7) |
 | `soundboard.update` | room members | `{ room_id }`: the room's soundboard clips changed (`VOICE.md` §8) |
-| `files.update` | room members | `{ room_id, channel_id, parent_id }`: the content of a folder of a files channel changed (`FILES.md` §3) |
-| `files.backend` | room members | `{ room_id, channel_id, backend }`: the storage backend of a files channel changed (`FILES.md` §5) |
+| `files.update` | room members who can view the channel | `{ room_id, channel_id, parent_id }`: the content of a folder of a files channel changed (`FILES.md` §3) |
+| `files.backend` | room members who can view the channel | `{ room_id, channel_id, backend }`: the storage backend of a files channel changed (`FILES.md` §5) |
 | `presence.update` | who may see the user (§6a); the user's own connections | `Presence` `{ user_id, user, status, custom_status, activity }`; at most one per user and second |
 | `user.update` | the user's rooms, friends and DM contacts | `{ user }`: name or avatar changed (refresh lists and profile cards); for the pseudo user of a webhook (`kind = "webhook"`) the webhook's room |
 | `application.subscription_disabled` | the owner of the application | `{ application_id, url, last_error }`: the event subscription was disabled after 3 days without a successful delivery (`APPLICATIONS.md` §6.2) |
@@ -644,15 +653,15 @@ connection of that device). Event types besides the room/message events of phase
 | `interaction.reply` | the invoker: their other connections for the first response, all of them for follow-ups | `EphemeralReply` `{ interaction_id, conversation_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`: an ephemeral reply, shown only to the invoker and never stored (`APPLICATIONS.md` §5.7) |
 | `message.redact` | conversation audience¹ | `{ room_id, conversation_id, ids, author_id }`: the content of these messages was deleted with their author's account (§5d); the slots stay with the content `{"type":"system.deleted"}`. Clients replace cached content and drop the messages from local search indexes |
 | `user.deleted` | the rooms the user was in, friends and DM contacts | `{ user_id, address, tombstone }`: an account was deleted (§5d); its messages now name the tombstone (`author_deleted: true`) |
-| `thread.create`, `thread.update` | room members | `{ room_id, thread }`: a thread was started, or its title, tags, archive or lock state or its counters changed (§7e) |
-| `thread.delete` | room members | `{ room_id, channel_id, id }`: a thread was deleted with its messages (§7e) |
+| `thread.create`, `thread.update` | room members who can view the channel | `{ room_id, thread }`: a thread was started, or its title, tags, archive or lock state or its counters changed (§7e) |
+| `thread.delete` | room members who can view the channel | `{ room_id, channel_id, id }`: a thread was deleted with its messages (§7e) |
 | `thread.read` | the user (all of their connections) | `ThreadReadState`: the per-thread read marker or the follow state changed (§7e) |
 | `legal.statement` | the uploader | `{ case_id, decision, counter_deadline? }`: a statement of reasons or a decision about the user's content (`LEGAL.md` §1.4); details at `GET /users/me/legal-notices` |
 | `report.create` | the users who may see the report (room moderators, node admins), except the reporter | `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`: a new report in the moderation inbox (`MODERATION.md` §1.5) |
 | `report.update` | the same audience | `{ id, scope, room_id, status }`: a report changed, was acted on or deleted (`status: "deleted"`) |
 | `moderation.alert` | the room's moderators (owner, `moderate_members`), for node rules the node admins | `{ room_id, channel_id, user, kind, at, … }`: auto-moderation acted; `kind` `spam` (flood: `deleted`, `timeout_until`) or `content` (`rule`, `scope`, `matched`, `action`), `MODERATION.md` §2 |
 
-¹ Room channels: all room members (except, for a channel with an age gate, the members below it, §5e); DMs and
+¹ Room channels: all room members who can view the channel (roles, overrides and the age gate of §5e); DMs and
 group DMs: their members. `message.create`, `message.update` and
 `message.delete` of DMs and group DMs go to the members' users as well (`room_id` is null).
 ² Room channels: only the members who may view the channel (roles, overrides and the age gate of §5e); DMs and group DMs: the members
@@ -1350,7 +1359,7 @@ other nodes use the same routes with their federated session. Nothing crosses no
   thread message go to followers (and to users it mentions directly); `@everyone` inside a thread reaches followers
   only. Clients apply the same rule to their in-app notifications.
 
-**Events** (room members unless noted): `thread.create { room_id, thread }`, `thread.update { room_id, thread }`
+**Events** (room members who can view the channel unless noted): `thread.create { room_id, thread }`, `thread.update { room_id, thread }`
 (rename, tags, archive, lock, new messages: counters and `last_message_*`), `thread.delete { room_id, channel_id,
 id }`, `thread.read` (the user's own connections: a `ThreadReadState`). `message.*` events of thread messages carry
 `thread_id` in the envelope. Bots receive `thread.*` with the scope `messages:read`.

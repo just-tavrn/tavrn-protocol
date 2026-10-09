@@ -570,7 +570,8 @@ Who sends what:
   (§2.4) plus the home domains of the user's friends and of members of DMs/group DMs hosted on H.
 - `notify`: the conversation's node to the home node of a remote member who has **no open WebSocket** on that
   node, for messages matching the member's notification setting on that node (default: DMs, group DMs and
-  mentions),
+  mentions) in conversations the member can view (in room channels: `view_channel` at the time of the message,
+  PROTOCOL.md §6; thread follows and mentions do not override it),
   coalesced to at most one per conversation and user per 60 seconds; remote users can turn it off per node
   (`PATCH /api/v1/users/me { push_relay: false }` on T). It never carries content, author or message id.
 - `ban.notify`: optional, only when the room (or node) setting `notify_bans` is on (default off).

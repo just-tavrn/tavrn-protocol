@@ -55,7 +55,7 @@ Error codes besides the above: `files.not_found`, `files.parent_not_found`, `fil
 
 Bots have no access (the routes are not in `APP_ROUTES`, APPLICATIONS.md §2.3).
 
-Realtime: `files.update { room_id, channel_id, parent_id }` to the room after every change of a folder's
+Realtime: `files.update { room_id, channel_id, parent_id }` to the room members who can view the channel after every change of a folder's
 content (create, upload, rename, move: old and new parent, delete); `files.backend { room_id, channel_id,
 backend }` after a backend change. Clients refresh the open folder.
 
