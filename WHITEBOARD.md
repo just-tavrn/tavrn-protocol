@@ -37,7 +37,8 @@ Body `{ type, content, session? }` → `200 { session }`.
   `400 ephemeral.epoch_unknown`, `403 e2ee.device_not_attested`); in plaintext conversations a JSON object;
   anything else `400 ephemeral.encryption_mismatch`. At most 64 KiB (the ciphertext string or the serialized
   object): `413 ephemeral.too_large`.
-- Who: room members who may view the channel (`403 room.not_member`, `403 channel.view_forbidden`), members of
+- Who: room members who may view the channel (`403 room.not_member`, `403 channel.view_forbidden`) and are not
+  in a timeout (`403 member.timed_out`: cursors and strokes are writing, `permissions.md` step 5), members of
   a DM or group DM (`404 conversation.not_found` for everybody else) that accepted it (`403
   conversation.request_pending`), not in a blocked 1:1 DM (`403 dm.blocked`).
 - Rate: 30 events per second and sender (user), `429` with `Retry-After`.

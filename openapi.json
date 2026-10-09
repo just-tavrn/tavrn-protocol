@@ -10342,6 +10342,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -12799,7 +12809,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Delete a category; its channels remain, without a category.",
+        "summary": "Delete a category; its channels remain, without a category, and keep what the category's overrides gave and\ndenied (its overrides are copied into each channel first, protocol permissions.md \"Moving channels\").",
         "operationId": "delete_category",
         "parameters": [
           {
@@ -12988,7 +12998,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Update a channel (`manage_channels`).",
+        "summary": "Update a channel (`manage_channels`). Moving it out of its category copies the category's overrides into the\nchannel; moving it into a category that grants more needs `manage_roles` there (protocol permissions.md \"Moving\nchannels\").",
         "operationId": "update_channel",
         "parameters": [
           {
@@ -13025,6 +13035,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Channel"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -13141,6 +13161,16 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {
@@ -13739,6 +13769,16 @@
             }
           },
           "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {
@@ -17961,6 +18001,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -18153,6 +18203,16 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {
@@ -19611,6 +19671,16 @@
             "description": ""
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {

@@ -182,7 +182,11 @@ Evaluated for every federated login, inbox message, claim and outbound request, 
 2. Domain on the node blocklist (`TAVRN_FEDERATION_BLOCKLIST`, admin node bans `POST /admin/bans` with a
    domain subject, automatic blocks of §9.4) → `403 federation.peer_blocked`. The blocklist always wins.
 3. `TAVRN_FEDERATION_ALLOWLIST` non-empty and the domain not on it → `403 federation.peer_blocked`.
-4. Per-domain rate limits (§11.1) → `429` with `Retry-After`.
+4. Per-domain rate limits (§11.1) → `429` with `Retry-After`. They are charged only for requests whose signature
+   verified, so requests forged in a peer's name cannot use up its budget. Before the signature check (which may
+   fetch the claimed issuer's keys) the receiver limits per client address: inbox and claims per address,
+   federated logins per (domain, address) with the per-domain value (a peer's own burst of invalid logins, as the
+   conformance check `rate.limits` of §9 sends, still reaches `429`).
 
 Blocking a domain on H also means H refuses federation tokens for it, so H's users cannot use rooms on a
 blocked node (clients show "Your home node does not federate with x.example"). Blocked domains are never
@@ -449,7 +453,9 @@ KeyPackages when a member adds them to a DM, group DM or private channel.
 - **S2S claim** on H: `POST /api/v1/federation/key-packages/claim` with a node token (§2.3)
   `{ "user": "alice@h.example", "requester": "bob@b.example" }` → `200 { "key_packages": [ … ] }`, same
   semantics as the local claim (one per attested device, deleted on claim). `user` MUST be local to H
-  (`404 user.not_found`); `requester` is the user on whose behalf the room node claims (any domain). H
+  (`404 user.not_found`); `requester` is the user on whose behalf the room node claims (any domain; a user of H
+  itself only if they signed in on the room node, i.e. it is among their federation targets of §2.4, else `403
+  federation.claim_refused`). H
   refuses with `403 federation.claim_refused` if `user` blocked `requester`, and rate-limits per requesting
   node (`TAVRN_FEDERATION_RATE_CLAIMS`) and per `(requester, user)` (10 per hour). Errors of H are passed
   through to the client as `502 federation.peer_unreachable` / the original `4xx` code.
@@ -564,6 +570,15 @@ federation.payload_too_large`, checked before reading further):
 | `app.changed` | the bot's home node | bot address (domain = `iss`) → receiving domain | `{ application_id, commands_version, deleted }` | Only for a bot the receiver knows as that application: refetch its profile (name, avatar) and, from step 3, the commands; `deleted: true` uninstalls the bot from every local room and disables its stub (installations and logins refused) |
 | `legal.notice` | the node that received a takedown notice | domain = `iss` → receiving domain | `{ case_id, basis, work, explanation, locations: [{ kind, value }], reporter: { name, email, address, phone }, good_faith, accuracy, perjury, signature, submitted_at }` | Opens a case of its own (state `received`, origin `iss` and `case_id` recorded, idempotent per origin case) and mails the reporter; the fields are checked like the public form (`400 federation.payload_invalid`). Accepted even when the receiver's public form is off (`LEGAL.md` §1.5) |
 | `user.deleted` | the user's home node | user (domain = `iss`) → receiving domain | `{ delete_messages: bool }` | The stub is tombstoned like a local deletion (`LEGAL.md` §3.3): memberships, sessions, devices and keys go, messages move to a "Deleted user" tombstone with device ids and signatures stripped, their content and files are deleted too when `delete_messages`; the request is recorded in the audit log (`federation.user_deleted`) and the stub row is removed |
+
+Claims about the receiver's own users: a user address of the receiving node named as the inviter (`from` of
+`room.invite` and `conversation.invite`) or as the caller of a ring hint (`call.from` of `notify`) must belong to a
+user who signed in on the sending node (the sender is among their federation targets, §2.4); otherwise the sender
+claims something that cannot have happened (`400 federation.envelope_invalid`). Addresses of the sending node and
+of third nodes are accepted as before (their users act on the sending node through federated sessions the receiver
+cannot see). `notify` hints, rings included, are accepted only for a recipient who signed in on the sending node
+(a member of something there); others are dropped silently (`202`). The block filters apply as listed in the
+table.
 
 Who sends what:
 - `identity.changed`, `devices.changed`, `session.revoke`: H to every domain in `federation_targets` of the user
@@ -1067,7 +1082,7 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
 | Replay | `jti` per issuer until `exp + 5 min`; inbox ids 7 days; message ids older than 7 days refused |
 | Lifetimes | federation token ≤ 10 min, node token ≤ 5 min, federated session ≤ 7 days (access 1 h), listing 48 h, `.well-known` cache 5 min – 1 h, key cache 1 h (stale ≤ 24 h only for MLS checks) |
 | Sizes | inbox body 64 KiB, `.well-known` 64 KiB, profile 16 KiB, keys 256 KiB, claim 512 KiB, avatar 1 MiB, directory page 1 MiB, index 512 KiB / 2000 entries |
-| Rate limits per remote domain | federated logins `TAVRN_FEDERATION_RATE_LOGINS` (60/min), inbox `TAVRN_FEDERATION_RATE_INBOX` (300/min), API requests of its users `TAVRN_FEDERATION_RATE_API` (3000/min), KeyPackage claims per requesting node `TAVRN_FEDERATION_RATE_CLAIMS` (120/min); per-user limits as for local users |
+| Rate limits per remote domain | federated logins `TAVRN_FEDERATION_RATE_LOGINS` (60/min), inbox `TAVRN_FEDERATION_RATE_INBOX` (300/min), API requests of its users `TAVRN_FEDERATION_RATE_API` (3000/min), KeyPackage claims per requesting node `TAVRN_FEDERATION_RATE_CLAIMS` (120/min); charged after the signature check, per client address before it (§1.5); per-user limits as for local users |
 | Quotas | `TAVRN_FEDERATION_MAX_REMOTE_USERS` (10000), `…_PER_DOMAIN` (1000), `TAVRN_DIRECTORY_MAX_ROOMS` (5000), known nodes 10000 |
 | Outbox | retries 1 m, 5 m, 30 m, 2 h, 12 h, then 12-hourly; give up after 3 days |
 

@@ -608,11 +608,27 @@ device). Room events that concern a channel (`message.*`, reactions and pins as 
 names a `conversation_id` or `channel_id` of the room, directly or in an embedded `thread` or `message`) reach only
 **all room members who can view the channel** at delivery time: `view_channel` after roles and overrides
 (`permissions.md`) and the age gate of §5e; a change of roles, overrides or membership applies to the next event.
-`message.purge` (`conversation_ids`) reaches the members who can view at least one of its channels. The room's
-metadata events (`room.*`, `channel.*`, `category.*`, `role.*`, `member.*`, `override.update`, `emoji.update`,
-`soundboard.update`, `commands.update`, `user.*`) reach all room members. The same check gates web push (§6d)
-and the `notify` hints to other nodes (`FEDERATION.md` §5.2). Event types besides the room/message events of
-phase 1:
+`message.purge` (`conversation_ids`) reaches the members who can view at least one of its channels. The same
+check gates web push (§6d) and the `notify` hints to other nodes (`FEDERATION.md` §5.2).
+
+**Audiences of the room's metadata.** A private channel's metadata follows the same rule as its content, against
+the room as `GET /rooms/{id}` lists it to each member:
+
+- `channel.create`, `channel.update`, `channel.delete` and an `override.update` of a channel reach the members to
+  whom the channel is **listed**: `view_channel` after roles and overrides, the age gate left aside (a channel
+  above a member's age gate stays listed, §5e). A deletion reaches those to whom it was listed before.
+- `category.create`, `category.update`, `category.delete` and an `override.update` of a category reach the members
+  to whom the category is listed: one of its channels is listed to them, or they hold `manage_channels`.
+- `room.*`, `role.*`, `member.*`, `emoji.update`, `soundboard.update`, `commands.update` and `user.*` reach all
+  room members.
+- When a change of roles, overrides, membership or channels lets a member see a channel they could not, the node
+  sends them `channel.create` with the channel (preceded by `category.create` for a category they did not know);
+  when they lose one, `channel.delete { room_id, id, hidden: true }` (and `category.delete { room_id, id, hidden:
+  true }` for a category no longer listed to them). `hidden: true` means "no longer visible to you", not deleted:
+  clients remove the channel without announcing a deletion. These events have their own `id` and are not
+  replayed. `GET /rooms/{id}` lists only the overrides of the listed channels and categories.
+
+Event types besides the room/message events of phase 1:
 
 | Type | Audience | `data` |
 |---|---|---|
