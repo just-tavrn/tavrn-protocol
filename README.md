@@ -70,13 +70,14 @@ report here).
 |---|---|---|
 | `permissions.json` | Permission evaluation (`permissions.md`): owner, roles, category and channel overrides, timeouts, bots and scopes, system channels | list of `{ name, input, expected }`; `expected` is the effective 64-bit mask as a decimal string |
 | `no_bots.json` | The effective "no bots" flag of a channel (`APPLICATIONS.md`, `permissions.md`) | list of `{ name, input, expected }` with a boolean result |
-| `encryption.json` | Formats of `ENCRYPTION.md`: key file, device attestation, content and file encryption, backups, secret storage, identity rotation, the webhook inbox | object per section; binary values base64url without padding |
+| `encryption.json` | Formats of `ENCRYPTION.md`: key file, local storage key, device attestation, device login proof, content (also with the signed context) and file encryption, history shares, backups, whiteboard scenes, secret storage, identity rotation, the webhook inbox, the sealed unlock material of app sessions | object per section; binary values base64url without padding |
 | `federation.json` | `FEDERATION.md` §10: JSON canonicalization (JCS), plaintext signatures, safety numbers, payloads that must be refused | object per section; binary values base64url without padding |
 
 The reference implementations use them as follows: the node evaluates `permissions.json` and `no_bots.json`
 in its unit tests; the crypto core checks `encryption.json` and `federation.json` in Rust and through its
 WebAssembly build; `@tavrn/sdk` runs `permissions.json`, `no_bots.json` and the JCS cases of
-`federation.json`; `@tavrn/e2ee` runs the identity and webhook inbox cases of `encryption.json`. A new implementation should do the same: load the file, run every case, and compare
+`federation.json`; `@tavrn/e2ee` runs the identity, webhook inbox, files channel, local storage key, signed context, history share and
+sealed unlock cases of `encryption.json`; the node checks the device login proof. A new implementation should do the same: load the file, run every case, and compare
 exactly.
 
 ### Using this repository from code

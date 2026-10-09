@@ -351,5 +351,56 @@
     "payload": "{\"content\":{\"type\":\"text\",\"body\":\"Deployed\"}}",
     "sealed": "eUvcXYFFV8xicl7F2oHRSU6WaDF5pkDNjq_Kfh-XdGfVqeozXvORGlgny3ao6ad1Ut0d-IFdVA2UMuS6jWydRXHQCBVCrHBY3faeYh6RdWg-35MHqD74LxH3SdZj",
     "signature_message": "dGF2cm4gd2ViaG9vayBpbmJveCBrZXkgdjEAACdub2RlLmV4YW1wbGUvMDFKOVpLM0c1TThRMlc0RTZSOFQwWTJWMDAAAAAAAAAAKlgKvMA379F4tvrDSOKSF5ExaSddOyaj4zCOuabnN7UH"
+  },
+  "content_context": {
+    "author": "alice@node.example",
+    "content": "AQAAAAAAAAAqbG1ub3BxcnN0dXZ3yEn2p--BVGXnZEkP0wa7lrVlKCGl1UqP1g2SuPys7EO7jN9GyO8s0UDcB_IFbNJbuKggw8RNkNcdObhdOYcmhqIw0S2SJKds3-Kqgh4O0sz-i4X_dd5PXHDPO2RlyWlkEC5wK2otO8q8s6dz_mnSy_Tposv8A_BgDzLgm6nk0Yule1Eu7A5_lfDrqXhyZkCV1j5F-GoRrsNC-haLm8sY0yeutHWmyQ-sz79Dnc7rMu4oJDZhGw_dwP32ndMdHhhjE4oJYjw-XVVP0RHKt4cB",
+    "content_key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "epoch": 42,
+    "json": "{\"type\":\"text\",\"body\":\"In the thread\",\"ctx\":{\"thread_id\":\"01J9ZK3G5M8Q2W4E6R8T0Y2VT1\",\"reply_to\":\"01J9ZK3G5M8Q2W4E6R8T0Y2VR1\"}}",
+    "nonce": "bG1ub3BxcnN0dXZ3",
+    "reply_to": "01J9ZK3G5M8Q2W4E6R8T0Y2VR1",
+    "thread_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VT1"
+  },
+  "device_login": {
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "message": "dGF2cm4gZGV2aWNlIGxvZ2luIHYxAAAaMDFKOVpLM0c1TThRMlc0RTZSOFQwWTJWQTEAEmFsaWNlQG5vZGUuZXhhbXBsZQAUZGV2aWNlLW5vbmNlLWV4YW1wbGU",
+    "nonce": "device-nonce-example",
+    "proof": "uVUDrtiAmpQCytexTsJvdd2ThgtLnQTJY4_T7LHa8aavkH_0enjuPFO-I9o0F3WTMBftzylWDN-bOFtoPSFGDg",
+    "user_address": "alice@node.example"
+  },
+  "history_share": {
+    "author": "alice@node.example",
+    "ciphertext": "AQAAAAAAAAAqeHl6e3x9fn-AgYKDKfpyUVX20JC8BxNdBDhE2JOa38_qM5i3rYhLO9ToyRgp-rzJSGAorGySaMrV1IFTXOiImfelRy4tp-x03pEu2xdBmQSmosAmMD4NuVZd1va_OcG2aDFsGItivQvDlJpnQM4K_SLqn2cCxJE69DqMeTXuc9heldpvozdnSiPLtjZw0-h-U7YmPh58IzkWNss0TMyZBy7EsHBE7sIIWBtUGlxRMT7VTJuJdYdLUVlFQbz1MeiKUqSsW94WQBSpW3rWHxvi4PJIQuZevax6gnMNKeHlB1IbPEWwd9oM4qPaLfboxLnWyAgXYzmY33fUtDo2A_v3q0EDe_Ucolxg_e58jFhM10CqiYIaIXZMhN0sJL8aDk4H7URPJ6iPGB8DRXO25iHDhAnT08Twxe8H7Q361g",
+    "content_key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "epoch": 42,
+    "nonce": "eHl6e3x9fn-AgYKD",
+    "payload": "{\"conversation\":\"node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00\",\"epochs\":[[41,\"gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp8\"],[42,\"QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8\"]],\"to\":\"bob@other.example\",\"type\":\"history_keys\",\"v\":1}",
+    "to": "bob@other.example"
+  },
+  "local_storage_key": {
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "key": "s_eWTqZumq5gIe96m7kz3e0D2ZCdnlMesCVwYFcMZok",
+    "master_secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+  },
+  "sealed_unlock": {
+    "app_public_key": "YMa84TLeQ18D4Xvb6_gfovwpXKXuuRH8QuCT9L5HW1o",
+    "app_seed": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8",
+    "ephemeral_secret_key": "CAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJic",
+    "payload": "{\"type\":\"tavrn.connect.unlock.v1\",\"session_id\":\"01J9ZK3G5M8Q2W4E6R8T0Y2VC1\",\"credential_id\":\"Y3JlZGVudGlhbC0x\",\"prf_output\":\"4OHi4-Tl5ufo6err7O3u7_Dx8vP09fb3-Pn6-_z9_v8\"}",
+    "sealed": "arcRgiJO46ju8aWQ3Eca3m2rhv3u8DiQfLoacn1CcE8pWqSELcgsYdpAVhicWIHdBCTeCfTYsh2hL7EcbgmbH320Mal-gzq7TPO6g_1n1smPZXMmkvPSt_-NeBgFvb-N7UnWzyQYXXJx8pBj6Tm3yEgQbKljKMa7EebOedj9u_7JIc6ANBLLaAiYUMl6w57IybgdRtmMQXrdzMANDZH3tP5zY3OHM-2UW12fh5UsownoYPXb3HGpeOUoLOUASSDoBMqcdcVJCSo9CKghetG2lIBs2GhytzlfpXY"
+  },
+  "whiteboard_scene": {
+    "backup_key": "fzkXwgY7TsNm166mXLnAKfnlFC2pN89KIbxgM6lxe-o",
+    "nonce": "YGFiY2RlZmdoaWpr",
+    "scene": "{\"type\":\"excalidraw\",\"elements\":[]}",
+    "scene_blob": "AWBhYmNkZWZnaGlqa8APK_5NCZWp2oSTG0W98RsV7_zU5mz5bUKgIFohMiZ4DymdrsF9NdYSw8OjXAGDnTdi2A",
+    "scene_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VS1",
+    "thumbnail": "sLGys7S1tre4ubq7vL2-vw",
+    "thumbnail_blob": "AWBhYmNkZWZnaGlqawuc7TSJ2QEkQFhRw5hsJsBrUs-b1RfAWMD4TgNPPvCT"
   }
 }
