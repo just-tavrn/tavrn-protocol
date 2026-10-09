@@ -402,5 +402,31 @@
     "scene_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VS1",
     "thumbnail": "sLGys7S1tre4ubq7vL2-vw",
     "thumbnail_blob": "AWBhYmNkZWZnaGlqawuc7TSJ2QEkQFhRw5hsJsBrUs-b1RfAWMD4TgNPPvCT"
+  },
+  "device_share_key": {
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "device_public_key": "Kay64UG8yvCyLhqU000LxzYeUm0L_hLIl5S8kyKWbdc",
+    "device_secret_key": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+    "message": "dGF2cm4gZGV2aWNlIHNoYXJlIGtleSB2MQAVZSfuSuYWsfjOHxiHLTr0ydvtmFA246872-zxFgqlMymsuuFBvMrwsi4alNNNC8c2HlJtC_4SyJeUvJMilm3XABowMUo5WkszRzVNOFEyVzRFNlI4VDBZMlZBMQ",
+    "share_public_key": "FWUn7krmFrH4zh8Yhy069Mnb7ZhQNuOvO9vs8RYKpTM",
+    "share_secret_key": "v9gj_ALF-u2EICLBrQoZMcr_n1lo2VwyqjqVD_hekBk",
+    "signature": "ZNrn5tsnnrxUabn4mY3J-l8O8jH7wLGEc9qZ55LlpVyvQ06ka2s5DZfJ0w4GwTOIURg3dtPy5JKrW--5QOs7Ag"
+  },
+  "history_share_v2": {
+    "author": "alice@node.example",
+    "box": "oCCQlnR2NF3-gLfYcQVFQYI6YeFEHyFYS8hRSPX57w1MtkGPniPhWPNKn1cyiLf8ixS8JGPW5cS8CRVItbgHq_aaCx2z8BPUhyuBowRvKOg",
+    "ciphertext": "AQAAAAAAAAAqjI2Oj5CRkpOUlZaXC1I8PlIhUbaRn-Tuorb1TitrQNmDGBahIo15IPh0_j_93IJ9o7DPD3QV91euuvOBjRfqEy4Hu5KaOFjiWN4cTc3jSe-OVotAaezHdprfzRLnBM6_1L0hjaDwurfY2i-09zk0JotuYHGeXR5tDVzjdf7ZZD4bXnr1qH9orfINyC3YIgzDsrqQ-5jmzDv0JbzzZTKEQR8hR6Vph_JXyDtAuSkEs3IqhLIzkbfDB6VgUqDesGEMG-tBoV0G0j7H0SGJU2HgaMKu1rHk7ecW2ElrpkdxkI5rtkuQLz97JFoKxnKGWK441h4t2dl_p_PFudSP-0KPDYiGMpdBeKM-09ahfEDUnYFdjNqkOrBnzKLacf90KiTMVX_mkU6N7sr3ZyUm06kOHG-Ln4IqRf-W2SbRKA",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "ephemeral_secret_key": "ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVlc",
+    "epoch": 42,
+    "nonce": "jI2Oj5CRkpOUlZaX",
+    "payload": "{\"conversation\":\"node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00\",\"epochs\":[[41,\"gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp8\"],[42,\"QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8\"]],\"to\":\"bob@other.example\",\"type\":\"history_keys\",\"v\":2}",
+    "recipient_device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VB1",
+    "recipient_device_secret_key": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+    "recipient_share_public_key": "0TCaiO2xBoFWl9le--guAOPUmZ5tjsC1rYLy74ppWmk",
+    "recipient_share_secret_key": "yepa7g1GOurHVfyVXphVArJ9Zht9F8IXYIirs3lwCPw",
+    "share_key": "UFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm8",
+    "to": "bob@other.example"
   }
 }
