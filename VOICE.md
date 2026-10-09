@@ -12,7 +12,7 @@ client ──REST──▶ node: POST …/voice/join          → LiveKit token 
 client ──WSS───▶ node /rtc ──(token checked)──▶ LiveKit 127.0.0.1:7880   (signaling, proxied)
 client ══UDP═══▶ LiveKit TAVRN_RTC_UDP_PORT_RANGE                      (media, end-to-end encrypted)
         (fallbacks: ICE/TCP on TAVRN_RTC_TCP_PORT, embedded TURN over UDP or TLS through the proxy, §10.3)
-LiveKit ─webhook─▶ node /api/v1/voice/webhook ──▶ voice.state to the room's members (WebSocket)
+LiveKit ─webhook─▶ node /api/v1/voice/webhook ──▶ voice.state to the room's members who can view the channel (WebSocket)
 node ──every 30 s──▶ LiveKit room service (reconciliation, no ghosts)
 ```
 
@@ -207,7 +207,7 @@ reserved: participants of a call take the connection quality from LiveKit).
 
 - **Initial state:** `GET /api/v1/rooms/{room_id}/voice` → `{ "items": [VoiceChannelState, …] }`: every voice channel
   of the room with at least one participant that the requester can view (members only).
-- **Changes:** WebSocket event `voice.state` to all room members, `data` = `VoiceChannelState`
+- **Changes:** WebSocket event `voice.state` to all room members who can view the channel, `data` = `VoiceChannelState`
   `{ room_id, channel_id, epoch, participants: [VoiceParticipant, …] }`, always the *complete* list of the channel
   (replace, do not merge; an empty list means the channel is empty).
 - **Sources of truth:** LiveKit's webhooks (`participant_joined`, `participant_left`,

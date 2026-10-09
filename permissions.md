@@ -82,9 +82,10 @@ normal bits. Its entries cannot be deleted by anyone, `manage_messages`, owners 
 
 Which kinds of files a member may attach is a per-role setting, not a permission bit (`PROTOCOL.md` §7a): roles
 carry `allowed_upload_categories` (null = not set), overrides carry `upload_allow` / `upload_deny`. Evaluation:
-the member's highest role (by position) with a value decides, else `@everyone`; then the overrides chosen by the
-same synchronisation rule as below, in the same order (`@everyone` override, all role overrides deny-then-allow,
-the member override). Owners, node admins and `administrator` may upload every category; executables additionally
+the member's highest role (by position) with a value decides, else `@everyone`; then the same layers as below
+(the category's overrides, then the channel's own on top), each in the same order (`@everyone` override, all role
+overrides deny-then-allow, the member override); an upload category that a layer neither allows nor denies keeps
+the value of the layer below. Owners, node admins and `administrator` may upload every category; executables additionally
 need the node setting.
 
 ## Restricted for @everyone
@@ -124,19 +125,79 @@ Nodes remove these bits from existing `@everyone` roles and `@everyone` override
 every removal in the room's audit log as `role.everyone_restricted` (`meta`: `kind` role|override, `removed`,
 `names`).
 
+## Channel-scoped bits
+
+Overrides (on categories and on channels) may only carry bits that mean something inside a channel. A
+`PUT /rooms/{room_id}/overrides` whose `allow` or `deny` contains another bit is refused with
+`400 permissions.not_channel_scoped` (`meta.names`: the refused bit names); room-level bits are granted through
+roles only. Reference constant: `CHANNEL_SCOPED` in the node (`tavrn-node`) and in `@tavrn/sdk`, value
+`103049789951`. Clients list only these bits in override editors.
+
+| Bit | Name |
+|---|---|
+| 0 | `view_channel` |
+| 1 | `send_messages` |
+| 2 | `manage_messages` |
+| 3 | `attach_files` |
+| 4 | `add_reactions` |
+| 5 | `mention_everyone` |
+| 6 | `create_threads` |
+| 7 | `manage_channels` |
+| 8 | `manage_roles` |
+| 16 | `connect` |
+| 17 | `speak` |
+| 18 | `stream` |
+| 19 | `mute_members` |
+| 20 | `move_members` |
+| 21 | `use_soundboard` |
+| 25 | `pin_messages` |
+| 26 | `use_camera` |
+| 27 | `use_whiteboard` |
+| 28 | `manage_whiteboard` |
+| 29 | `manage_webhooks` |
+| 30 | `priority_speaker` |
+| 31 | `use_external_emojis` |
+| 32 | `use_external_sounds` |
+| 33 | `manage_files` |
+| 34 | `read_history` |
+| 36 | `manage_threads` |
+
+Room-level only (roles, never overrides): `administrator`, `manage_room`, `create_invites`, `kick_members`,
+`ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_emojis`, `change_nickname`, `manage_nicknames`,
+`manage_applications`, `restore_history` (bit 37: a decision about a member's history in the room's encrypted
+channels, not a right inside one channel). New bits state whether they are channel-scoped when they are introduced. The `@everyone` restriction above
+applies to overrides as well: a channel-scoped bit in `EVERYONE_RESTRICTED` still cannot be allowed for `@everyone`.
+
+Nodes remove bits outside `CHANNEL_SCOPED` from the `allow` and `deny` masks of existing overrides at start
+(idempotent; an override left with nothing is deleted) and record every change in the room's audit log as
+`role.override_restricted` (`target`: the category or channel id; `meta`: `target_type`, `subject_type`,
+`subject_id`, `removed`, `names`).
+
 ## Evaluation
 
+The evaluation is layered (since 2026-10-09; it replaced the earlier "synced with its category" rule, see
+"Changes" below): role base → category overrides → channel overrides.
+
 1. `base = everyone | OR(member's roles)`. Owner, node admin or `administrator` → all permissions, done.
-2. Overrides: if the channel is **synced with its category**, the category's overrides apply; otherwise only
-   the channel's own overrides. Setting a channel override automatically unsyncs the channel (as is common today).
-3. Order within the overrides: `@everyone` override (deny, then allow) → all role overrides of the member
-   (all denies first, then all allows, each unioned) → member override (deny, then allow).
+2. **Category layer**: if the channel belongs to a category, the category's overrides apply to `base`.
+3. **Channel layer**: the channel's own overrides apply to the result of step 2.
+   Order inside each layer: `@everyone` override (deny, then allow) → all role overrides of the member (all denies
+   first, then all allows, each unioned) → member override (deny, then allow). Only the bits of `CHANNEL_SCOPED`
+   (below) of an override take part; other bits in stored data are ignored.
+   A bit that an override neither allows nor denies (the neutral state "–") inherits the value of the layer below:
+   a channel override always wins over the category, which wins over the role base.
 4. If `view_channel` is missing afterwards, the result is 0.
 5. Members in timeout keep only `view_channel` and `read_history` (a timeout limits writing, not reading).
 
 Age gates (`PROTOCOL.md` §5e) come before this evaluation: in a channel whose effective `age_gate` is
 `adults_only`, a member below it (a minor or a user of unknown age) has 0, owners and node admins included. The gate
 is not an input of `testvectors/permissions.json`; implementations apply it around the evaluation.
+
+Example: the `@everyone` role lacks `view_channel`, the category has no override for it ("–"), and the channel
+allows `view_channel` for `@everyone`: every member sees that channel. A category is a container, not a permission
+target for viewing: clients show it as soon as at least one of its channels is visible. A category that allows
+`view_channel` and a channel in it that denies it: the channel is hidden. The shared test vectors cover these
+cases ("Layered: …").
 
 Hierarchy: roles have a position (`@everyone` = 0). Members can only manage or assign roles below their own
 highest position, only grant permissions they hold themselves, and only kick, ban or time out members whose
@@ -165,3 +226,13 @@ flags only); unknown values count as `per_channel`. `bots_allowed` never opens a
 closes. Reference: `no_bots_effective` / `noBotsEffective`, vectors in `testvectors/no_bots.json`. Reference: `SCOPES`,
 `scope_mask` and `cap_bot` in the node (`tavrn-node`) and `@tavrn/sdk`; test vectors with `kind`,
 `no_bots` and `scopes` in `testvectors/permissions.json`.
+
+## Changes
+
+- **2026-10-09, layered overrides**: the evaluation applies the category's overrides and then the
+  channel's own on top (above) instead of either the category's (a channel "synced with its category") or the
+  channel's. The channel field `sync_with_category` is removed: `GET` no longer returns it, `PATCH` ignores it
+  (accepted and ignored for one release, then unknown). A channel without own overrides behaves exactly as a synced
+  channel did; a channel with own overrides now also inherits its category's overrides underneath. Overrides carry
+  `CHANNEL_SCOPED` bits only (`400 permissions.not_channel_scoped`, start-up strip with `role.override_restricted`).
+  Node and client ship together in this development phase, so there is no capability for the change.
