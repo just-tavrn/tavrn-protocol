@@ -3,7 +3,7 @@
     "name": "The owner has everything, even with deny overrides",
     "input": {
       "user_id": "u1", "is_owner": true, "everyone_role_id": "r0", "everyone_permissions": 0,
-      "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false,
+      "member_roles": [], "category_overrides": [], "timed_out": false,
       "channel_overrides": [{ "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 1 }]
     },
     "expected": "4611686155866341375"
@@ -13,7 +13,7 @@
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }],
-      "channel_overrides": [], "sync_with_category": true, "timed_out": false
+      "channel_overrides": [], "timed_out": false
     },
     "expected": "4611686155866341375"
   },
@@ -21,7 +21,7 @@
     "name": "Only @everyone, no overrides",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
-      "member_roles": [], "category_overrides": [], "channel_overrides": [], "sync_with_category": true, "timed_out": false
+      "member_roles": [], "category_overrides": [], "channel_overrides": [], "timed_out": false
     },
     "expected": "3"
   },
@@ -29,35 +29,35 @@
     "name": "Roles are combined with @everyone",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
-      "member_roles": [["r1", 2], ["r2", 128]], "category_overrides": [], "channel_overrides": [], "sync_with_category": true, "timed_out": false
+      "member_roles": [["r1", 2], ["r2", 128]], "category_overrides": [], "channel_overrides": [], "timed_out": false
     },
     "expected": "131"
   },
   {
-    "name": "An @everyone override on the category removes sending (channel synced)",
+    "name": "Layered: a channel allow wins over a category deny",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
-      "member_roles": [], "sync_with_category": true, "timed_out": false,
+      "member_roles": [], "timed_out": false,
       "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }],
       "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 2, "deny": 0 }]
     },
-    "expected": "1"
+    "expected": "3"
   },
   {
-    "name": "Channel not synced: only its own overrides count",
+    "name": "Layered: a neutral channel override inherits the category's deny",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
-      "member_roles": [], "sync_with_category": false, "timed_out": false,
+      "member_roles": [], "timed_out": false,
       "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }],
       "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 0 }]
     },
-    "expected": "3"
+    "expected": "1"
   },
   {
     "name": "A role allow beats an @everyone deny",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
-      "member_roles": [["r1", 0]], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "member_roles": [["r1", 0]], "timed_out": false, "category_overrides": [],
       "channel_overrides": [
         { "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 },
         { "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 }
@@ -69,7 +69,7 @@
     "name": "Between two roles, allow wins over deny",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
-      "member_roles": [["r1", 0], ["r2", 0]], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "member_roles": [["r1", 0], ["r2", 0]], "timed_out": false, "category_overrides": [],
       "channel_overrides": [
         { "subject_type": "role", "subject_id": "r1", "allow": 0, "deny": 2 },
         { "subject_type": "role", "subject_id": "r2", "allow": 2, "deny": 0 }
@@ -81,7 +81,7 @@
     "name": "A member override beats a role allow",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
-      "member_roles": [["r1", 0]], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "member_roles": [["r1", 0]], "timed_out": false, "category_overrides": [],
       "channel_overrides": [
         { "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 },
         { "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 2 }
@@ -93,7 +93,7 @@
     "name": "Overrides of other roles and members are ignored",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
-      "member_roles": [], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "member_roles": [], "timed_out": false, "category_overrides": [],
       "channel_overrides": [
         { "subject_type": "role", "subject_id": "r9", "allow": 0, "deny": 3 },
         { "subject_type": "member", "subject_id": "u2", "allow": 0, "deny": 3 }
@@ -105,7 +105,7 @@
     "name": "Without view_channel nothing remains",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 131,
-      "member_roles": [], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "member_roles": [], "timed_out": false, "category_overrides": [],
       "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }]
     },
     "expected": "0"
@@ -114,7 +114,7 @@
     "name": "A timeout leaves only reading",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 65539,
-      "member_roles": [], "sync_with_category": true, "timed_out": true, "category_overrides": [], "channel_overrides": []
+      "member_roles": [], "timed_out": true, "category_overrides": [], "channel_overrides": []
     },
     "expected": "1"
   },
@@ -122,7 +122,7 @@
     "name": "Whiteboard permissions: a channel override removes use_whiteboard, a role grants manage_whiteboard",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 134217731,
-      "member_roles": [["r1", 268435456]], "sync_with_category": false, "timed_out": false, "category_overrides": [],
+      "member_roles": [["r1", 268435456]], "timed_out": false, "category_overrides": [],
       "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 134217728 }]
     },
     "expected": "268435459"
@@ -132,7 +132,7 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "no_bots": false, "scopes": ["messages:read"]
+      "timed_out": false, "kind": "bot", "no_bots": false, "scopes": ["messages:read"]
     },
     "expected": "17188257793"
   },
@@ -141,7 +141,7 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 8454155,
       "member_roles": [], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["messages:write"]
+      "timed_out": false, "kind": "bot", "scopes": ["messages:write"]
     },
     "expected": "8388619"
   },
@@ -150,7 +150,7 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "no_bots": true
+      "timed_out": false, "kind": "bot", "no_bots": true
     },
     "expected": "0"
   },
@@ -159,7 +159,7 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot"
+      "timed_out": false, "kind": "bot"
     },
     "expected": "137438953471"
   },
@@ -168,7 +168,7 @@
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
       "member_roles": [], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "user", "no_bots": true, "scopes": []
+      "timed_out": false, "kind": "user", "no_bots": true, "scopes": []
     },
     "expected": "3"
   },
@@ -177,7 +177,7 @@
     "input": {
       "user_id": "w1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
       "member_roles": [], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "webhook", "scopes": []
+      "timed_out": false, "kind": "webhook", "scopes": []
     },
     "expected": "1"
   },
@@ -186,7 +186,7 @@
     "input": {
       "user_id": "b1", "is_owner": true, "everyone_role_id": "r0", "everyone_permissions": 0,
       "member_roles": [], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["rooms:manage"]
+      "timed_out": false, "kind": "bot", "scopes": ["rooms:manage"]
     },
     "expected": "42962257793"
   },
@@ -194,7 +194,7 @@
     "name": "Timeout keeps reading, including the history from before the join (read_history)",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 17179869187,
-      "member_roles": [], "sync_with_category": true, "timed_out": true, "category_overrides": [], "channel_overrides": []
+      "member_roles": [], "timed_out": true, "category_overrides": [], "channel_overrides": []
     },
     "expected": "17179869185"
   },
@@ -202,7 +202,7 @@
     "name": "System channel: no override hides it or its history (SYSTEM_CHANNEL_FORCED), writing stays denied",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 17179869203,
-      "member_roles": [], "category_overrides": [], "sync_with_category": false, "timed_out": false, "system_channel": true,
+      "member_roles": [], "category_overrides": [], "timed_out": false, "system_channel": true,
       "channel_overrides": [
         { "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 17179869185 },
         { "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 1 }
@@ -214,7 +214,7 @@
     "name": "System channel: the owner has everything except writing (SYSTEM_CHANNEL_DENIED)",
     "input": {
       "user_id": "u1", "is_owner": true, "everyone_role_id": "r0", "everyone_permissions": 0,
-      "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false, "system_channel": true,
+      "member_roles": [], "category_overrides": [], "timed_out": false, "system_channel": true,
       "channel_overrides": []
     },
     "expected": "4611686155698569109"
@@ -223,7 +223,7 @@
     "name": "System channel: a role allowed to send, attach and pin still cannot",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
-      "member_roles": [["r1", 33554442]], "category_overrides": [], "sync_with_category": false, "timed_out": false,
+      "member_roles": [["r1", 33554442]], "category_overrides": [], "timed_out": false,
       "system_channel": true,
       "channel_overrides": [{ "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 }]
     },
@@ -233,7 +233,7 @@
     "name": "System channel: visible even when @everyone lacks view_channel in the room",
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 0,
-      "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false, "system_channel": true,
+      "member_roles": [], "category_overrides": [], "timed_out": false, "system_channel": true,
       "channel_overrides": []
     },
     "expected": "17179869185"
@@ -242,7 +242,7 @@
     "name": "System channel: a bot in a no-bots zone still has nothing",
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
-      "member_roles": [], "category_overrides": [], "sync_with_category": true, "timed_out": false, "system_channel": true,
+      "member_roles": [], "category_overrides": [], "timed_out": false, "system_channel": true,
       "kind": "bot", "no_bots": true, "scopes": null,
       "channel_overrides": []
     },
@@ -253,7 +253,7 @@
     "input": {
       "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 34359738368]], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false
+      "timed_out": false
     },
     "expected": "34359738369"
   },
@@ -262,7 +262,7 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 34359738880]], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["rooms:manage"]
+      "timed_out": false, "kind": "bot", "scopes": ["rooms:manage"]
     },
     "expected": "34359738881"
   },
@@ -271,7 +271,7 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 34359738880]], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["messages:read", "commands"]
+      "timed_out": false, "kind": "bot", "scopes": ["messages:read", "commands"]
     },
     "expected": "1"
   },
@@ -280,7 +280,7 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 17179869187,
       "member_roles": [], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "no_bots": true
+      "timed_out": false, "kind": "bot", "no_bots": true
     },
     "expected": "0"
   },
@@ -289,7 +289,7 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 68719476804]], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["moderation"]
+      "timed_out": false, "kind": "bot", "scopes": ["moderation"]
     },
     "expected": "68719476741"
   },
@@ -298,8 +298,118 @@
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 68719476804]], "category_overrides": [], "channel_overrides": [],
-      "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["messages:write"]
+      "timed_out": false, "kind": "bot", "scopes": ["messages:write"]
     },
     "expected": "65"
+  },
+  {
+    "name": "Layered (owner example): @everyone without view_channel, a channel allow makes the channel visible",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 2,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 1, "deny": 0 }]
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Layered: a role base without view_channel, a category deny and a channel allow: visible",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 2,
+      "member_roles": [["r1", 2]], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r1", "allow": 1, "deny": 0 }]
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Layered: a category allow and a channel deny: hidden",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 2,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 1, "deny": 0 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }]
+    },
+    "expected": "0"
+  },
+  {
+    "name": "Layered: a channel without own overrides follows its category's allow",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 2,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 1, "deny": 0 }],
+      "channel_overrides": []
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Layered: a channel with own overrides still inherits its category's overrides underneath",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 8, "deny": 0 }]
+    },
+    "expected": "9"
+  },
+  {
+    "name": "Layered: inside a layer the member override comes last (category role allow, category member deny)",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 0]], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 }, { "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 2 }],
+      "channel_overrides": []
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Layered: a channel role deny beats a category member allow (the later layer wins)",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 0]], "timed_out": false,
+      "category_overrides": [{ "subject_type": "member", "subject_id": "u1", "allow": 2, "deny": 0 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r1", "allow": 0, "deny": 2 }]
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Layered: a channel member allow beats a channel role deny on top of a category deny",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 0]], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r1", "allow": 0, "deny": 2 }, { "subject_type": "member", "subject_id": "u1", "allow": 2, "deny": 0 }]
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Layered: @everyone first inside a layer (category @everyone deny, category role allow)",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 0]], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }, { "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 }],
+      "channel_overrides": []
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Layered: a channel @everyone deny beats a category role allow",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 0]], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r1", "allow": 2, "deny": 0 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }]
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Overrides carry channel-scoped bits only: room-level bits in an override have no effect (CHANNEL_SCOPED)",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 8388609,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 2048, "deny": 0 }],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 512, "deny": 8388608 }]
+    },
+    "expected": "8388609"
   }
 ]

@@ -1382,3 +1382,10 @@ section. Invariants worth repeating:
 Bit mask (u64) as a decimal string. Bit positions, defaults, evaluation order and hierarchy rules are
 normative in `permissions.md`; reference test vectors live in `testvectors/permissions.json` and must be passed
 by server and client.
+
+Overrides (`PUT /rooms/{room_id}/overrides`, `manage_roles`) are layered: the category's overrides apply to the
+role base, the channel's own overrides on top, and a neutral bit inherits from the layer below (`permissions.md`
+"Evaluation"). They carry only channel-scoped bits (`CHANNEL_SCOPED`, `400 permissions.not_channel_scoped`).
+Channels no longer have `sync_with_category` (`PATCH` ignores the field for one release, `GET` does not return it).
+Setting an override with `allow = deny = "0"` and empty `upload_allow`/`upload_deny` removes it; a client "resets a
+channel to its category" by removing each of the channel's own overrides.
