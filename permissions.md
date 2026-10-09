@@ -43,6 +43,7 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 34 | `read_history` | Encrypted channels: read messages from before joining as far as the channel's `history_for_new_members` policy allows, and receive their keys from other members (default for `@everyone`, design note 4.13 item 11, `ENCRYPTION.md` §7b). Without it the history starts at the member's join. Plaintext messages are not affected. |
 | 35 | `manage_applications` | Install and remove applications (bots) in the room and edit the room's command settings (`APPLICATIONS.md` §4.2, §4.3, §5.3). The managed role of an installation additionally needs `manage_roles`, and the bot never gets more than the installer holds. Covered by the app token scope `rooms:manage`; bots still cannot install bots. |
 | 36 | `manage_threads` | Rename, archive, lock and delete other people's threads and edit the tags of any forum post (`PROTOCOL.md` §7e). Covered by the app token scope `moderation`. |
+| 37 | `restore_history` | Encrypted channels: decide about requests to restore a member's history after a key reset and send the keys from before the reset (`ENCRYPTION.md` §7b "History after a key reset"). Default: nobody besides the owner and `administrator`; no app-token scope covers it. |
 | 62 | `administrator` | All permissions, overrides are ignored |
 
 Default permissions of `@everyone` in new rooms: `view_channel`, `send_messages`, `attach_files`, `add_reactions`,
@@ -113,10 +114,11 @@ Management-class permissions can never be granted to `@everyone`, neither in the
 | 33 | `manage_files` |
 | 35 | `manage_applications` |
 | 36 | `manage_threads` |
+| 37 | `restore_history` |
 | 62 | `administrator` |
 
 New management-class bits are added to this list when they are introduced. Denying any of them to `@everyone`
-stays allowed. The same constant lives in the node (`tavrn-node`, value `4611686130924452740`).
+stays allowed. The same constant lives in the node (`tavrn-node`, value `4611686268363406212`).
 
 Nodes remove these bits from existing `@everyone` roles and `@everyone` overrides at start (idempotent) and record
 every removal in the room's audit log as `role.everyone_restricted` (`meta`: `kind` role|override, `removed`,

@@ -228,6 +228,16 @@ purges skip the welcome channel even when it is named, and the report actions ca
 them. Clients do not offer
 "Delete" for them.
 
+**History restore after a key reset** (`ENCRYPTION.md` §7b, capability `history.restore`). A member who reset their
+security key loses the encrypted history from before the reset; it comes back only when a member with
+`restore_history` (owner and `administrator` by default) approves the member's request in the room settings, and the
+approval (`system.history_restored`) or denial (`system.history_restore_denied`) is a welcome channel entry like the
+key change itself. Moderators should treat the request like a password reset at a help desk: a reset is exactly what
+someone who took over the account would do, and an approval gives them everything the member could read before. Verify
+the person's identity on another channel before approving (a call, in person, or a channel you already trust; never
+only a message from the account itself, and never a code the account sends), and deny with a reason when in doubt;
+nobody can approve their own request.
+
 ## 4. Room ownership transfer
 
 `POST /rooms/{room_id}/transfer { user_id }` → `200 RoomDetail`: the owner hands the room to another member. Only the

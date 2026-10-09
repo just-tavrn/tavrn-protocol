@@ -20,7 +20,7 @@ The reference implementations live in their own repositories:
 |---|---|
 | [`PROTOCOL.md`](PROTOCOL.md) | The core: identities and addresses, discovery (`/.well-known/tavrn`), capabilities, API conventions, tokens and authentication, date of birth and age gates (`age.v1`), realtime events, the message envelope, permissions overview |
 | [`FEDERATION.md`](FEDERATION.md) | How nodes find, authenticate and trust each other: node keys, federation tokens, inbox and outbox, remote rooms, friends and DMs across nodes, directory, conformance |
-| [`ENCRYPTION.md`](ENCRYPTION.md) | End-to-end encryption (`e2ee.mls1`): master secret and key file, devices, MLS groups, content and file encryption, backups, secret storage, identity reset |
+| [`ENCRYPTION.md`](ENCRYPTION.md) | End-to-end encryption (`e2ee.mls1`): master secret and key file, devices, MLS groups, content and file encryption, backups, history for new members and its restore after a key reset (`history.restore`), secret storage, identity reset |
 | [`VOICE.md`](VOICE.md) | Voice, video and screen sharing (`voice`): limits, join flow, the encrypted media frames, soundboard, connectivity |
 | [`WHITEBOARD.md`](WHITEBOARD.md) | The shared whiteboard (`whiteboard`) built on encrypted ephemeral events |
 | [`APPLICATIONS.md`](APPLICATIONS.md) | Applications and bots (`apps.v1`), slash commands (`commands.v1`), webhooks and event subscriptions (`webhooks.v1`), single sign-on (`sso.oidc`) |
