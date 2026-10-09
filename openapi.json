@@ -15904,6 +15904,443 @@
         ]
       }
     },
+    "/api/v1/rooms/{room_id}/history-requests": {
+      "get": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Open history restore requests",
+        "description": "The open requests to restore a member's history after a key reset, oldest first (at most 100), each with the encrypted channels the requester may view and its window there (ENCRYPTION.md §7b). Needs `restore_history`.",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequestList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Ask to restore the history after a key reset",
+        "description": "A member whose security key was reset asks the members with `restore_history` to restore its encrypted history from before the reset (ENCRYPTION.md §7b). One open request per room; at most 5 per day. The owner and the members with `restore_history` get `history.request`.",
+        "operationId": "create",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/mine": {
+      "get": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Own history restore state",
+        "description": "The requester's key reset in this room, an approved restore and its latest request of the current membership (ENCRYPTION.md §7b).",
+        "operationId": "mine",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyHistoryState"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}": {
+      "delete": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Cancel an own history restore request",
+        "description": "The requester withdraws its open request (ENCRYPTION.md §7b).",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Approve a history restore request",
+        "description": "A member with `restore_history` approves another member's request (ENCRYPTION.md §7b): the requester's history window is the normal one again and restore shares (keys from before the reset) from members with `restore_history` are accepted for 30 days. Audit `history.restore_approved`, welcome channel `system.history_restored`, event `history.request_decided`. The approving client then sends the keys from its device.",
+        "operationId": "approve",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}/deny": {
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Deny a history restore request",
+        "description": "A member with `restore_history` denies another member's request with a reason (ENCRYPTION.md §7b). Audit `history.restore_denied` with the reason, welcome channel `system.history_restore_denied` without it, event `history.request_decided`.",
+        "operationId": "deny",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DenyHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/rooms/{room_id}/icon": {
       "put": {
         "tags": [
@@ -24264,6 +24701,15 @@
           }
         }
       },
+      "ApproveHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "partial": {
+            "type": "boolean",
+            "description": "The approving device does not hold every key of the requester's window."
+          }
+        }
+      },
       "Attachment": {
         "type": "object",
         "required": [
@@ -26405,6 +26851,18 @@
           }
         }
       },
+      "CreateHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A note for the moderators (at most 500 characters)."
+          }
+        }
+      },
       "CreateHistoryShareRequest": {
         "type": "object",
         "required": [
@@ -27074,6 +27532,18 @@
               "null"
             ],
             "description": "Null when the whole node is delisted."
+          }
+        }
+      },
+      "DenyHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why (1–500 characters); in the audit log and shown to the requester."
           }
         }
       },
@@ -28747,13 +29217,155 @@
           "since"
         ],
         "properties": {
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "After a key reset of the member (ENCRYPTION.md §7b \"History after a key reset\"): the reset time; null otherwise."
+          },
+          "min_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "After a key reset: the lowest epoch an automatic share may carry (reset epoch + 1); null without a\npre-reset range."
+          },
           "since": {
             "type": "string",
-            "description": "The membership's `joined_at` (start of the policy window)."
+            "description": "Start of the automatic window: the membership's `joined_at`, after a key reset its `key_reset_at`."
           },
           "user": {
             "type": "string",
             "description": "Member address."
+          }
+        }
+      },
+      "HistoryRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "room_id",
+          "user",
+          "display_name",
+          "message",
+          "status",
+          "joined_at",
+          "created_at",
+          "partial",
+          "channels"
+        ],
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryRequestChannel"
+            },
+            "description": "For members with `restore_history`: the encrypted channels the requester may view (else empty)."
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decided_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Address of the member who decided."
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "joined_at": {
+            "type": "string",
+            "description": "The requester's membership start."
+          },
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The requester's current key reset (null once the membership ended or nothing is reset)."
+          },
+          "message": {
+            "type": "string"
+          },
+          "partial": {
+            "type": "boolean",
+            "description": "The approving device did not hold every key of the window."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reason of a denial."
+          },
+          "room_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "`open`, `approved`, `denied` or `cancelled`."
+          },
+          "user": {
+            "type": "string",
+            "description": "Requester address."
+          }
+        }
+      },
+      "HistoryRequestChannel": {
+        "type": "object",
+        "required": [
+          "channel_id",
+          "kind"
+        ],
+        "properties": {
+          "channel_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "The channel's kind (`text`, `announcement`, `forum`, `files`)."
+          },
+          "reset_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The group epoch at the requester's key reset; keys up to it are the pre-reset range. Null: no group then."
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The requester's normal window start in this channel (policy and `read_history` from `joined_at`); null =\neverything."
+          }
+        }
+      },
+      "HistoryRequestList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryRequest"
+            }
           }
         }
       },
@@ -30147,6 +30759,36 @@
           "values": {
             "$ref": "#/components/schemas/BTreeMap",
             "description": "Every key with its effective value for the requester (and the room, if given)."
+          }
+        }
+      },
+      "MyHistoryState": {
+        "type": "object",
+        "properties": {
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The membership's key reset (null: none)."
+          },
+          "request": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HistoryRequest",
+                "description": "The latest request of the current membership."
+              }
+            ]
+          },
+          "restored_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When a restore of the membership was approved (null: none)."
           }
         }
       },
@@ -33082,7 +33724,8 @@
           "discoverable",
           "icon_animated",
           "no_bots",
-          "bots_in_encrypted_channels"
+          "bots_in_encrypted_channels",
+          "history_restore"
         ],
         "properties": {
           "attachment_retention_days": {
@@ -33112,6 +33755,10 @@
           "discoverable": {
             "type": "boolean",
             "description": "Listed in the directory and on Discover (FEDERATION.md §7.3; public rooms only)."
+          },
+          "history_restore": {
+            "type": "string",
+            "description": "History restore after a key reset (ENCRYPTION.md §7b): `request` (members may ask, default) or `off`."
           },
           "icon": {
             "type": [
@@ -35008,6 +35655,13 @@
               "null"
             ],
             "description": "List the room in the directory and on Discover (FEDERATION.md §7.3). Public rooms only; switching\na room to `invite` removes it from the directory."
+          },
+          "history_restore": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "History restore after a key reset (ENCRYPTION.md §7b): `request` (members may ask, default) or `off`.\nOwner or `manage_room`; never a bot."
           },
           "join_mode": {
             "type": [
