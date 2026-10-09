@@ -776,8 +776,9 @@ are encrypted messages inside the user's window from before the join. It emits `
 most once (another device of the same member joining does not mark it again); the mark is cleared when the
 member acknowledges a share and expires after 30 days.
 
-- `GET /api/v1/conversations/{id}/history-pending` → `{ items: [ { user, since } ] }` (members only; at most 100,
-  marks of the current memberships of the last 30 days; empty for DMs, plaintext channels and `since_join`).
+- `GET /api/v1/conversations/{id}/history-pending` → `{ items: [ { user, since, key_reset_at, min_epoch } ] }` (members
+  only; at most 100, marks of the current memberships of the last 30 days; empty for DMs, plaintext channels and
+  `since_join`; `key_reset_at` and `min_epoch` are null except after a key reset, "History after a key reset" below).
 
 **Shares.** Routes on the node hosting the conversation (members of other nodes use their federated session
 there, as for every conversation route):
@@ -859,6 +860,99 @@ channel; afterwards the history loads lazily as before.
 - Narrowing the policy does not revoke keys already shared (clients say so in the setting); the change is in
   the audit log.
 
+**History after a key reset (capability `history.restore`).** An identity reset (§9) gives the user new keys but
+keeps the memberships, so the window above would let the other members' clients share the old epoch keys
+automatically, and whoever took over the account (a password reset, a SIM swap) would read the whole history. Nodes
+that announce `history.restore` (together with `e2ee.mls1`) therefore restore history after a reset only by an
+explicit, logged decision of a member with permission bit 37 `restore_history` (`permissions.md`):
+
+1. **Reset window.** When a member's identity key changes without a continuity statement (a reset, §9, or any change
+   that is not a rotation, §9a: exactly when the node writes `system.key_changed { rotated: false }`, PROTOCOL.md §7)
+   the node sets `key_reset_at = now` on every room membership of the user that it hosts (again at every further
+   reset) and drops an earlier restore of that membership. Room nodes do the same for members of other nodes when they
+   learn the new key (`identity.changed`, or a refetch of the keys document, FEDERATION.md §5.2), so the node hosting
+   the conversation, which enforces every rule below, knows the reset of every member. A rotation (§9a) keeps the
+   master secret and the old history and sets nothing. A new membership (a re-join) starts without `key_reset_at`.
+   For a membership with `key_reset_at`:
+   - The member's history window (`GET …/messages`, and the records of files channels, `FILES.md` §8.7) additionally
+     starts at `key_reset_at`, until a restore of the membership is approved; from then on the normal window applies
+     again.
+   - The **reset epoch** of a conversation is the epoch its group had at the reset; the node records it per encrypted
+     room channel of the membership at that moment (no group yet: nothing before the reset). Epochs up to and
+     including it are the **pre-reset range**, whatever the channel's kind (messages, the entry records of files
+     channels, `FILES.md` §8.7); the automatic window of the member starts after it, never earlier, whatever the
+     policy.
+   - Pending marks: when a device of the user joins the group after the reset (policy not `since_join`, `view_channel`
+     and `read_history` as above) and there are encrypted messages since `key_reset_at`, the node marks the member
+     pending once per reset, also if the user still had (now unattested) leaves in the group. `history.pending` and
+     the items of `…/history-pending` then carry `since = key_reset_at`, `key_reset_at` and `min_epoch` (reset epoch
+     + 1, null without a pre-reset range); for other members `key_reset_at` and `min_epoch` are null.
+   - A share to the member whose `epoch_from` is at most the reset epoch is a **restore share**. The node accepts it
+     only from a member who holds `restore_history` in the channel while the membership has a restore approved within
+     the last 30 days (below); otherwise `403 history.forbidden`. Restore shares are accepted under `since_join` too and
+     need the recipient's `view_channel` only: its message window (the normal window again after the approval) limits
+     which keys its client accepts. Everything else about shares (attested device, sizes, rate limit) applies as above.
+2. **Request.** The room setting `history_restore` is `request` (default) or `off` (`PATCH /rooms/{room_id}`,
+   `manage_room`, never a bot; `400 validation.enum`; audited in `room.update` with `meta.history_restore`). Routes on the
+   room's node (members of other nodes use their federated session there):
+   - `POST /api/v1/rooms/{room_id}/history-requests` `{ message? }` → `201 HistoryRequest`: a member asks for its history
+     from before the reset; `message` at most 500 characters. The membership needs `key_reset_at` without an approved
+     restore (`409 history.nothing_to_restore`), the room `history_restore = request` (`403 history.restore_disabled`), no
+     open request of the member in the room (`409 history.request_open`); bots cannot ask (`403 history.forbidden`); at
+     most 5 requests per member and room within 24 hours (`429`). Audit `history.restore_requested` (target the member);
+     event `history.request { room_id, request }` to the owner and the members whose roles hold `restore_history` or
+     `administrator`.
+   - `GET /api/v1/rooms/{room_id}/history-requests/mine` → `{ key_reset_at, restored_at, request }`: the requester's own
+     state (`request` = its latest request of the current membership or null; the times null when not set).
+   - `DELETE /api/v1/rooms/{room_id}/history-requests/{request_id}` → `204`: the requester cancels its open request
+     (`404 history.request_not_found` otherwise). Open requests are cancelled as well when the membership ends.
+   - `GET /api/v1/rooms/{room_id}/history-requests` → `{ items: [HistoryRequest] }`: the open requests (oldest first, at
+     most 100); `restore_history` required (`403 history.forbidden`).
+
+   `HistoryRequest` = `{ id, room_id, user, display_name, message, status, joined_at, key_reset_at, created_at,
+   decided_at, decided_by, reason, partial, channels }`: `status` is `open`, `approved`, `denied` or `cancelled`;
+   `decided_by` an address; `channels` (filled for members with `restore_history`, else empty) lists every encrypted
+   channel of the room the requester may view, whatever its kind (text, announcement, forum, files; voice channels
+   store no content and are left out), as `{ channel_id, kind, window_start, reset_epoch }`: `window_start` is the
+   requester's normal window start in that channel (the policy and `read_history` from `joined_at`; null =
+   everything), `reset_epoch` the recorded reset epoch (null: nothing before the reset).
+3. **Decision.** `restore_history` is never granted to `@everyone`, no app-token scope covers it, and the owner and
+   `administrator` hold it as always.
+   - `POST /api/v1/rooms/{room_id}/history-requests/{request_id}/approve` `{ partial? }` → `200 HistoryRequest`. The request
+     must be open (`409 history.request_decided`; unknown `404 history.request_not_found`), its member still a member
+     with `key_reset_at` (`409 history.nothing_to_restore`), the setting `request` (`403 history.restore_disabled`), and
+     nobody approves their own request (`403 history.forbidden`): a taken-over account of a moderator must not unlock
+     itself. The node records the restore on the membership (`restored_at`; the cut is lifted and restore shares are
+     accepted for 30 days), writes the audit entry `history.restore_approved` (`meta { user, by }`) and
+     `system.history_restored { user, by }` into the welcome channel and sends `history.request_decided { room_id,
+     request }` to the requester and to the members who got `history.request`. `partial: true` tells the requester that
+     the approving device does not hold every key of the window.
+   - `POST /api/v1/rooms/{room_id}/history-requests/{request_id}/deny` `{ reason }` → `200 HistoryRequest`: `reason` 1–500
+     characters (`400 validation.length`); the same checks except the setting; audit `history.restore_denied` (`meta
+     { user, by, reason }`), `system.history_restore_denied { user, by }` (the reason stays in the audit log and in the
+     request, which the requester sees) and `history.request_decided`.
+
+   **Approval is the key share itself.** Right after approving, the approver's client sends restore shares from its
+   device for every encrypted channel of `channels` that it can read and in which a device of the requester is in the
+   group: every epoch it holds from the oldest epoch of the channel's encrypted content after `window_start` (messages:
+   `GET …/messages?after=<ULID floor>&limit=20`; files channels: `GET …/records?since=<window start>&limit=1`, `FILES.md`
+   §8.7; everything for null) up to the epoch before the current one, chunked as in "Sharing" step 2. Before approving it shows the request, the requester, its join date, the channels and epoch ranges
+   that will be shared and whether its device holds all of them (`partial`), and recommends verifying the person's
+   identity on another channel (a call, in person): an approval gives whoever controls the account now everything the
+   member could read before. Other members with `restore_history` may fill gaps while the restore is valid.
+4. **Clients.** A sharing client applies the reset window itself, also with nodes that do not announce
+   `history.restore`: a recipient whose keys document (§2.3) shows an `identity_reset_at` later than the pending item's
+   `since` is treated as if `key_reset_at` were that time, and without `min_epoch` the client shares nothing up to the
+   epoch of the newest encrypted content before the reset (`GET …/messages?before=<ULID floor>&limit=1`; nothing at
+   all when it cannot tell). Such a member
+   gets automatic shares only from the reset on. The requester's client shows its state (`…/mine`) with the request form
+   in a room whose encrypted history it lost (in the channel view and in the file browser of files channels),
+   receives the restore shares like any other share (also under `since_join`), and afterwards says which messages or
+   entries stayed locked (`partial`, or keys that did not arrive).
+
+Compatibility: nodes without `history.restore` keep the behaviour above, where clients that implement rule 4 still
+share nothing from before a reset; clients without it send pre-reset shares that nodes with `history.restore` refuse.
+
 ## 8. New device
 
 1. Sign in (password and second factor, or passkey-only; PROTOCOL.md §5a). The node creates the device id, or the
@@ -882,7 +976,8 @@ When the master secret is lost (no trusted device, no recovery key, no PRF passk
    single use, bound to the account; the provider must confirm the identity linked to it).
 3. The node sets the new identity key and `identity_reset_at = now`, deletes all device attestations,
    KeyPackages, backups, whiteboard scenes (§7a) and secret storage entries of the user and notifies the user's contacts
-   (`identity.changed`). The client uploads the new `recovery` entry (and passkey entries) afterwards.
+   (`identity.changed`) and sets `key_reset_at` on the user's room memberships, which stops the
+   automatic history sharing of §7b for everything before the reset ("History after a key reset"). The client uploads the new `recovery` entry (and passkey entries) afterwards.
 4. Each device of the user re-attests its **existing** device key under the new identity key (devices keep
    their keys; a device that is not re-attested is invalid), uploads new KeyPackages and rejoins all
    groups by external commit, which replaces its old leaf.
@@ -890,8 +985,8 @@ When the master secret is lost (no trusted device, no recovery key, no PRF passk
 After the reset the node MUST reject commits, KeyPackages and encrypted messages from devices without a
 valid attestation under the current identity key (`403 e2ee.device_not_attested`) and MUST reject commits
 that add such devices. Leaves of non-attested devices are removed by housekeeping commits (§4.5 rule 4).
-Contacts see "security key changed". Old backups are gone and old history stays unreadable; everything
-else works immediately.
+Contacts see "security key changed". Old backups are gone and old history stays unreadable unless a member with
+`restore_history` restores it on request (§7b); everything else works immediately.
 
 **Bots** (`APPLICATIONS.md` §3.4) cannot reset themselves (the route needs a password). Their owner calls
 `POST /api/v1/applications/{id}/identity/reset` (full session): the node clears the bot's identity key, sets

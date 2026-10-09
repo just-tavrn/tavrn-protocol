@@ -3270,6 +3270,73 @@
         ]
       }
     },
+    "/api/v1/admin/users/{user_id}/date-of-birth": {
+      "put": {
+        "tags": [],
+        "summary": "Correct a local user's date of birth on request (PROTOCOL.md §5e: users set it once). Audited as\n`admin.date_of_birth` without the date itself. The minimum age is not applied here: an account the operator\nfinds too young is disabled or deleted instead.",
+        "operationId": "admin_set_date_of_birth",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDateOfBirthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/users/{user_id}/delete": {
       "post": {
         "tags": [],
@@ -11992,7 +12059,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Public rooms of this node (\"Discover\").",
+        "summary": "Public rooms of this node (\"Discover\"). Rooms with an age gate are listed only when the request carries the\nsession of an adult (the `Authorization` header is optional here; PROTOCOL.md §5e).",
         "operationId": "discover_rooms",
         "responses": {
           "200": {
@@ -15887,6 +15954,443 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests": {
+      "get": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Open history restore requests",
+        "description": "The open requests to restore a member's history after a key reset, oldest first (at most 100), each with the encrypted channels the requester may view and its window there (ENCRYPTION.md §7b). Needs `restore_history`.",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequestList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Ask to restore the history after a key reset",
+        "description": "A member whose security key was reset asks the members with `restore_history` to restore its encrypted history from before the reset (ENCRYPTION.md §7b). One open request per room; at most 5 per day. The owner and the members with `restore_history` get `history.request`.",
+        "operationId": "create",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/mine": {
+      "get": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Own history restore state",
+        "description": "The requester's key reset in this room, an approved restore and its latest request of the current membership (ENCRYPTION.md §7b).",
+        "operationId": "mine",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyHistoryState"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}": {
+      "delete": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Cancel an own history restore request",
+        "description": "The requester withdraws its open request (ENCRYPTION.md §7b).",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Approve a history restore request",
+        "description": "A member with `restore_history` approves another member's request (ENCRYPTION.md §7b): the requester's history window is the normal one again and restore shares (keys from before the reset) from members with `restore_history` are accepted for 30 days. Audit `history.restore_approved`, welcome channel `system.history_restored`, event `history.request_decided`. The approving client then sends the keys from its device.",
+        "operationId": "approve",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}/deny": {
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Deny a history restore request",
+        "description": "A member with `restore_history` denies another member's request with a reason (ENCRYPTION.md §7b). Audit `history.restore_denied` with the reason, welcome channel `system.history_restore_denied` without it, event `history.request_decided`.",
+        "operationId": "deny",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DenyHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {
@@ -20137,6 +20641,70 @@
         ]
       }
     },
+    "/api/v1/users/me/date-of-birth": {
+      "put": {
+        "tags": [],
+        "summary": "Add the date of birth to an account that has none yet (accounts from before `age.v1`, accounts provisioned by\nsingle sign-on; PROTOCOL.md §5e). Until then the node answers `age.status_required` everywhere else. It is set\nonce: the node operator corrects it on request.",
+        "operationId": "set_date_of_birth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DateOfBirthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPrivate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/devices": {
       "get": {
         "tags": [
@@ -23834,6 +24402,18 @@
           }
         }
       },
+      "AdminDateOfBirthRequest": {
+        "type": "object",
+        "properties": {
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`YYYY-MM-DD` between 1900-01-01 and today; null removes it (the user is asked again at the next request)."
+          }
+        }
+      },
       "AdminOverview": {
         "type": "object",
         "required": [
@@ -24055,6 +24635,52 @@
           }
         ]
       },
+      "AgeInfo": {
+        "type": "object",
+        "description": "`age` of `GET /node` and `/.well-known/tavrn` (PROTOCOL.md §5e).",
+        "required": [
+          "self_declared",
+          "gates",
+          "minimum_age"
+        ],
+        "properties": {
+          "gates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The room and channel gates this node enforces."
+          },
+          "minimum_age": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Registration refuses younger people (`TAVRN_MINIMUM_AGE`).",
+            "minimum": 0
+          },
+          "self_declared": {
+            "type": "boolean",
+            "description": "The date of birth is the user's own statement (no verification)."
+          }
+        }
+      },
+      "AgeStatus": {
+        "type": "object",
+        "description": "`age_status` of `GET /users/me` (the user's own account only).",
+        "required": [
+          "tier",
+          "method"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "description": "`self` for a self-declared date of birth, `none` while the status is unknown."
+          },
+          "tier": {
+            "type": "string",
+            "description": "`adult` (18 or older), `minor` (younger) or `unknown` (no date of birth yet). `unknown` counts as `minor`."
+          }
+        }
+      },
       "AppToken": {
         "type": "object",
         "description": "An app token without its secret.",
@@ -24261,6 +24887,15 @@
               "null"
             ],
             "description": "At most 500 characters."
+          }
+        }
+      },
+      "ApproveHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "partial": {
+            "type": "boolean",
+            "description": "The approving device does not hold every key of the requester's window."
           }
         }
       },
@@ -25121,6 +25756,14 @@
           "user_limit"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "The channel's own age gate: `none` or `adults_only` (PROTOCOL.md §5e)."
+          },
+          "age_gate_effective": {
+            "type": "string",
+            "description": "The gate that applies: `adults_only` when the channel's or its room's gate says so. Users below it see the\nchannel locked: no messages, files, voice or events."
+          },
           "auto_archive_minutes": {
             "type": "integer",
             "format": "int64",
@@ -26260,6 +26903,13 @@
           "name"
         ],
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` (default) or `adults_only` (PROTOCOL.md §5e); the room's gate is the minimum. Only an adult can set\n`adults_only`."
+          },
           "bitrate_kbps": {
             "type": [
               "integer",
@@ -26402,6 +27052,18 @@
           "group_info": {
             "type": "string",
             "description": "GroupInfo (MLSMessage) of epoch 0 with ratchet tree and external public key, base64url."
+          }
+        }
+      },
+      "CreateHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A note for the moderators (at most 500 characters)."
           }
         }
       },
@@ -26948,6 +27610,18 @@
           }
         }
       },
+      "DateOfBirthRequest": {
+        "type": "object",
+        "required": [
+          "date_of_birth"
+        ],
+        "properties": {
+          "date_of_birth": {
+            "type": "string",
+            "description": "`YYYY-MM-DD`, between 1900-01-01 and today, at least the node's minimum age."
+          }
+        }
+      },
       "DeclineRequest": {
         "type": "object",
         "properties": {
@@ -27074,6 +27748,18 @@
               "null"
             ],
             "description": "Null when the whole node is delisted."
+          }
+        }
+      },
+      "DenyHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why (1–500 characters); in the audit log and shown to the requester."
           }
         }
       },
@@ -27383,9 +28069,14 @@
           "name",
           "description",
           "member_count",
-          "listing"
+          "listing",
+          "age_gate"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e). Gated rooms are listed only to requests with an adult's session."
+          },
           "description": {
             "type": "string"
           },
@@ -28747,13 +29438,155 @@
           "since"
         ],
         "properties": {
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "After a key reset of the member (ENCRYPTION.md §7b \"History after a key reset\"): the reset time; null otherwise."
+          },
+          "min_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "After a key reset: the lowest epoch an automatic share may carry (reset epoch + 1); null without a\npre-reset range."
+          },
           "since": {
             "type": "string",
-            "description": "The membership's `joined_at` (start of the policy window)."
+            "description": "Start of the automatic window: the membership's `joined_at`, after a key reset its `key_reset_at`."
           },
           "user": {
             "type": "string",
             "description": "Member address."
+          }
+        }
+      },
+      "HistoryRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "room_id",
+          "user",
+          "display_name",
+          "message",
+          "status",
+          "joined_at",
+          "created_at",
+          "partial",
+          "channels"
+        ],
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryRequestChannel"
+            },
+            "description": "For members with `restore_history`: the encrypted channels the requester may view (else empty)."
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decided_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Address of the member who decided."
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "joined_at": {
+            "type": "string",
+            "description": "The requester's membership start."
+          },
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The requester's current key reset (null once the membership ended or nothing is reset)."
+          },
+          "message": {
+            "type": "string"
+          },
+          "partial": {
+            "type": "boolean",
+            "description": "The approving device did not hold every key of the window."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reason of a denial."
+          },
+          "room_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "`open`, `approved`, `denied` or `cancelled`."
+          },
+          "user": {
+            "type": "string",
+            "description": "Requester address."
+          }
+        }
+      },
+      "HistoryRequestChannel": {
+        "type": "object",
+        "required": [
+          "channel_id",
+          "kind"
+        ],
+        "properties": {
+          "channel_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "The channel's kind (`text`, `announcement`, `forum`, `files`)."
+          },
+          "reset_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The group epoch at the requester's key reset; keys up to it are the pre-reset range. Null: no group then."
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The requester's normal window start in this channel (policy and `read_history` from `joined_at`); null =\neverything."
+          }
+        }
+      },
+      "HistoryRequestList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryRequest"
+            }
           }
         }
       },
@@ -30150,6 +30983,36 @@
           }
         }
       },
+      "MyHistoryState": {
+        "type": "object",
+        "properties": {
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The membership's key reset (null: none)."
+          },
+          "request": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HistoryRequest",
+                "description": "The latest request of the current membership."
+              }
+            ]
+          },
+          "restored_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When a restore of the membership was approved (null: none)."
+          }
+        }
+      },
       "MyPresence": {
         "type": "object",
         "description": "The user's own presence with the chosen status and this device's idle flag.",
@@ -30226,9 +31089,14 @@
           "preview_auto_max_bytes",
           "message_retention_days",
           "legal",
-          "webauthn"
+          "webauthn",
+          "age"
         ],
         "properties": {
+          "age": {
+            "$ref": "#/components/schemas/AgeInfo",
+            "description": "Date of birth and age gates (`age.v1`, PROTOCOL.md §5e)."
+          },
           "capabilities": {
             "type": "array",
             "items": {
@@ -31950,9 +32818,14 @@
           "name",
           "description",
           "icon_animated",
-          "member_count"
+          "member_count",
+          "age_gate"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e). Gated rooms are listed only to adults; invite previews carry the\ngate so clients can explain a refused join."
+          },
           "description": {
             "type": "string"
           },
@@ -32606,6 +33479,13 @@
             ],
             "description": "Captcha token, if the node requires one (see `/node`)."
           },
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required (`age.v1`, PROTOCOL.md §5e): the date of birth `YYYY-MM-DD`, between 1900-01-01 and today. Below the\nnode's minimum age (`GET /node` → `age.minimum_age`) the registration is refused with `age.below_minimum`.\nStored on this node only, never shown to others."
+          },
           "device_name": {
             "type": [
               "string",
@@ -33082,9 +33962,15 @@
           "discoverable",
           "icon_animated",
           "no_bots",
-          "bots_in_encrypted_channels"
+          "bots_in_encrypted_channels",
+          "age_gate",
+          "history_restore"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): users below 18 never find the room in Discover and cannot join it;\nevery channel of the room is locked for them."
+          },
           "attachment_retention_days": {
             "type": [
               "integer",
@@ -33112,6 +33998,10 @@
           "discoverable": {
             "type": "boolean",
             "description": "Listed in the directory and on Discover (FEDERATION.md §7.3; public rooms only)."
+          },
+          "history_restore": {
+            "type": "string",
+            "description": "History restore after a key reset (ENCRYPTION.md §7b): `request` (members may ask, default) or `off`."
           },
           "icon": {
             "type": [
@@ -34640,6 +35530,13 @@
       "UpdateChannelRequest": {
         "type": "object",
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): the channel's own age gate; the room's gate stays the minimum.\nOnly an adult can switch it on. Audited as `channel.age_gate`."
+          },
           "auto_archive_minutes": {
             "type": [
               "integer",
@@ -34981,6 +35878,13 @@
       "UpdateRoomRequest": {
         "type": "object",
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): the room's age gate, the minimum of every channel. Only an adult can\nswitch it on. Audited as `room.age_gate`."
+          },
           "attachment_retention_days": {
             "type": [
               "integer",
@@ -35008,6 +35912,13 @@
               "null"
             ],
             "description": "List the room in the directory and on Discover (FEDERATION.md §7.3). Public rooms only; switching\na room to `invite` removes it from the directory."
+          },
+          "history_restore": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "History restore after a key reset (ENCRYPTION.md §7b): `request` (members may ask, default) or `off`.\nOwner or `manage_room`; never a bot."
           },
           "join_mode": {
             "type": [
@@ -35509,12 +36420,30 @@
               "has_identity_key"
             ],
             "properties": {
+              "age_status": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AgeStatus",
+                    "description": "`GET /users/me` of local users only: the private age status. Never part of any other response."
+                  }
+                ]
+              },
               "auto_preview": {
                 "type": [
                   "string",
                   "null"
                 ],
                 "description": "`GET /users/me` and `PATCH /users/me` of local users: load image previews automatically\n(`always`, `friends_and_shared` or `never`)."
+              },
+              "date_of_birth": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "`GET /users/me` of local users only: the own date of birth `YYYY-MM-DD` (null until given; PROTOCOL.md §5e)."
               },
               "email": {
                 "type": [
@@ -36354,9 +37283,14 @@
           "email",
           "policies",
           "directory_listing",
-          "webauthn"
+          "webauthn",
+          "age"
         ],
         "properties": {
+          "age": {
+            "$ref": "#/components/schemas/AgeInfo",
+            "description": "Date of birth and age gates (`age.v1`, PROTOCOL.md §5e)."
+          },
           "api": {
             "type": "string",
             "description": "API base of the node (`<TAVRN_PUBLIC_URL>/api/v1`); its host may differ from `domain` (delegation)."
