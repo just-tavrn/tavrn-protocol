@@ -10,6 +10,8 @@ guarantees other clients must keep. Routes and error codes: `PROTOCOL.md` §7d. 
 |---|---|---|
 | Plaintext messages of **unencrypted** room channels (text, `/me` actions, webhook embeds, attachment file names) | the node hosting the room | the node's full-text index (§2) |
 | Messages of **encrypted** channels, DMs and group DMs (text and attachment file names after decryption) | each client on its own device | the local encrypted index (§3) |
+| Entries of **encrypted files channels** (name, folder path, type; `FILES.md` §8) | each client on its own device | the local encrypted index (§3.6) |
+| Entries of unencrypted files channels | the node, per channel (`FILES.md` §3, `GET …/files?q=`) | the node's database |
 | File contents, images, voice, whiteboards | nobody | – |
 
 The node never searches encrypted content and never sees a query of the local index. DMs and group DMs are always
@@ -118,6 +120,35 @@ posting entry). Native apps (phase 6) plug a SQLite backend into the same interf
 - The index never leaves the device; queries never reach a node.
 - An attacker with the unlocked device (the local key in memory) can read the index like the messages themselves;
   "lock on close" limits that to the open session.
+
+### 3.6 Files of encrypted files channels
+
+Entries of encrypted files channels (`FILES.md` §8) go into the same index, as docs of the files channel's
+conversation keyed by the entry id (a ULID, so newest-first ordering works as for messages):
+
+- **Doc:** the conversation, the entry id, the time (= the entry's `created_at`, the upload date), the uploader (the
+  address of `created_by`, else the record's author), the text (the entry's name and its folder path, so both are
+  searchable), the room, and a sealed file part: kind, name, folder path, MIME type, category (PROTOCOL.md §7a table),
+  plaintext size and whether there is a thumbnail. Thumbnail bytes are never copied into the index: results reference
+  the entry, and the client fetches and decrypts the thumbnail from its preview cache or the node when it shows it.
+- **What goes in:** every record the client decrypts (browsing a folder, opening an entry, the background sync). The
+  background sync pages through `GET …/files/records` (`FILES.md` §3) of every encrypted files channel the device has
+  a group for, under the same throttling and lock rules as for messages, and resolves folder paths from the folder
+  records (fetching a missing parent with `GET …/files/{id}`).
+- **Updates and deletes:** a renamed entry is indexed again when its new record is decrypted (browsing or the sync,
+  which meets every rewritten record again in the record order); a moved entry when its new folder is browsed. Entries
+  below a renamed or moved folder keep their old path in the index until they are decrypted again. Entries this
+  client deletes are removed; a result whose entry is gone (`404`) is removed when it is opened. "Clear the local
+  index" and signing out remove them like messages.
+- **Budget:** the window of §3.3 is measured on the upload date (entries uploaded more than 90 days ago are evicted
+  first and not added again, unless the channel keeps its full history); entries count towards the 200 MB cap.
+- **Queries and filters:** the same terms as for messages; filters by type category (`images`, `audio`, `video`,
+  `documents`, `archives`, `other`), by uploader and by upload date (the author and time filters of messages).
+  Folders are found by their name and path but have no type.
+- **Presentation:** the results appear in their own "Files" group with name, folder, size, upload date, uploader and
+  the thumbnail; choosing one opens the files channel at the entry's folder with the entry selected.
+
+The privacy guarantees of §3.5 hold unchanged: names, paths, types and sizes are only inside sealed docs.
 
 ## 4. Client presentation
 

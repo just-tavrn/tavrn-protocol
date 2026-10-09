@@ -6,7 +6,7 @@
     "license": {
       "name": "Apache-2.0"
     },
-    "version": "0.2.1"
+    "version": "0.2.0"
   },
   "paths": {
     "/.well-known/tavrn": {
@@ -3248,6 +3248,73 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminUser"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/date-of-birth": {
+      "put": {
+        "tags": [],
+        "summary": "Correct a local user's date of birth on request (PROTOCOL.md §5e: users set it once). Audited as\n`admin.date_of_birth` without the date itself. The minimum age is not applied here: an account the operator\nfinds too young is disabled or deleted instead.",
+        "operationId": "admin_set_date_of_birth",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDateOfBirthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -8783,6 +8850,16 @@
               }
             }
           },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "429": {
             "description": "",
             "content": {
@@ -8923,6 +9000,16 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {
@@ -10247,6 +10334,16 @@
             "description": "WebP (or PNG/GIF/JPEG of emojis uploaded before conversion)"
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {
@@ -11992,7 +12089,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Public rooms of this node (\"Discover\").",
+        "summary": "Public rooms of this node (\"Discover\"). Rooms with an age gate are listed only when the request carries the\nsession of an adult (the `Authorization` header is optional here; PROTOCOL.md §5e).",
         "operationId": "discover_rooms",
         "responses": {
           "200": {
@@ -12079,6 +12176,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "keep_external",
+            "in": "query",
+            "description": "Files channels on an external store that are not end-to-end encrypted: keep the objects on the store\n(FILES.md §9; ignored for encrypted channels, whose objects are unreadable without the channel's keys).",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -12703,7 +12809,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Delete a category; its channels remain, without a category.",
+        "summary": "Delete a category; its channels remain, without a category, and keep what the category's overrides gave and\ndenied (its overrides are copied into each channel first, protocol permissions.md \"Moving channels\").",
         "operationId": "delete_category",
         "parameters": [
           {
@@ -12848,7 +12954,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Permanently delete a channel with its entire history (`manage_channels`).",
+        "summary": "Permanently delete a channel with its entire history (`manage_channels`). The files of a files channel go\nwith it: stored on the node at once, on an external store in the background (FILES.md §9).",
         "operationId": "delete_channel",
         "parameters": [
           {
@@ -12865,6 +12971,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "keep_external",
+            "in": "query",
+            "description": "Files channels on an external store that are not end-to-end encrypted: keep the objects on the store\n(FILES.md §9; ignored for encrypted channels, whose objects are unreadable without the channel's keys).",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -12883,7 +12998,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Update a channel (`manage_channels`).",
+        "summary": "Update a channel (`manage_channels`). Moving it out of its category copies the category's overrides into the\nchannel; moving it into a category that grants more needs `manage_roles` there (protocol permissions.md \"Moving\nchannels\").",
         "operationId": "update_channel",
         "parameters": [
           {
@@ -12920,6 +13035,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Channel"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -13036,6 +13161,16 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {
@@ -13365,6 +13500,195 @@
         ]
       }
     },
+    "/api/v1/rooms/{room_id}/channels/{channel_id}/files/mine": {
+      "get": {
+        "tags": [],
+        "summary": "The requester's own entries with ids, kinds, sizes and dates, never records or names (`view_channel`): a member\nwho lost their keys can still find and delete their uploads (FILES.md §8.8).",
+        "operationId": "mine",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200, default 100.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor: the last entry id of the previous page.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MineList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/channels/{channel_id}/files/records": {
+      "get": {
+        "tags": [],
+        "summary": "Entry records of an encrypted files channel in the order they were written (`view_channel`), only inside the\nrequester's history window (FILES.md §8.7): for the key checks of history shares and the clients' search sync.",
+        "operationId": "records",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "epoch",
+            "in": "query",
+            "description": "Only records of this epoch.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "description": "Only records written at or after this time (RFC 3339).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor: the last entry id of the previous page.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200, default 100.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/rooms/{room_id}/channels/{channel_id}/files/upload": {
       "post": {
         "tags": [],
@@ -13445,6 +13769,16 @@
             }
           },
           "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {
@@ -13819,6 +14153,165 @@
         ]
       }
     },
+    "/api/v1/rooms/{room_id}/channels/{channel_id}/files/{entry_id}/thumbnail": {
+      "get": {
+        "tags": [],
+        "summary": "The thumbnail ciphertext of a file in an encrypted channel (`view_channel`).",
+        "operationId": "get_thumbnail",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thumbnail ciphertext"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [],
+        "summary": "Store the client-made thumbnail of a file in an encrypted channel (own entries `attach_files`, others'\n`manage_files`): ciphertext of the part `thumbnail` (FILES.md §8.3), at most 1 MiB; replaces an earlier one.",
+        "operationId": "put_thumbnail",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/rooms/{room_id}/channels/{channel_id}/messages": {
       "get": {
         "tags": [
@@ -14023,6 +14516,16 @@
               }
             }
           },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "429": {
             "description": "",
             "content": {
@@ -14144,6 +14647,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -14640,7 +15153,7 @@
       "post": {
         "tags": [],
         "summary": "Start a thread (`send_messages` and `create_threads`) or, in a forum channel, a post (`send_messages`).",
-        "description": "Starts a thread inside a text or announcement channel (from a root message of the channel or standalone, `send_messages` and `create_threads`) or a post in a forum channel (title, tags and the first message in one request, `send_messages`). In encrypted channels the title is ciphertext. The creator follows the thread; `thread.create` and then `message.create` for the first message are sent to the room.",
+        "description": "Starts a thread inside a text or announcement channel (from a root message of the channel or standalone, `send_messages` and `create_threads`) or a post in a forum channel (title, tags and the first message in one request, `send_messages`). In encrypted channels the title is ciphertext. The client may choose the thread id (`id`, a canonical ULID of about now) so the first message's signature covers its `thread_id` (`400 thread.id_invalid`, `409 thread.id_taken`). The creator follows the thread; `thread.create` and then `message.create` for the first message are sent to the room.",
         "operationId": "create_thread",
         "parameters": [
           {
@@ -15904,6 +16417,443 @@
         ]
       }
     },
+    "/api/v1/rooms/{room_id}/history-requests": {
+      "get": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Open history restore requests",
+        "description": "The open requests to restore a member's history after a key reset, oldest first (at most 100), each with the encrypted channels the requester may view and its window there (ENCRYPTION.md §7b). Needs `restore_history`.",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequestList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Ask to restore the history after a key reset",
+        "description": "A member whose security key was reset asks the members with `restore_history` to restore its encrypted history from before the reset (ENCRYPTION.md §7b). One open request per room; at most 5 per day. The owner and the members with `restore_history` get `history.request`.",
+        "operationId": "create",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/mine": {
+      "get": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Own history restore state",
+        "description": "The requester's key reset in this room, an approved restore and its latest request of the current membership (ENCRYPTION.md §7b).",
+        "operationId": "mine",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyHistoryState"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}": {
+      "delete": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Cancel an own history restore request",
+        "description": "The requester withdraws its open request (ENCRYPTION.md §7b).",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Approve a history restore request",
+        "description": "A member with `restore_history` approves another member's request (ENCRYPTION.md §7b): the requester's history window is the normal one again and restore shares (keys from before the reset) from members with `restore_history` are accepted for 30 days. Audit `history.restore_approved`, welcome channel `system.history_restored`, event `history.request_decided`. The approving client then sends the keys from its device.",
+        "operationId": "approve",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/history-requests/{request_id}/deny": {
+      "post": {
+        "tags": [
+          "history_requests"
+        ],
+        "summary": "Deny a history restore request",
+        "description": "A member with `restore_history` denies another member's request with a reason (ENCRYPTION.md §7b). Audit `history.restore_denied` with the reason, welcome channel `system.history_restore_denied` without it, event `history.request_decided`.",
+        "operationId": "deny",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DenyHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/rooms/{room_id}/icon": {
       "put": {
         "tags": [
@@ -17051,6 +18001,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -17066,6 +18026,7 @@
           "channels"
         ],
         "summary": "Set an override, or remove it when allow = deny = 0 (`manage_roles`).",
+        "description": "Overrides are layered (protocol permissions.md \"Evaluation\"): a category's overrides apply to the role base of\nevery channel in it, the channel's own on top; a bit an override neither allows nor denies inherits from the\nlayer below. Only channel-scoped bits are accepted (`400 permissions.not_channel_scoped`).",
         "operationId": "set_override",
         "parameters": [
           {
@@ -17097,6 +18058,36 @@
                   "items": {
                     "$ref": "#/components/schemas/PermissionOverride"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -17212,6 +18203,16 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
             "description": "",
             "content": {
               "application/json": {
@@ -18679,6 +19680,16 @@
               }
             }
           },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "502": {
             "description": "",
             "content": {
@@ -20125,6 +21136,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DataSummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/date-of-birth": {
+      "put": {
+        "tags": [],
+        "summary": "Add the date of birth to an account that has none yet (accounts from before `age.v1`, accounts provisioned by\nsingle sign-on; PROTOCOL.md §5e). Until then the node answers `age.status_required` everywhere else. It is set\nonce: the node operator corrects it on request.",
+        "operationId": "set_date_of_birth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DateOfBirthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPrivate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -21795,7 +22870,7 @@
       "put": {
         "tags": [],
         "summary": "Register a push subscription.",
-        "description": "Registers the browser's push subscription (`PushSubscription.toJSON()`) for the requesting device, or updates\nthe one with the same endpoint (a browser that signs in again, also as another account, takes its endpoint\nover). `201` when new, `200` when updated. The endpoint must be an `https://` URL of a public host (`400\npush.endpoint_invalid`), `keys.p256dh` an uncompressed P-256 point and `keys.auth` 16 bytes, both base64url\n(`400 push.keys_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30 registrations per\nhour (`429`). `404 push.disabled` while push is off. The subscription is deleted with the device and when its\nsessions are revoked (sign-out).",
+        "description": "Registers the browser's push subscription (`PushSubscription.toJSON()`) for the requesting device, or updates\nthe account's one with the same endpoint (also from another of its devices). `201` when new, `200` when\nupdated. An endpoint of another account's live subscription is refused (`409 push.endpoint_taken`: the client\nunsubscribes the browser and subscribes again); a stale one (expired, or its device has no live session) is\ntaken over. The endpoint must be an `https://` URL of a public host (`400\npush.endpoint_invalid`), `keys.p256dh` an uncompressed P-256 point and `keys.auth` 16 bytes, both base64url\n(`400 push.keys_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30 registrations per\nhour (`429`). `404 push.disabled` while push is off. The subscription is deleted with the device and when its\nsessions are revoked (sign-out).",
         "operationId": "register",
         "requestBody": {
           "content": {
@@ -23834,6 +24909,18 @@
           }
         }
       },
+      "AdminDateOfBirthRequest": {
+        "type": "object",
+        "properties": {
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`YYYY-MM-DD` between 1900-01-01 and today; null removes it (the user is asked again at the next request)."
+          }
+        }
+      },
       "AdminOverview": {
         "type": "object",
         "required": [
@@ -24055,6 +25142,52 @@
           }
         ]
       },
+      "AgeInfo": {
+        "type": "object",
+        "description": "`age` of `GET /node` and `/.well-known/tavrn` (PROTOCOL.md §5e).",
+        "required": [
+          "self_declared",
+          "gates",
+          "minimum_age"
+        ],
+        "properties": {
+          "gates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The room and channel gates this node enforces."
+          },
+          "minimum_age": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Registration refuses younger people (`TAVRN_MINIMUM_AGE`).",
+            "minimum": 0
+          },
+          "self_declared": {
+            "type": "boolean",
+            "description": "The date of birth is the user's own statement (no verification)."
+          }
+        }
+      },
+      "AgeStatus": {
+        "type": "object",
+        "description": "`age_status` of `GET /users/me` (the user's own account only).",
+        "required": [
+          "tier",
+          "method"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "description": "`self` for a self-declared date of birth, `none` while the status is unknown."
+          },
+          "tier": {
+            "type": "string",
+            "description": "`adult` (18 or older), `minor` (younger) or `unknown` (no date of birth yet). `unknown` counts as `minor`."
+          }
+        }
+      },
       "AppToken": {
         "type": "object",
         "description": "An app token without its secret.",
@@ -24261,6 +25394,15 @@
               "null"
             ],
             "description": "At most 500 characters."
+          }
+        }
+      },
+      "ApproveHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "partial": {
+            "type": "boolean",
+            "description": "The approving device does not hold every key of the requester's window."
           }
         }
       },
@@ -25017,6 +26159,13 @@
             ],
             "description": "`error`: at most 200 characters, shown to the invoker only."
           },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`reply`: a thread of the conversation to answer in; defaults to the interaction's thread."
+          },
           "type": {
             "type": "string",
             "description": "`reply`, `defer` or `error`."
@@ -25108,12 +26257,19 @@
           "topic",
           "position",
           "encrypted",
-          "sync_with_category",
           "slowmode_secs",
           "bitrate_kbps",
           "user_limit"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "The channel's own age gate: `none` or `adults_only` (PROTOCOL.md §5e)."
+          },
+          "age_gate_effective": {
+            "type": "string",
+            "description": "The gate that applies: `adults_only` when the channel's or its room's gate says so. Users below it see the\nchannel locked: no messages, files, voice or events."
+          },
           "auto_archive_minutes": {
             "type": "integer",
             "format": "int64",
@@ -25172,9 +26328,6 @@
           "slowmode_secs": {
             "type": "integer",
             "format": "int64"
-          },
-          "sync_with_category": {
-            "type": "boolean"
           },
           "system_name": {
             "type": [
@@ -26253,6 +27406,13 @@
           "name"
         ],
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` (default) or `adults_only` (PROTOCOL.md §5e); the room's gate is the minimum. Only an adult can set\n`adults_only`."
+          },
           "bitrate_kbps": {
             "type": [
               "integer",
@@ -26271,7 +27431,7 @@
               "boolean",
               "null"
             ],
-            "description": "Can be switched off only for text/announcement/forum. DMs and voice are always encrypted."
+            "description": "Can be switched off only for text/announcement/forum. DMs and voice are always encrypted. Files channels:\nchosen here (default `true`) and fixed afterwards (FILES.md §1)."
           },
           "kind": {
             "type": "string",
@@ -26331,12 +27491,20 @@
       },
       "CreateFolderRequest": {
         "type": "object",
-        "required": [
-          "name"
-        ],
         "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted channels: the client-chosen id (a fresh ULID), the entry record and its epoch (FILES.md §8.5)."
+          },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Unencrypted channels: the name (refused in encrypted channels)."
           },
           "parent_id": {
             "type": [
@@ -26344,6 +27512,19 @@
               "null"
             ],
             "description": "Parent folder (`null` or absent: top level)."
+          },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -26395,6 +27576,18 @@
           "group_info": {
             "type": "string",
             "description": "GroupInfo (MLSMessage) of epoch 0 with ratchet tree and external public key, base64url."
+          }
+        }
+      },
+      "CreateHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A note for the moderators (at most 500 characters)."
           }
         }
       },
@@ -26673,6 +27866,13 @@
           "title"
         ],
         "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thread id chosen by the client, so the first message's signature can cover `thread_id`: a ULID in its\ncanonical form (uppercase) whose time is within 10 minutes of the node's clock. Without it the node picks one."
+          },
           "message": {
             "oneOf": [
               {
@@ -26811,7 +28011,34 @@
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Empty in encrypted channels (the name is in the folder's record)."
+          },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted channels: the folder's record as in [`FileEntry`] (absent elsewhere)."
+          },
+          "record_author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_device_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -26931,6 +28158,18 @@
           "retention": {
             "type": "object",
             "description": "The operator's retention settings (days; 0 = kept until deleted)."
+          }
+        }
+      },
+      "DateOfBirthRequest": {
+        "type": "object",
+        "required": [
+          "date_of_birth"
+        ],
+        "properties": {
+          "date_of_birth": {
+            "type": "string",
+            "description": "`YYYY-MM-DD`, between 1900-01-01 and today, at least the node's minimum age."
           }
         }
       },
@@ -27060,6 +28299,18 @@
               "null"
             ],
             "description": "Null when the whole node is delisted."
+          }
+        }
+      },
+      "DenyHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why (1–500 characters); in the audit log and shown to the requester."
           }
         }
       },
@@ -27369,9 +28620,14 @@
           "name",
           "description",
           "member_count",
-          "listing"
+          "listing",
+          "age_gate"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e). Gated rooms are listed only to requests with an adult's session."
+          },
           "description": {
             "type": "string"
           },
@@ -27648,6 +28904,13 @@
           },
           "interaction_id": {
             "type": "string"
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thread the reply belongs to (null in the conversation itself)."
           }
         }
       },
@@ -27993,7 +29256,8 @@
           "size",
           "sha256",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "thumbnail_size"
         ],
         "properties": {
           "channel_id": {
@@ -28030,6 +29294,40 @@
             ],
             "description": "The folder it is in; `null` at the top level."
           },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted channels: the entry record (content format 1 with name, type and file key, FILES.md §8.4);\n`null` in unencrypted channels and when it was written before the requester's history window (§8.7)."
+          },
+          "record_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the record was written."
+          },
+          "record_author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Address of the user whose device wrote the record."
+          },
+          "record_device_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
           "sha256": {
             "type": "string",
             "description": "SHA-256 of the content, base64url (files)."
@@ -28038,6 +29336,11 @@
             "type": "integer",
             "format": "int64",
             "description": "Size in bytes (files; 0 for folders)."
+          },
+          "thumbnail_size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Size of the stored thumbnail (encrypted channels; 0 = none)."
           },
           "updated_at": {
             "type": "string"
@@ -28104,6 +29407,7 @@
           "max_upload_bytes",
           "backend",
           "encrypt_files",
+          "encrypted",
           "can_upload",
           "can_manage",
           "can_configure",
@@ -28121,6 +29425,20 @@
           "backend": {
             "type": "string",
             "description": "`internal`, `webdav` or `s3`."
+          },
+          "backend_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Members with `manage_channels`: the external store's host (`\"\"` for the node's storage), for the deletion\ndialog (FILES.md §9); `null` for everybody else."
+          },
+          "backend_prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Members with `manage_channels`: the object prefix on the external store (`\"\"` for the node's storage)."
           },
           "can_configure": {
             "type": "boolean",
@@ -28141,6 +29459,10 @@
           "encrypt_files": {
             "type": "boolean",
             "description": "External store with encryption (files unreadable outside tavrn)."
+          },
+          "encrypted": {
+            "type": "boolean",
+            "description": "The channel is end-to-end encrypted (FILES.md §8)."
           },
           "executables_allowed": {
             "type": "boolean"
@@ -28201,6 +29523,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the conversation to write in; defaults to the interaction's thread."
           }
         },
         "additionalProperties": false
@@ -28471,6 +29800,10 @@
             "type": "boolean",
             "description": "Web push (PROTOCOL.md §6d): include a preview of unencrypted messages (default off; never for encrypted\nconversations). Left out of the document while off."
           },
+          "reports": {
+            "type": "boolean",
+            "description": "Web push for new reports (MODERATION.md §1.5) to the room moderators and node admins who receive them (default\non). Left out of the document while on."
+          },
           "sound": {
             "type": "boolean",
             "description": "Play a sound for notifications (client side)."
@@ -28715,13 +30048,155 @@
           "since"
         ],
         "properties": {
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "After a key reset of the member (ENCRYPTION.md §7b \"History after a key reset\"): the reset time; null otherwise."
+          },
+          "min_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "After a key reset: the lowest epoch an automatic share may carry (reset epoch + 1); null without a\npre-reset range."
+          },
           "since": {
             "type": "string",
-            "description": "The membership's `joined_at` (start of the policy window)."
+            "description": "Start of the automatic window: the membership's `joined_at`, after a key reset its `key_reset_at`."
           },
           "user": {
             "type": "string",
             "description": "Member address."
+          }
+        }
+      },
+      "HistoryRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "room_id",
+          "user",
+          "display_name",
+          "message",
+          "status",
+          "joined_at",
+          "created_at",
+          "partial",
+          "channels"
+        ],
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryRequestChannel"
+            },
+            "description": "For members with `restore_history`: the encrypted channels the requester may view (else empty)."
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decided_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Address of the member who decided."
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "joined_at": {
+            "type": "string",
+            "description": "The requester's membership start."
+          },
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The requester's current key reset (null once the membership ended or nothing is reset)."
+          },
+          "message": {
+            "type": "string"
+          },
+          "partial": {
+            "type": "boolean",
+            "description": "The approving device did not hold every key of the window."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reason of a denial."
+          },
+          "room_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "`open`, `approved`, `denied` or `cancelled`."
+          },
+          "user": {
+            "type": "string",
+            "description": "Requester address."
+          }
+        }
+      },
+      "HistoryRequestChannel": {
+        "type": "object",
+        "required": [
+          "channel_id",
+          "kind"
+        ],
+        "properties": {
+          "channel_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "The channel's kind (`text`, `announcement`, `forum`, `files`)."
+          },
+          "reset_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The group epoch at the requester's key reset; keys up to it are the pre-reset range. Null: no group then."
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The requester's normal window start in this channel (policy and `read_history` from `joined_at`); null =\neverything."
+          }
+        }
+      },
+      "HistoryRequestList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryRequest"
+            }
           }
         }
       },
@@ -29208,6 +30683,13 @@
             ],
             "format": "int64",
             "description": "The epoch of `args_ciphertext`."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thread of the channel the command is invoked in (PROTOCOL.md §7e); answers go there."
           }
         },
         "additionalProperties": false
@@ -29793,6 +31275,43 @@
           }
         }
       },
+      "MineList": {
+        "type": "object",
+        "required": [
+          "entries",
+          "files",
+          "folders",
+          "bytes"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileEntry"
+            },
+            "description": "The requester's entries, oldest first, without records."
+          },
+          "files": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Totals of all the requester's entries in the channel (bytes: files and thumbnails)."
+          },
+          "folders": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "next_after": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "Mode": {
         "type": "string",
         "enum": [
@@ -30111,6 +31630,36 @@
           }
         }
       },
+      "MyHistoryState": {
+        "type": "object",
+        "properties": {
+          "key_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The membership's key reset (null: none)."
+          },
+          "request": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HistoryRequest",
+                "description": "The latest request of the current membership."
+              }
+            ]
+          },
+          "restored_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When a restore of the membership was approved (null: none)."
+          }
+        }
+      },
       "MyPresence": {
         "type": "object",
         "description": "The user's own presence with the chosen status and this device's idle flag.",
@@ -30185,9 +31734,16 @@
           "dm_policy",
           "voice",
           "preview_auto_max_bytes",
-          "legal"
+          "message_retention_days",
+          "legal",
+          "webauthn",
+          "age"
         ],
         "properties": {
+          "age": {
+            "$ref": "#/components/schemas/AgeInfo",
+            "description": "Date of birth and age gates (`age.v1`, PROTOCOL.md §5e)."
+          },
           "capabilities": {
             "type": "array",
             "items": {
@@ -30226,6 +31782,12 @@
             "$ref": "#/components/schemas/LegalInfo",
             "description": "Legal pages and the notice form (protocol/LEGAL.md)."
           },
+          "message_retention_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Message retention of this node in days (`TAVRN_RETENTION_DAYS`, PROTOCOL.md §7f; 0 = messages are kept). Rooms\ncan only shorten it.",
+            "minimum": 0
+          },
           "name": {
             "type": "string"
           },
@@ -30260,6 +31822,10 @@
           "voice": {
             "$ref": "#/components/schemas/VoiceInfo",
             "description": "Voice policies of this node (protocol/VOICE.md)."
+          },
+          "webauthn": {
+            "$ref": "#/components/schemas/WebauthnInfo",
+            "description": "WebAuthn relying party id (`TAVRN_WEBAUTHN_RP_ID`, default the identity domain): clients pass it\nas `rpId` on the assertions they build themselves (PROTOCOL.md §5a.4)."
           }
         }
       },
@@ -31899,9 +33465,14 @@
           "name",
           "description",
           "icon_animated",
-          "member_count"
+          "member_count",
+          "age_gate"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e). Gated rooms are listed only to adults; invite previews carry the\ngate so clients can explain a refused join."
+          },
           "description": {
             "type": "string"
           },
@@ -32507,6 +34078,27 @@
           }
         }
       },
+      "RecordList": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileEntry"
+            },
+            "description": "Entries with a record inside the requester's history window, oldest record first."
+          },
+          "next_after": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "RecoveryCodes": {
         "type": "object",
         "required": [
@@ -32554,6 +34146,13 @@
               "null"
             ],
             "description": "Captcha token, if the node requires one (see `/node`)."
+          },
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required (`age.v1`, PROTOCOL.md §5e): the date of birth `YYYY-MM-DD`, between 1900-01-01 and today. Below the\nnode's minimum age (`GET /node` → `age.minimum_age`) the registration is refused with `age.below_minimum`.\nStored on this node only, never shown to others."
           },
           "device_name": {
             "type": [
@@ -33031,9 +34630,15 @@
           "discoverable",
           "icon_animated",
           "no_bots",
-          "bots_in_encrypted_channels"
+          "bots_in_encrypted_channels",
+          "age_gate",
+          "history_restore"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): users below 18 never find the room in Discover and cannot join it;\nevery channel of the room is locked for them."
+          },
           "attachment_retention_days": {
             "type": [
               "integer",
@@ -33061,6 +34666,10 @@
           "discoverable": {
             "type": "boolean",
             "description": "Listed in the directory and on Discover (FEDERATION.md §7.3; public rooms only)."
+          },
+          "history_restore": {
+            "type": "string",
+            "description": "History restore after a key reset (ENCRYPTION.md §7b): `request` (members may ask, default) or `off`."
           },
           "icon": {
             "type": [
@@ -33093,6 +34702,14 @@
           "join_mode": {
             "type": "string",
             "description": "public | invite"
+          },
+          "message_retention_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Messages of the room's channels are deleted after this many days (null = the node's value; a room can only\nshorten it; pinned messages and the welcome channel are exempt, PROTOCOL.md §7f)."
           },
           "name": {
             "type": "string"
@@ -33586,6 +35203,13 @@
           "sealed": {
             "type": "string",
             "description": "`crypto_box_seal` of the inner JSON `{ \"content\": {…}, \"username\"? }` to the inbox key, base64url."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the channel to post into (routing metadata outside the box); required in forum channels."
           }
         },
         "additionalProperties": false
@@ -34574,6 +36198,13 @@
       "UpdateChannelRequest": {
         "type": "object",
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): the channel's own age gate; the room's gate stays the minimum.\nOnly an adult can switch it on. Audited as `channel.age_gate`."
+          },
           "auto_archive_minutes": {
             "type": [
               "integer",
@@ -34647,7 +36278,9 @@
             "type": [
               "boolean",
               "null"
-            ]
+            ],
+            "description": "Deprecated and ignored (protocol permissions.md \"Changes\", 2026-10-09): overrides are layered, a channel\nalways inherits its category's overrides underneath its own. Accepted for one release, then unknown.",
+            "deprecated": true
           },
           "tags": {
             "type": [
@@ -34694,7 +36327,7 @@
               "string",
               "null"
             ],
-            "description": "New name."
+            "description": "New name (unencrypted channels)."
           },
           "parent_id": {
             "type": [
@@ -34702,6 +36335,20 @@
               "null"
             ],
             "description": "New folder (`null`: top level; absent: unchanged)."
+          },
+          "record": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted channels: a new entry record (rename) and its epoch (FILES.md §8.5)."
+          },
+          "record_epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -34784,6 +36431,13 @@
               "$ref": "#/components/schemas/ProfileLinkInput"
             },
             "description": "Linked accounts (at most 10); replaces the list. The node derives every URL itself."
+          },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The language of the node's mails: a language tag such as `de` or `pt-BR` (stored lowercase), `\"\"` = English."
           }
         }
       },
@@ -34908,6 +36562,13 @@
       "UpdateRoomRequest": {
         "type": "object",
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): the room's age gate, the minimum of every channel. Only an adult can\nswitch it on. Audited as `room.age_gate`."
+          },
           "attachment_retention_days": {
             "type": [
               "integer",
@@ -34936,11 +36597,26 @@
             ],
             "description": "List the room in the directory and on Discover (FEDERATION.md §7.3). Public rooms only; switching\na room to `invite` removes it from the directory."
           },
+          "history_restore": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "History restore after a key reset (ENCRYPTION.md §7b): `request` (members may ask, default) or `off`.\nOwner or `manage_room`; never a bot."
+          },
           "join_mode": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "message_retention_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Delete messages after this many days (1–36500; 0 = use the node's value, PROTOCOL.md §7f). Effective is the\nshorter non-zero of this and the node's `TAVRN_RETENTION_DAYS`: a room can only shorten."
           },
           "name": {
             "type": [
@@ -35428,12 +37104,30 @@
               "has_identity_key"
             ],
             "properties": {
+              "age_status": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AgeStatus",
+                    "description": "`GET /users/me` of local users only: the private age status. Never part of any other response."
+                  }
+                ]
+              },
               "auto_preview": {
                 "type": [
                   "string",
                   "null"
                 ],
                 "description": "`GET /users/me` and `PATCH /users/me` of local users: load image previews automatically\n(`always`, `friends_and_shared` or `never`)."
+              },
+              "date_of_birth": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "`GET /users/me` of local users only: the own date of birth `YYYY-MM-DD` (null until given; PROTOCOL.md §5e)."
               },
               "email": {
                 "type": [
@@ -35450,6 +37144,13 @@
               "has_password": {
                 "type": "boolean",
                 "description": "`false` for accounts that sign in only with SSO (no password, APPLICATIONS.md §8.3)."
+              },
+              "locale": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "`GET /users/me` and `PATCH /users/me` of local users: the language of the node's mails (a lowercase language\ntag such as `de`; null = English). Clients send theirs when it changes."
               },
               "notification_settings": {
                 "oneOf": [
@@ -35943,6 +37644,18 @@
           }
         }
       },
+      "WebauthnInfo": {
+        "type": "object",
+        "description": "The WebAuthn relying party id (`TAVRN_WEBAUTHN_RP_ID`, default the identity domain). It may be a parent\ndomain of the web client's host (delegation); clients pass it as `rpId` on assertions they build\nthemselves (the secret storage PRF, PROTOCOL.md §5a.4).",
+        "required": [
+          "rp_id"
+        ],
+        "properties": {
+          "rp_id": {
+            "type": "string"
+          }
+        }
+      },
       "WebauthnLoginFinish": {
         "type": "object",
         "required": [
@@ -36159,6 +37872,13 @@
             ],
             "description": "A message of the same channel this one replies to."
           },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A thread of the channel to post into; required in forum channels (a post), which show no loose messages."
+          },
           "username": {
             "type": [
               "string",
@@ -36246,9 +37966,15 @@
           "registration",
           "email",
           "policies",
-          "directory_listing"
+          "directory_listing",
+          "webauthn",
+          "age"
         ],
         "properties": {
+          "age": {
+            "$ref": "#/components/schemas/AgeInfo",
+            "description": "Date of birth and age gates (`age.v1`, PROTOCOL.md §5e)."
+          },
           "api": {
             "type": "string",
             "description": "API base of the node (`<TAVRN_PUBLIC_URL>/api/v1`); its host may differ from `domain` (delegation)."
@@ -36308,6 +38034,10 @@
           "web": {
             "type": "string",
             "description": "Origin of this node's web client (FEDERATION.md §8: the connect flow redirects to\n`<web>/connect`); `TAVRN_WEBAUTHN_ORIGIN`, default the public URL."
+          },
+          "webauthn": {
+            "$ref": "#/components/schemas/WebauthnInfo",
+            "description": "WebAuthn relying party of this node's passkeys (PROTOCOL.md §5a.4)."
           },
           "ws": {
             "type": "string",

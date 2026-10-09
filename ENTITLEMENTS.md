@@ -155,7 +155,8 @@ directory administration, SSO group maps, the overview and the audit log.
 - Exempt: attachments of **pinned** messages, uploads not yet bound to a message (the orphan sweep handles them),
   profile media, custom emojis and sounds (not attachments), and files-channel entries.
 - Expired files no longer count against the room's storage.
-- Message retention (`TAVRN_RETENTION_DAYS`) is unrelated and unchanged.
+- Message retention (`TAVRN_RETENTION_DAYS`, `PROTOCOL.md` §7f) is separate: it deletes whole messages with their
+  attachments.
 
 ## 7. Example: a subscription system
 

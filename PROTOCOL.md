@@ -50,17 +50,21 @@ detail; this document covers the concepts and rules that span individual routes.
     "screenshare": { "enabled": true, "max_resolution": "1080p", "max_fps": 30 },
     "camera": { "enabled": true, "max_resolution": "720p", "max_fps": 30 }
   },
-  "directory_listing": true
+  "directory_listing": true,
+  "webauthn": { "rp_id": "node.example" },
+  "age": { "self_declared": true, "gates": ["adults_only"], "minimum_age": 16 }
 }
 ```
 
 - `tavrn` is the protocol major version. A client that does not know it must not connect.
+- `age` (nodes announcing `age.v1`, §5e): how the node handles ages: `self_declared` (the date of birth is the
+  user's own statement), the room and channel `gates` it enforces, and the `minimum_age` for registration.
 - The voice policies (`voice_*`, `screenshare`, `camera`) and the voice API are specified in `VOICE.md`.
 - Per-user and per-room limits above these policies (plans, grants, admin API tokens, attachment retention) are
   node-local and specified in `ENTITLEMENTS.md`; clients read their effective values from
   `GET /users/me/entitlements`, and an attachment whose file retention deleted is listed with `expired: true`.
-- Files channels (channel kind `files`: folders and files instead of messages, never end-to-end encrypted,
-  optional external WebDAV/S3 storage) are specified in `FILES.md`.
+- Files channels (channel kind `files`: folders and files instead of messages, end-to-end encrypted by default
+  with `files.e2ee`, optional external WebDAV/S3 storage) are specified in `FILES.md`.
 - `web` is the origin of the node's web client (`TAVRN_WEBAUTHN_ORIGIN`, default the public URL). The connect
   flow of `FEDERATION.md` §8 redirects to `<web>/connect`; native apps open the same page with an app session
   (`connect.app`).
@@ -107,11 +111,14 @@ Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, 
 since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set), `reports.v1` and `automod.v1`
 (reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
 sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
+them), `age.v1` (date of birth, private age status and age gates, §5e, announced by every node that implements it), `history.restore` (history restore after a key reset by request and approval, `ENCRYPTION.md` §7b, announced
+by every node that implements it), `files.e2ee` (end-to-end encrypted files channels, `FILES.md` §8, announced by every node that implements
 them).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
 `threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
-node that implements §7e.
+node that implements §7e; `threads.client_ids` by every node that takes the client-chosen thread id of §7e (clients
+send `id` only to those: an older node would ignore it, and the first message's signature would not match).
 
 `voice` (voice channels, `VOICE.md`), `screenshare` (screen sharing allowed) and `soundboard` (room clips) are
 announced by nodes while `TAVRN_VOICE_ENABLED` (and for `screenshare` also `TAVRN_SCREENSHARE_ENABLED`) is on.
@@ -320,6 +327,10 @@ Secret storage routes: `ENCRYPTION.md` §2.4.
   registrable parent domain of it (WebAuthn rule; the node refuses to start otherwise), so with delegation
   (`tavrn.org` served at `app.tavrn.org`) passkeys stay bound to `tavrn.org` and survive a move of the app host. Attestation `none`, user verification **required** (the webauthn-rs passkey policy;
   security keys need a PIN), resident key preferred, algorithms as listed in `pubKeyCredParams`.
+- The node publishes its relying party id as `webauthn.rp_id` in `GET /api/v1/node` and in
+  `/.well-known/tavrn`. Clients that build an assertion themselves (the local secret storage PRF evaluation,
+  `ENCRYPTION.md` §2.4, which never involves the node) MUST pass it as `rpId`: without it the browser uses the
+  page's host, which differs from the relying party id under delegation, and the assertion fails.
 - `options` is the JSON form of `PublicKeyCredentialCreationOptions` / `…RequestOptions` wrapped in
   `{ "publicKey": … }` with binary values in base64url, suitable for
   `PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`. The node adds
@@ -341,7 +352,7 @@ Secret storage routes: `ENCRYPTION.md` §2.4.
 
 ### 5a.5 Client flows
 
-- **Registration**: `POST /auth/register` → pre-auth (enroll) → enroll TOTP (`totp/enroll`, show QR code
+- **Registration**: `POST /auth/register` (with the `date_of_birth`, §5e) → pre-auth (enroll) → enroll TOTP (`totp/enroll`, show QR code
   of `otpauth_url` and the base32 secret, `totp/confirm` with a code) **or** a passkey
   (`webauthn/register/start`, `navigator.credentials.create`, `webauthn/register/finish`) → the
   response carries the session and the recovery codes (show once, user confirms) → end-to-end
@@ -482,6 +493,95 @@ The full description is `LEGAL.md`; the parts every client needs:
   without avatar, profile or link, and `{"type":"system.deleted"}` content as "message deleted". A deleted account's
   password login answers `401 auth.account_deleted`.
 
+## 5e. Date of birth, age status and age gates (`age.v1`)
+
+Every node that implements this section announces `age.v1`; `GET /node` and the discovery document (§2) carry
+`age: { self_declared: true, gates: ["adults_only"], minimum_age }`. This is the self-declared slice of the age
+design: the date of birth is the user's own statement, never a verification, and the node uses it only for its
+minimum age and for the age gates below.
+
+**Date of birth at registration.** `POST /auth/register` requires `date_of_birth`, an ISO 8601 calendar date
+`YYYY-MM-DD`, on every registration path (password and passkey registration both start there; clients that
+register for a native app on the connect page send it the same way). The node checks it before anything is
+stored:
+
+| Check | Error |
+|---|---|
+| missing, not `YYYY-MM-DD`, not a real calendar date, after today (UTC) or before `1900-01-01` | `400 validation.date_of_birth` |
+| the age on today's UTC date is below the node's `minimum_age` (`TAVRN_MINIMUM_AGE`, default 16, 13–99) | `403 age.below_minimum` with `meta.minimum_age`; the detail names the minimum ("You must be at least 16 years old to register on this node") |
+
+The age is counted in whole years: a person is `n` years old from the `n`th birthday on; a birthday on 29 February
+counts on 1 March in common years.
+
+**Accounts without a date of birth** (created before `age.v1`, or provisioned by single sign-on, §5a.6) complete
+it with `PUT /users/me/date-of-birth { date_of_birth }` (same checks; `200` with the own account as in
+`GET /users/me`). Until then every authenticated route answers `403 age.status_required`, except `/users/me`
+itself, `PUT /users/me/date-of-birth`, `POST /auth/logout`, the terms and legal routes of §5d (`/legal/*`,
+`/users/me/terms`, `/users/me/terms/accept`), the data rights (`GET /users/me/data`, `GET /users/me/export`) and
+the re-authentication they need (`POST /auth/reauth`, `POST /auth/reauth/webauthn/start`); a WebSocket closes with
+`4002` and the reason `age.status_required`. Clients answer `age.status_required` with a blocking "add your date of
+birth" dialog. Bots and users of other nodes are never asked (bots follow their owner, remote users the claim of
+their home node). A date below the minimum age is refused with `403 age.below_minimum` here too, and the account
+stays blocked.
+
+**Corrections.** A user sets the date of birth once; a second `PUT` answers `409 age.date_of_birth_set`. The node
+operator corrects it on request: `PUT /admin/users/{user_id}/date-of-birth { date_of_birth }` (node admin, local
+users; `null` removes it, so the user is asked again), audited as `admin.date_of_birth` without the date itself.
+
+**The age status is private.** The node derives it on every use from the date of birth and today's UTC date:
+
+| `tier` | When |
+|---|---|
+| `adult` | 18 years or older |
+| `minor` | younger than 18 |
+| `unknown` | no date of birth (accounts that have not completed it) |
+
+`GET /users/me` of a local user carries `date_of_birth` (or null) and `age_status: { tier, method }` (`method`
+`self` for a self-declared date, `none` for `unknown`). Nothing else ever does: no profile (local or federated),
+member list, search result, event, audit entry or response about another user carries the date of birth or the
+status, and a refusal never reveals another user's status (a direct invite to a minor is created like any other;
+only the invitee's own join fails). The date of birth stays on the home node; other nodes learn only the signed
+"18 or older: yes/no/unknown" claim of `FEDERATION.md` §2.2 when the user acts there. **`unknown` counts as `minor`
+everywhere.**
+
+**Age gates.** Rooms and channels carry `age_gate`: `none` (default) or `adults_only`. A channel's effective gate is
+`adults_only` when the room's or the channel's own gate says so (the room's gate is the channel's minimum: a channel
+can be stricter than its room, never looser); `Channel` objects carry their own `age_gate` and the
+`age_gate_effective`.
+
+| Route | Permission | |
+|---|---|---|
+| `PATCH /rooms/{room_id}` `{ age_gate }` | `manage_room` | audited `room.age_gate`, event `room.update` and `channel.update` for the room's channels |
+| `POST /rooms/{room_id}/channels`, `PATCH /rooms/{room_id}/channels/{channel_id}` `{ age_gate }` | `manage_channels` | audited `channel.age_gate`, event `channel.update` |
+
+Only an adult can switch a gate to `adults_only` (`403 age.restricted`), so nobody locks themselves out by
+accident; any value other than `none` and `adults_only` is `400 validation.age_gate`.
+
+**Enforcement** on the hosting node, for its own users by their status and for users of other nodes by the claim of
+their home node (`FEDERATION.md` §2.2); every refusal is `403 age.restricted` with `meta: { age_gate:
+"adults_only" }`:
+
+- **Discover and public lists.** `GET /rooms/discover` and `GET /directory/rooms` list rooms with a gate only to
+  requests that carry the session of an adult (the `Authorization` header is optional on both routes); for
+  everybody else gated rooms are absent. Listed rooms carry `age_gate`. Other nodes fetch the directory without a
+  session, so gated rooms never enter other nodes' directories.
+- **Joining.** `POST /rooms/{room_id}/join` and `POST /invites/{code}/join` (also with an invite bound to the user,
+  `FEDERATION.md` §3.4) refuse users below the room's gate. The invite preview `GET /invites/{code}` stays public
+  and carries `room.age_gate`, so clients can explain the refusal before the user tries.
+- **Gated channels** stay in the channel list (`GET /rooms/{room_id}`) with their gate, but users below it have no
+  permission in them (the permission evaluation of `permissions.md` yields 0): messages, history, threads and forum
+  posts, pins, reactions, attachments and files, search, read markers, unread and mention counts, link previews
+  (they live in the message content), notifications and web push, whiteboard, commands, calls and voice are refused
+  (the conversation routes answer `age.restricted`); the channel's events (`message.*`, `typing`, `thread.*`,
+  `voice.state`, `files.update`, …) are not delivered to them; and they are not entitled to the channel's MLS group
+  (`ENCRYPTION.md` §4.5).
+- **Existing members.** A room that becomes gated keeps its members; for members below the gate every channel of
+  the room is locked until they are 18 or leave.
+
+Clients show a gated channel to users below the gate as locked ("This channel is for adults only") without
+messages, composer or previews, explain `age.restricted` at joins and invite links, offer the gate selectors in the
+room and channel settings, and never show another user's age or status.
+
 ## 6. Realtime (WebSocket `/api/v1/ws`)
 
 1. The client connects and sends `{"op":"hello","token":"…","capabilities":[…],"last_event_id":"…"}`.
@@ -502,16 +602,43 @@ The full description is `LEGAL.md`; the parts every client needs:
    events are filtered by the token's scopes (an event a scope does not cover is dropped); a revoked, reset or
    expired token closes the connection with `4001`.
 
-Events are addressed to a room (all members), to users (all their connections) or to devices (only the
-connection of that device). Event types besides the room/message events of phase 1:
+Events are addressed to a room, to users (all their connections) or to devices (only the connection of that
+device). Room events that concern a channel (`message.*`, reactions and pins as `message.update`, `typing`,
+`thread.*`, `voice.state`, `files.*`, `mls.*`, `history.pending`, `message.redact`, …: every event whose `data`
+names a `conversation_id` or `channel_id` of the room, directly or in an embedded `thread` or `message`) reach only
+**all room members who can view the channel** at delivery time: `view_channel` after roles and overrides
+(`permissions.md`) and the age gate of §5e; a change of roles, overrides or membership applies to the next event.
+`message.purge` (`conversation_ids`) reaches the members who can view at least one of its channels. The same
+check gates web push (§6d) and the `notify` hints to other nodes (`FEDERATION.md` §5.2).
+
+**Audiences of the room's metadata.** A private channel's metadata follows the same rule as its content, against
+the room as `GET /rooms/{id}` lists it to each member:
+
+- `channel.create`, `channel.update`, `channel.delete` and an `override.update` of a channel reach the members to
+  whom the channel is **listed**: `view_channel` after roles and overrides, the age gate left aside (a channel
+  above a member's age gate stays listed, §5e). A deletion reaches those to whom it was listed before.
+- `category.create`, `category.update`, `category.delete` and an `override.update` of a category reach the members
+  to whom the category is listed: one of its channels is listed to them, or they hold `manage_channels`.
+- `room.*`, `role.*`, `member.*`, `emoji.update`, `soundboard.update`, `commands.update` and `user.*` reach all
+  room members.
+- When a change of roles, overrides, membership or channels lets a member see a channel they could not, the node
+  sends them `channel.create` with the channel (preceded by `category.create` for a category they did not know);
+  when they lose one, `channel.delete { room_id, id, hidden: true }` (and `category.delete { room_id, id, hidden:
+  true }` for a category no longer listed to them). `hidden: true` means "no longer visible to you", not deleted:
+  clients remove the channel without announcing a deletion. These events have their own `id` and are not
+  replayed. `GET /rooms/{id}` lists only the overrides of the listed channels and categories.
+
+Event types besides the room/message events of phase 1:
 
 | Type | Audience | `data` |
 |---|---|---|
 | `mls.commit` | conversation audience¹ | `{ conversation_id, epoch }`: the group is now at `epoch` (0 after creation) |
 | `mls.welcome` | the added devices | `{ conversation_id, epoch }`: fetch `GET /mls/welcomes` |
 | `mls.remove_needed` | conversation audience¹ | `{ conversation_id, identities }`: leaves the node wants removed (`ENCRYPTION.md` §4.5) |
-| `history.pending` | conversation audience¹ | `{ conversation_id, user, since }`: `user` joined the group of an encrypted channel whose policy gives it history and waits for keys (`ENCRYPTION.md` §7b) |
+| `history.pending` | conversation audience¹ | `{ conversation_id, user, since, key_reset_at, min_epoch }`: `user` joined the group of an encrypted channel whose policy gives it history and waits for keys (`ENCRYPTION.md` §7b; `key_reset_at`/`min_epoch` non-null only after a key reset) |
 | `history.keys_available` | the recipient (all of their connections on the hosting node) | `{ conversation_id }`: a history key share for the user waits at `GET …/history-keys` |
+| `history.request` | the room's owner and the members whose roles hold `restore_history` or `administrator` | `{ room_id, request }`: a member asks to restore its history after a key reset (`ENCRYPTION.md` §7b, `HistoryRequest`) |
+| `history.request_decided` | the requester and the recipients of `history.request` | `{ room_id, request }`: the request was approved or denied |
 | `identity.changed` | the user, friends, DM contacts | `{ user, user_id, identity_reset_at, at }` |
 | `identity.rotated` | the user, friends, DM contacts | `{ user, user_id, identity_public_key?, identity_generation?, at }`: the identity key was rotated with a continuity statement (`ENCRYPTION.md` §9a); the user's other devices pick up the new key, contacts re-check it (the key fields only on the home node) |
 | `friend.request` | both parties | `{ request: { id, user, direction, created_at } }` (`user` = the other party) |
@@ -520,18 +647,18 @@ connection of that device). Event types besides the room/message events of phase
 | `conversation.create` | members (and a newly added member) | `{ conversation }` |
 | `conversation.update` | members | `{ conversation }` (members or name changed) |
 | `conversation.leave` | the removed user | `{ conversation_id }` |
-| `typing` | room members (channels) or the members of a DM/group DM | `{ room_id, channel_id, user_id }` or `{ conversation_id, user_id }` |
+| `typing` | room members who can view the channel (channels; a typing operation in a channel the sender cannot view is dropped) or the members of a DM/group DM | `{ room_id, channel_id, user_id }` or `{ conversation_id, user_id }` |
 | `read.update` | the user (all of their connections) | `{ conversation_id, last_read_message_id }`: the read marker moved |
 | `room.invite`, `conversation.invite` | the invited user (on the home node) | `{ invite }`: a new entry of the invite list (`FEDERATION.md` §4) |
 | `notify` | the user (on the home node) | `{ node, conversation_id, room_id, mention, everyone }`: push hint for a conversation on another node, no content; `everyone` = the mention is only `@everyone`. The home node drops hints the user's notification settings do not want (§6c) |
 | `notifications.update` | the user (all of their connections) | `{ settings }`: the notification settings changed (§6c) |
 | `ban.notify` | the user (on the home node) | `{ room: { node, id, name }, scope }`: information that a room or node banned the user |
 | `federation.undeliverable` | the sending user | `{ type, to }`: a friend request or invitation to another node could not be delivered |
-| `voice.state` | room members | `{ room_id, channel_id, epoch, participants: [{ user, user_id, device_id, identity, muted, deafened, streaming, camera, server_muted, joined_at }] }`: the complete participant list of a voice channel after every change (`VOICE.md` §5) |
+| `voice.state` | room members who can view the channel | `{ room_id, channel_id, epoch, participants: [{ user, user_id, device_id, identity, muted, deafened, streaming, camera, server_muted, joined_at }] }`: the complete participant list of a voice channel after every change (`VOICE.md` §5) |
 | `voice.move` | the moved user | `{ room_id, from_channel_id, channel_id, user_id }`: a moderator moved the user; the client joins `channel_id` (`VOICE.md` §7) |
 | `soundboard.update` | room members | `{ room_id }`: the room's soundboard clips changed (`VOICE.md` §8) |
-| `files.update` | room members | `{ room_id, channel_id, parent_id }`: the content of a folder of a files channel changed (`FILES.md` §3) |
-| `files.backend` | room members | `{ room_id, channel_id, backend }`: the storage backend of a files channel changed (`FILES.md` §5) |
+| `files.update` | room members who can view the channel | `{ room_id, channel_id, parent_id }`: the content of a folder of a files channel changed (`FILES.md` §3) |
+| `files.backend` | room members who can view the channel | `{ room_id, channel_id, backend }`: the storage backend of a files channel changed (`FILES.md` §5) |
 | `presence.update` | who may see the user (§6a); the user's own connections | `Presence` `{ user_id, user, status, custom_status, activity }`; at most one per user and second |
 | `user.update` | the user's rooms, friends and DM contacts | `{ user }`: name or avatar changed (refresh lists and profile cards); for the pseudo user of a webhook (`kind = "webhook"`) the webhook's room |
 | `application.subscription_disabled` | the owner of the application | `{ application_id, url, last_error }`: the event subscription was disabled after 3 days without a successful delivery (`APPLICATIONS.md` §6.2) |
@@ -546,17 +673,18 @@ connection of that device). Event types besides the room/message events of phase
 | `interaction.reply` | the invoker: their other connections for the first response, all of them for follow-ups | `EphemeralReply` `{ interaction_id, conversation_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`: an ephemeral reply, shown only to the invoker and never stored (`APPLICATIONS.md` §5.7) |
 | `message.redact` | conversation audience¹ | `{ room_id, conversation_id, ids, author_id }`: the content of these messages was deleted with their author's account (§5d); the slots stay with the content `{"type":"system.deleted"}`. Clients replace cached content and drop the messages from local search indexes |
 | `user.deleted` | the rooms the user was in, friends and DM contacts | `{ user_id, address, tombstone }`: an account was deleted (§5d); its messages now name the tombstone (`author_deleted: true`) |
-| `thread.create`, `thread.update` | room members | `{ room_id, thread }`: a thread was started, or its title, tags, archive or lock state or its counters changed (§7e) |
-| `thread.delete` | room members | `{ room_id, channel_id, id }`: a thread was deleted with its messages (§7e) |
+| `thread.create`, `thread.update` | room members who can view the channel | `{ room_id, thread }`: a thread was started, or its title, tags, archive or lock state or its counters changed (§7e) |
+| `thread.delete` | room members who can view the channel | `{ room_id, channel_id, id }`: a thread was deleted with its messages (§7e) |
 | `thread.read` | the user (all of their connections) | `ThreadReadState`: the per-thread read marker or the follow state changed (§7e) |
 | `legal.statement` | the uploader | `{ case_id, decision, counter_deadline? }`: a statement of reasons or a decision about the user's content (`LEGAL.md` §1.4); details at `GET /users/me/legal-notices` |
 | `report.create` | the users who may see the report (room moderators, node admins), except the reporter | `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`: a new report in the moderation inbox (`MODERATION.md` §1.5) |
 | `report.update` | the same audience | `{ id, scope, room_id, status }`: a report changed, was acted on or deleted (`status: "deleted"`) |
 | `moderation.alert` | the room's moderators (owner, `moderate_members`), for node rules the node admins | `{ room_id, channel_id, user, kind, at, … }`: auto-moderation acted; `kind` `spam` (flood: `deleted`, `timeout_until`) or `content` (`rule`, `scope`, `matched`, `action`), `MODERATION.md` §2 |
 
-¹ Room channels: all room members; DMs and group DMs: their members. `message.create`, `message.update` and
+¹ Room channels: all room members who can view the channel (roles, overrides and the age gate of §5e); DMs and
+group DMs: their members. `message.create`, `message.update` and
 `message.delete` of DMs and group DMs go to the members' users as well (`room_id` is null).
-² Room channels: only the members who may view the channel (roles and overrides); DMs and group DMs: the members
+² Room channels: only the members who may view the channel (roles, overrides and the age gate of §5e); DMs and group DMs: the members
 who accepted them.
 
 **Ephemeral events (design note 4.10, normative: `WHITEBOARD.md` §2).** `POST /conversations/{id}/ephemeral
@@ -613,7 +741,18 @@ nothing (`all`). Plaintext messages are never cut; owners and administrators fol
 are not members, and DMs, are not cut; group DM members start at their own join. A re-join starts a new window.
 `GET …/messages?epoch=<n>` lists only encrypted messages of that epoch (within the window), for key checks. The
 history key routes `POST|GET /conversations/{id}/history-keys`, `DELETE /conversations/{id}/history-keys/{share_id}`
-and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b.
+and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b. Files channels differ: their
+policy is `all` (their default) or `since_join`, never `days:<n>`, and entry records take the place of messages
+(`FILES.md` §8.7).
+
+**History after a key reset (capability `history.restore`, normative: `ENCRYPTION.md` §7b "History after a key
+reset").** An identity reset sets `key_reset_at` on the member's room memberships: the message cut and the automatic
+key shares then start at the reset, and history from before it comes back only when a member with permission bit 37
+`restore_history` approves the member's request (`POST|GET /rooms/{room_id}/history-requests`, `GET
+…/history-requests/mine`, `DELETE …/history-requests/{id}`, `POST …/history-requests/{id}/approve|deny`). Rooms switch
+requests off with the setting `history_restore: "off"` (default `"request"`, `PATCH /rooms/{room_id}`,
+`manage_room`). Decisions go to the audit log (`history.restore_requested`, `history.restore_approved`,
+`history.restore_denied`) and the welcome channel (`system.history_restored`, `system.history_restore_denied`).
 
 **Channels with webhooks.** Channels carry `has_webhooks` (computed, announced with `channel.update` when a webhook
 is created, moved or deleted). In encrypted channels with webhooks the device that commits an epoch publishes the
@@ -666,8 +805,13 @@ conversations. A node therefore never learns the presence of a user without a se
   `avatar` and `avatar_still`; room objects `icon`, `icon_still`, `icon_animated`. Image paths are relative to
   the node that served the object (`/api/v1/media/{id}`, `/api/v1/media/{id}/animated`); those routes are
   public, typed by the stored file, `nosniff`, sandboxed and cached for a year (the id changes with every upload).
-- `PATCH /users/me { display_name?, bio?, links?, dm_policy?, hide_activity?, auto_preview? }` (`auto_preview`:
-  §7a "Automatic previews"; private, never part of the public profile). Links: at most 10
+- `PATCH /users/me { display_name?, bio?, links?, dm_policy?, hide_activity?, auto_preview?, locale? }` (`auto_preview`:
+  §7a "Automatic previews"; private, never part of the public profile). `locale` is the language of the mails the
+  node sends the user (email confirmation, password reset, account and legal notices, app token expiry): a language
+  tag such as `de` or `pt-BR`, stored lowercase (`400 validation.locale` otherwise), `""` clears it; `GET`/`PATCH
+  /users/me` return it as `locale` (null = English). A new account starts with the first tag of the registration's
+  `Accept-Language`; clients send the language the user picked whenever it differs. The node uses its texts for the
+  most specific language it has (`de-at` → `de`) and English otherwise. Links: at most 10
   (`profile.links_too_many`); `service` one of steam, battlenet, xbox, playstation, nintendo, twitch, youtube,
   x, mastodon, website (`profile.link_service`); the node validates the value per service and derives the URL
   itself from an allowlist of https hosts (a pasted profile URL of the service is accepted; `website` takes any
@@ -730,6 +874,8 @@ connections get `notifications.update`. Remote users with a federated session ar
   clients (sound and Notification API when the tab is in the background); in-app toasts follow `mode`.
 - `push_text` (optional, default `false`, left out while off): web pushes (§6d) of unencrypted conversations carry
   a preview of the message text. Never for encrypted conversations.
+- `reports` (optional, default `true`, left out while on): web pushes (§6d) of new reports for the users who receive
+  them (room moderators and node admins, `MODERATION.md` §1.5). Clients show the switch to moderators and node admins.
 
 ## 6d. Web push (`push.webpush`, design note 4.9)
 
@@ -748,11 +894,14 @@ Routes:
   subscribe again (they compare the key they subscribed with).
 - `PUT /users/me/push-subscriptions { endpoint, keys: { p256dh, auth }, device_id?, expiration_time? }` (the
   browser's `PushSubscription.toJSON()`; `expirationTime` is accepted too) registers the subscription for the
-  requesting device → `201` (new) or `200` (an existing endpoint, also one of another account on the same browser,
-  is taken over). `endpoint`: `https://` URL of a public host, at most 2048 characters (`400 push.endpoint_invalid`);
-  `p256dh` a base64url uncompressed P-256 point, `auth` base64url of 16 bytes (`400 push.keys_invalid`);
-  `device_id` must be the requesting device (`400 push.device_invalid`); `expiration_time` Unix milliseconds in the
-  future or null (`400 push.expiration_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30
+  requesting device → `201` (new) or `200` (an existing endpoint of the account, also from another of its devices,
+  is updated). An endpoint of another account's live subscription (not expired, its device has a live session) is
+  refused with `409 push.endpoint_taken`, so knowing an endpoint URL does not cut another account off its pushes;
+  the client then unsubscribes the browser and subscribes again (a new endpoint). A stale one is taken over.
+  `endpoint`: `https://` URL of a public host, at most 2048 characters (`400 push.endpoint_invalid`); `p256dh` a
+  base64url uncompressed P-256 point, `auth` base64url of 16 bytes (`400 push.keys_invalid`); `device_id` must be
+  the requesting device (`400 push.device_invalid`); `expiration_time` Unix milliseconds in the future or null (`400
+  push.expiration_invalid`). At most 20 subscriptions per account (`409 push.too_many`), 30
   registrations per hour (`429`), `404 push.disabled` while off. Response `PushRegistration { id, device_id,
   push_service, current_device, created_at, last_used_at, expires_at, failures }` (keys and endpoint are never
   returned; `push_service` is the endpoint's origin).
@@ -797,6 +946,20 @@ Payload (JSON, encrypted for the subscription; the service worker decides how to
 - Encrypted conversations (`encrypted: true`) never carry ciphertext, plaintext or message ids. `text` (at most 120
   characters) appears only for unencrypted messages and only with `push_text` (§6c).
 - Unknown fields and types are ignored; clients show a generic notification for unknown types.
+
+**Reports.** A new report (`MODERATION.md` §1.5, user reports and automod entries alike) pushes to every local user
+of its audience (the room's moderators and the node admins, never the reporter or the reported user) who has no open
+WebSocket and has not turned `global.reports` (§6c) off: `{ "v": 1, "type": "report", "node", "local": true, "room_id",
+"room", "report_kind", "encrypted": false }` with `report_kind` `message`, `user` or `room` and the room's id and name
+for room reports (node reports have neither). Nothing else of the report travels: no reporter, target, category,
+detail or evidence. At most one report push per room (node reports: per node) and user every 30 seconds, and the
+per-user limit above; the client opens its moderation inbox.
+
+**Rooms on other nodes (decision).** Push stays home-node only. A room hosted on another node sends `notify` hints to
+the member's home node only for DMs, group DMs, mentions and call rings (FEDERATION.md §5.2), so in rooms on other
+nodes a channel under notification mode `all` does **not** push for ordinary messages; mentions, DMs and calls do.
+Clients say so next to the notification settings. Registering subscriptions with every node of the user was rejected:
+it would need the notification settings replicated to those nodes and double pushes avoided across them.
 
 ## 7. Message envelope
 
@@ -853,7 +1016,7 @@ Every message consists of an envelope (readable by the node) and content (opaque
 - `device_id` is the sending (or last editing) device, null for system and webhook messages; `epoch` is set for
   encrypted messages only. For
   encrypted content the node checks `ENCRYPTION.md` §5.3 (`message.ciphertext_invalid`,
-  `message.epoch_mismatch`, `message.epoch_unknown`, `e2ee.device_not_attested`).
+  `message.epoch_mismatch`, `message.epoch_unknown`, `409 mls.epoch_stale`, `e2ee.device_not_attested`).
 - `signature` (plaintext only, optional on create and edit): `base64url(nonce(16) || Ed25519 signature(64))`
   by the sending device over the envelope fields `conversation` (qualified), `author`, `device_id`,
   `reply_to_id`, `thread_id`, `mentions_everyone`, `mentions`, `attachments` (id, size, sha256) and the
@@ -890,7 +1053,7 @@ plaintext content (`400 message.embeds_invalid`), clients check encrypted conten
 embeds after decrypting. Embeds never contain images; clients render them through the message Markdown sanitizer
 and show links with their full host. Unknown embed fields are ignored.
 
-Reserved `type` values: `text`, `action`, `system.join`, `system.leave`, `system.key_changed`, `system.bot_added`, `system.bot_removed`, `system.pin`, `system.encryption_changed`,
+Reserved `type` values: `text`, `action`, `system.join`, `system.leave`, `system.key_changed`, `system.bot_added`, `system.bot_removed`, `system.pin`, `system.encryption_changed`, `system.history_restored`, `system.history_restore_denied`,
 `command.args` (encrypted command arguments, `APPLICATIONS.md` §5.8: `{ type, command, nonce, issued_at, args }`,
 only ever inside `args_ciphertext` of an invocation, never as a message), `poll` (later). Unknown types are shown by clients as "Your client cannot display this message". `action`
 (`{ "type": "action", "body": "waves" }`, `/me`) follows the rules of `text` and is rendered in italics after the
@@ -907,8 +1070,10 @@ clients cannot send `system.*`, `400 message.type_reserved`):
 | `system.key_changed` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, at, rotated }`: the member's identity key changed (`at`, RFC 3339). `rotated: true` for a rotation with a valid continuity statement (`ENCRYPTION.md` §9a), `false` for an identity reset (§9) or any other change |
 | `system.bot_added` | the room's welcome channel | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, by }`: a bot's first leaf joined the encryption group of the encrypted channel `channel` (`by` = the committer's address; `APPLICATIONS.md` §3.6) |
 | `system.bot_removed` | the room's welcome channel | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, reason }`: the bot's last leaf left that group (`reason`, `APPLICATIONS.md` §3.6) |
+| `system.history_restored` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, by }`: `by` (an address) approved the request of `user` to restore its encrypted history after a key reset (`ENCRYPTION.md` §7b) |
+| `system.history_restore_denied` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, by }`: `by` denied that request (the reason stays in the audit log) |
 
-The message author of `system.join`/`system.leave`/`system.key_changed` is the member concerned (of `system.bot_*` the
+The message author of `system.join`/`system.leave`/`system.key_changed`/`system.history_restore*` is the member concerned (of `system.bot_*` the
 bot). Clients render them
 localized in the viewer's language with the avatar. `system.key_changed` is informational: the client decides with its
 own pin of the user's key what it shows (`ENCRYPTION.md` §3.3): the same "security key changed" warning as elsewhere
@@ -1153,7 +1318,7 @@ other nodes use the same routes with their federated session. Nothing crosses no
   format 1 (`ENCRYPTION.md` §5.2) of the JSON object `{ "type": "thread.title", "body": "<title>" }`, encrypted and
   signed by the device that set it (`title_author`, `title_device_id`) under `title_epoch`; the node applies the
   ciphertext checks of `ENCRYPTION.md` §5.3 (`400 thread.title_invalid` for a malformed one, at most 2048
-  characters, plus `message.epoch_mismatch`, `message.epoch_unknown`, `e2ee.device_not_attested`) and clients
+  characters, plus `message.epoch_mismatch`, `message.epoch_unknown`, `mls.epoch_stale`, `e2ee.device_not_attested`) and clients
   decrypt and verify it like message content and drop anything whose `type` is not `thread.title` or whose body is
   longer than 100 characters. In unencrypted channels `title` is plaintext (trimmed, 1–100 characters,
   `400 thread.title_invalid`) and `title_epoch` is null. `encrypted` says which of the two the stored title is
@@ -1174,8 +1339,14 @@ other nodes use the same routes with their federated session. Nothing crosses no
 
 **Routes** (all need room membership and `view_channel`, `403 room.not_member` / `channel.view_forbidden`):
 
-- `POST /rooms/{room_id}/channels/{channel_id}/threads { title, title_epoch?, root_message_id?, tags?, message? }` →
-  `201 Thread`. `message` is a message create body (§7, `POST …/messages`) posted as the thread's first message.
+- `POST /rooms/{room_id}/channels/{channel_id}/threads { id?, title, title_epoch?, root_message_id?, tags?, message? }`
+  → `201 Thread`. `message` is a message create body (§7, `POST …/messages`) posted as the thread's first message.
+  `id` is the thread id chosen by the client, so the device signature of a plaintext first message
+  (`FEDERATION.md` §10.3) covers its `thread_id` like every other message of the thread: a ULID in its canonical
+  form (26 characters, uppercase) whose time lies within 10 minutes of the node's clock (`400 thread.id_invalid`),
+  not used by another thread (`409 thread.id_taken`; pick a new one). Without `id` the node picks it and the first
+  message cannot be signed. Clients send `id` whenever they send `message` and the node announces
+  `threads.client_ids` (§3).
   Text and announcement channels: `send_messages` and `create_threads` (`403 message.send_forbidden`,
   `403 thread.create_forbidden`); `root_message_id` must be a message of the channel outside any thread (`400 thread.root_invalid`), at most one thread per root
   (`409 thread.exists`, `meta.thread_id`); `tags` are refused (`400 thread.tags_invalid`). Forum channels (a post):
@@ -1221,7 +1392,7 @@ other nodes use the same routes with their federated session. Nothing crosses no
   thread message go to followers (and to users it mentions directly); `@everyone` inside a thread reaches followers
   only. Clients apply the same rule to their in-app notifications.
 
-**Events** (room members unless noted): `thread.create { room_id, thread }`, `thread.update { room_id, thread }`
+**Events** (room members who can view the channel unless noted): `thread.create { room_id, thread }`, `thread.update { room_id, thread }`
 (rename, tags, archive, lock, new messages: counters and `last_message_*`), `thread.delete { room_id, channel_id,
 id }`, `thread.read` (the user's own connections: a `ThreadReadState`). `message.*` events of thread messages carry
 `thread_id` in the envelope. Bots receive `thread.*` with the scope `messages:read`.
@@ -1254,14 +1425,33 @@ threads in encrypted channels. A title ciphertext is bound to the conversation, 
 message content (`ENCRYPTION.md` §5.4) but not to one thread: a hostile node could show one of the author's titles
 on another thread of the same channel; clients treat titles as display text only.
 
+## 7f. Message retention
+
+A node may delete old messages (`TAVRN_RETENTION_DAYS`, default `0` = keep forever, at most 36500): its hourly
+housekeeping deletes messages of the channels, DMs and group DMs it hosts, encrypted or not, once they are older than
+the retention of their conversation, together with their attachments, reactions, pins and search entries; threads
+count their messages again (§7e).
+
+- A room may set a **shorter** retention for its channels: `PATCH /rooms/{room_id} { message_retention_days }`
+  (owner or `manage_room`, 1–36500, `0` = the node's value, `400 validation.range` otherwise; audited in `room.update`
+  with `meta.message_retention_days`). Room objects carry `message_retention_days` (null = the node's value). The
+  effective retention is the shorter non-zero of the room's and the node's value: a room can never extend the node's.
+- Never deleted by retention: **pinned** messages (unpinning lets them expire) and the entries of the room's
+  **welcome channel** (the room's security log, `MODERATION.md` §3).
+- The node writes one node audit entry `retention.messages { deleted, node_days, rooms, incomplete }` per run that
+  deleted something. Clients get no event: what they already loaded stays until they reload. Attachment retention
+  (`ENTITLEMENTS.md` §6) is separate and may delete files earlier.
+- `GET /node` names the node value as `message_retention_days` (clients show it next to the room setting); the
+  account's data summary (`LEGAL.md` §3.1, `GET /users/me/data`) as `retention.message_retention_days`.
+
 ## 8. Encryption marker (mandatory for all clients)
 
 If a channel has `encrypted = false`, every client **must** permanently and clearly show a notice above the
 message area, along the lines of: *"This channel is not end-to-end encrypted. The operator of node.example can
 read along."* Additionally the channel is marked with a crossed-out lock in lists. Direct messages, group DMs
-and voice channels are always encrypted and have no such flag. Files channels are never end-to-end encrypted;
-clients show "Files in this channel are not end-to-end encrypted" permanently above the file list
-(`FILES.md` §1).
+and voice channels are always encrypted and have no such flag. Files channels follow their `encrypted` flag, which is
+fixed at creation (`FILES.md` §1); for unencrypted ones clients show "Files in this channel are not end-to-end
+encrypted" permanently above the file list.
 
 ## 8a. Direct messages, group DMs and friends
 
@@ -1327,3 +1517,10 @@ section. Invariants worth repeating:
 Bit mask (u64) as a decimal string. Bit positions, defaults, evaluation order and hierarchy rules are
 normative in `permissions.md`; reference test vectors live in `testvectors/permissions.json` and must be passed
 by server and client.
+
+Overrides (`PUT /rooms/{room_id}/overrides`, `manage_roles`) are layered: the category's overrides apply to the
+role base, the channel's own overrides on top, and a neutral bit inherits from the layer below (`permissions.md`
+"Evaluation"). They carry only channel-scoped bits (`CHANNEL_SCOPED`, `400 permissions.not_channel_scoped`).
+Channels no longer have `sync_with_category` (`PATCH` ignores the field for one release, `GET` does not return it).
+Setting an override with `allow = deny = "0"` and empty `upload_allow`/`upload_deny` removes it; a client "resets a
+channel to its category" by removing each of the channel's own overrides.

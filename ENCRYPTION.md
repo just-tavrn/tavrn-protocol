@@ -265,6 +265,13 @@ method. Unwrapping fails (`decryption_failed`) for a wrong key, account or metho
 5. *Password change*: nothing to do; the secret storage does not depend on the password.
 6. *Everything lost* (no trusted device, no recovery key, no PRF passkey): identity reset (§9).
 
+**Old entries stay valid.** Regenerating the recovery key (flow 3) or removing a passkey (flow 4) replaces or deletes
+that entry on the node, but it does not invalidate a copy made before: whoever kept an old entry (a backup of the
+node's database, an earlier download) together with the old recovery key or the PRF output of the removed passkey can
+still unwrap the master secret from it, because the master secret itself did not change. Only an identity reset (§9)
+creates a new master secret and so makes every old entry worthless. Clients say this where the user regenerates a
+recovery key or removes a passkey because it may have leaked, and offer the reset for that case.
+
 ## 3. Devices
 
 **Bot devices** (`APPLICATIONS.md` §3): every app token is bound to exactly one bot device (`dev`); the bot process
@@ -314,6 +321,14 @@ Clients pin `identity_pk` per user address on first use (TOFU). For every device
 roster, message author), clients MUST verify the attestation against the pinned identity key and that the
 MLS leaf signature key equals `device_public_key`. A changed identity key of a known contact is shown as
 "security key changed" (design note 5.3) and re-pinned only after the notice was shown.
+
+Until the user **acknowledges** that warning (or verifies the new key, FEDERATION.md §10.2), devices attested under the
+new key do not count: the client does not add them to DMs and group DMs (§4.2, no KeyPackage is claimed, no Welcome
+sent), and the ghost check reports their leaves with the reason `key_changed` (§4.6), which holds back sending like
+every ghost warning. A home node that swaps a user's key therefore cannot place a device of its own in that user's
+conversations before the other side saw the warning. Acknowledging makes the devices count at once: the client adds
+the missing devices to the DMs and group DMs and checks the rosters again. The devices' messages are shown meanwhile
+(with the warning next to the author); only membership waits.
 
 Exception, the **rotation** (§9a): when the keys document of the user's home node carries a continuity chain that
 leads from the pinned key to the published one with valid statements, the client pins the new key at once and shows
@@ -476,7 +491,9 @@ the member list served by the node and the device attestations:
 
 - every leaf identity's user MUST be in the node's member list of the conversation;
 - every leaf MUST have a valid attestation under the user's pinned identity key, with matching signature key;
-- no identity may appear twice.
+- no identity may appear twice;
+- a leaf attested under a changed identity key whose warning the user has not acknowledged yet (§3.3) is reported
+  with the reason `key_changed`; it is no ghost once the user acknowledged the change.
 
 - a leaf whose user is a bot (`kind` from the user's home node, §2.3) in a conversation whose effective "no bots"
   flag is set is a ghost member, even if the node lists the bot as a member (`APPLICATIONS.md` §3.5). The effective
@@ -542,7 +559,21 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
   the envelope's `device_id` (the device that sent or last edited the message), `epoch` MUST equal the
   envelope's `epoch`.
 - `json` is the UTF-8 JSON content object of PROTOCOL.md §7 (it MUST be an object).
-- Senders always use the current epoch of their local group.
+- **Signed context.** The AAD binds conversation, epoch, author and device, but not the envelope fields `thread_id`
+  and `reply_to_id`. Senders of a message therefore put them into the signed JSON as
+  `"ctx": { "thread_id": <thread id or null>, "reply_to": <message id or null> }`, exactly the values the envelope
+  will carry (edits repeat the message's values). Receivers compare `ctx`, when present, with the envelope they were
+  served: a different value, or a malformed `ctx` (not an object with exactly these two fields, each a string or
+  null), is shown as `envelope_mismatch`, like a bad signature, never as content; clients do not show `ctx` itself.
+  This keeps the node from moving an encrypted reply into another thread or the main channel, or pointing it at
+  another message (plaintext signatures cover the same fields, FEDERATION.md §10.3). Content without `ctx` (older
+  clients) is accepted as before; the node cannot see `ctx` and accepts both forms. A sender that cannot know the
+  thread id (a new thread on a node that does not announce `threads.client_ids`, PROTOCOL.md §7e) omits `ctx`.
+  Thread titles, history shares and ephemeral events carry no `ctx`. Test vector: `content_context`.
+- Senders always use the current epoch of their local group. Before encrypting, the client processes the handshake log
+  (§4.3); when that fails (network error, a node error), it does **not** send: the composer shows the error and offers
+  to retry, so a message never goes out under an epoch that removed members may still hold. The ghost check (§4.6) runs
+  again after commits were processed there, since a processed commit may have brought a new device.
 - Receivers look up the content key of the header epoch, decrypt, verify the signature with the author
   device's key and then parse the JSON. The device key is taken from the current MLS roster (leaf
   `<author>/<device_id>`); if the device is no longer a member (history), from its verified attestation
@@ -551,7 +582,7 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
   show such messages normally with a subtle note ("sent from a device that was later removed"). Ephemeral events
   (no server time) never come from retired devices. Any failure is shown as such, never as content, with the reason
   told apart: no key for the epoch (`missing_key`), sending device not confirmed (`unknown_device`), bad signature,
-  replay, or damaged/undecryptable content.
+  a signed context that does not match the envelope (`envelope_mismatch`), replay, or damaged/undecryptable content.
 - A second message with the same `(epoch, nonce)` is a replay and MUST be shown as a duplicate or hidden.
 - Edits are encrypted the same way under the current epoch.
 - Thread titles in encrypted channels (`PROTOCOL.md` §7e) use the same format with the JSON object
@@ -564,6 +595,14 @@ The node cannot decrypt. For `encrypted = true` it MUST check that `content` is 
 `1 + 8 + 12 + 16 + 64` bytes, version `0x01`, that the header epoch equals the envelope `epoch` and is not
 newer than the group's current epoch, that the sending device is attested (§9) and the usual size limits
 (`tavrn_crypto::content_header`). The plaintext/ciphertext rules of PROTOCOL.md §7 stay unchanged.
+
+The node accepts new content (messages and their edits, thread titles, interaction responses, records of files
+channels) only under the group's **current** epoch, or under the epoch before it within 60 seconds after the commit
+that ended that epoch (content that was encrypted while the commit was on its way). Older content is refused with
+`409 mls.epoch_stale` (`meta.epoch` = the current epoch), a newer epoch with `400 message.epoch_unknown` as before. A
+client that gets `mls.epoch_stale` processes the missing commits and encrypts again. This bounds how long a removed
+member's key (the epoch before its removal) can still be used to post, and keeps a lagging client from writing under
+keys that new members cannot read.
 
 ### 5.4 Security properties
 
@@ -674,6 +713,17 @@ no output of one use is ever an input of the other.
   one arrives (seconds at most); such posts say their epoch and are readable by that epoch's members.
 - Who posts when, the sizes, mentions of node-sealed posts and the webhook's name stay visible metadata.
 
+## 5c. Files of encrypted files channels
+
+End-to-end encrypted files channels (`FILES.md` §8, capability `files.e2ee`) have an MLS group like a text channel.
+Every file gets its own random 32-byte key; the content and a client-made thumbnail are encrypted in 1 MiB chunks
+with AES-256-GCM under keys derived from it (`FILES.md` §8.3, test vectors `file_chunks`), so uploads and downloads
+stream and ranges keep working. The file key, the name and the type travel in an **entry record**, content format 1
+(§5.2) with the JSON object `{ "type": "files.entry", … }` under the channel's current epoch, signed by the writing
+device (`FILES.md` §8.4, test vectors `file_record`); folders have records with their name. The node stores the
+ciphertext, the record and the few plaintext fields of `FILES.md` §8.2. History for new members (§7b) applies to
+entry records as to messages (`FILES.md` §8.7).
+
 ## 6. Encrypted attachments
 
 1. The client creates a random 32-byte file key and 12-byte nonce and encrypts the whole file in one shot:
@@ -776,8 +826,9 @@ are encrypted messages inside the user's window from before the join. It emits `
 most once (another device of the same member joining does not mark it again); the mark is cleared when the
 member acknowledges a share and expires after 30 days.
 
-- `GET /api/v1/conversations/{id}/history-pending` → `{ items: [ { user, since } ] }` (members only; at most 100,
-  marks of the current memberships of the last 30 days; empty for DMs, plaintext channels and `since_join`).
+- `GET /api/v1/conversations/{id}/history-pending` → `{ items: [ { user, since, key_reset_at, min_epoch } ] }` (members
+  only; at most 100, marks of the current memberships of the last 30 days; empty for DMs, plaintext channels and
+  `since_join`; `key_reset_at` and `min_epoch` are null except after a key reset, "History after a key reset" below).
 
 **Shares.** Routes on the node hosting the conversation (members of other nodes use their federated session
 there, as for every conversation route):
@@ -832,8 +883,12 @@ shares and for each:
    every epoch is an integer within `[epoch_from, epoch_to]`, listed once, with a 32-byte key;
 4. **checks every key it does not hold yet** against a stored message of that epoch (`GET …/messages?epoch=n`,
    preferring a message whose author is not the sharer): the key must open the message's AES-256-GCM ciphertext
-   (same AAD, nonce and tag, §5.2). Keys that fail, or whose epoch has no such message in the recipient's window,
-   are dropped (a poisoned key never reaches the store);
+   (same AAD, nonce and tag, §5.2) **and** the decrypted content's signature must verify with the key of its author
+   device (attested, or retired for its time, §5.2): a tag alone proves nothing, whoever knows a key can make one.
+   A message whose author device the recipient cannot verify at all (neither attested nor retired, such as its own
+   device from before an identity reset, §2.3) tells nothing and is passed over for the next message of the epoch, the
+   sharer's own last. Keys that fail, or whose epoch has no such message in the recipient's window, are dropped (a
+   poisoned key never reaches the store);
 5. stores the accepted keys only in the key store, exactly like its own epoch keys (`Client.importEpochKey`; never
    overwriting a known key), which also puts them into the history backup (§7);
 6. acknowledges the share.
@@ -849,7 +904,14 @@ channel; afterwards the history loads lazily as before.
   old messages gone" (design note 5.3) is untouched, it concerns the user's own keys.
 - The node learns that a share happened (who to whom, the epoch range, its size), not its content. It cannot
   forge a share (device signature), redirect one (`to` and `conversation` are inside the signed payload and the
-  ciphertext is bound to the conversation by the AAD) or plant keys (the per-key check against stored messages).
+  ciphertext is bound to the conversation by the AAD) or plant keys (the per-key check against stored, signed
+  messages).
+- **Shares are readable by every current member.** A share is encrypted under the group's current epoch (§5.2), so
+  every device in the group at that epoch can decrypt a share addressed to someone else; `to` only tells the
+  recipient that it is meant for it. The node's routing is the only barrier: it serves a share to its recipient alone
+  (`GET …/history-keys`) and drops it after the acknowledgement. A node that leaks shares to other members hands them
+  keys of epochs before their own join, within the channel's policy (they could have received them by a share of
+  their own). Sealing each share to the recipient's devices is planned.
 - A replayed share only repeats keys the recipient already validated or holds; keys are never overwritten.
 - A member could post a message under a forged key and then "prove" that key with it; the recipient therefore
   prefers messages of other authors for the check. The residual risk equals what any member can do anyway (show
@@ -858,6 +920,99 @@ channel; afterwards the history loads lazily as before.
   `since_join`, non-members); size and rate limits bound abuse.
 - Narrowing the policy does not revoke keys already shared (clients say so in the setting); the change is in
   the audit log.
+
+**History after a key reset (capability `history.restore`).** An identity reset (§9) gives the user new keys but
+keeps the memberships, so the window above would let the other members' clients share the old epoch keys
+automatically, and whoever took over the account (a password reset, a SIM swap) would read the whole history. Nodes
+that announce `history.restore` (together with `e2ee.mls1`) therefore restore history after a reset only by an
+explicit, logged decision of a member with permission bit 37 `restore_history` (`permissions.md`):
+
+1. **Reset window.** When a member's identity key changes without a continuity statement (a reset, §9, or any change
+   that is not a rotation, §9a: exactly when the node writes `system.key_changed { rotated: false }`, PROTOCOL.md §7)
+   the node sets `key_reset_at = now` on every room membership of the user that it hosts (again at every further
+   reset) and drops an earlier restore of that membership. Room nodes do the same for members of other nodes when they
+   learn the new key (`identity.changed`, or a refetch of the keys document, FEDERATION.md §5.2), so the node hosting
+   the conversation, which enforces every rule below, knows the reset of every member. A rotation (§9a) keeps the
+   master secret and the old history and sets nothing. A new membership (a re-join) starts without `key_reset_at`.
+   For a membership with `key_reset_at`:
+   - The member's history window (`GET …/messages`, and the records of files channels, `FILES.md` §8.7) additionally
+     starts at `key_reset_at`, until a restore of the membership is approved; from then on the normal window applies
+     again.
+   - The **reset epoch** of a conversation is the epoch its group had at the reset; the node records it per encrypted
+     room channel of the membership at that moment (no group yet: nothing before the reset). Epochs up to and
+     including it are the **pre-reset range**, whatever the channel's kind (messages, the entry records of files
+     channels, `FILES.md` §8.7); the automatic window of the member starts after it, never earlier, whatever the
+     policy.
+   - Pending marks: when a device of the user joins the group after the reset (policy not `since_join`, `view_channel`
+     and `read_history` as above) and there are encrypted messages since `key_reset_at`, the node marks the member
+     pending once per reset, also if the user still had (now unattested) leaves in the group. `history.pending` and
+     the items of `…/history-pending` then carry `since = key_reset_at`, `key_reset_at` and `min_epoch` (reset epoch
+     + 1, null without a pre-reset range); for other members `key_reset_at` and `min_epoch` are null.
+   - A share to the member whose `epoch_from` is at most the reset epoch is a **restore share**. The node accepts it
+     only from a member who holds `restore_history` in the channel while the membership has a restore approved within
+     the last 30 days (below); otherwise `403 history.forbidden`. Restore shares are accepted under `since_join` too and
+     need the recipient's `view_channel` only: its message window (the normal window again after the approval) limits
+     which keys its client accepts. Everything else about shares (attested device, sizes, rate limit) applies as above.
+2. **Request.** The room setting `history_restore` is `request` (default) or `off` (`PATCH /rooms/{room_id}`,
+   `manage_room`, never a bot; `400 validation.enum`; audited in `room.update` with `meta.history_restore`). Routes on the
+   room's node (members of other nodes use their federated session there):
+   - `POST /api/v1/rooms/{room_id}/history-requests` `{ message? }` → `201 HistoryRequest`: a member asks for its history
+     from before the reset; `message` at most 500 characters. The membership needs `key_reset_at` without an approved
+     restore (`409 history.nothing_to_restore`), the room `history_restore = request` (`403 history.restore_disabled`), no
+     open request of the member in the room (`409 history.request_open`); bots cannot ask (`403 history.forbidden`); at
+     most 5 requests per member and room within 24 hours (`429`). Audit `history.restore_requested` (target the member);
+     event `history.request { room_id, request }` to the owner and the members whose roles hold `restore_history` or
+     `administrator`.
+   - `GET /api/v1/rooms/{room_id}/history-requests/mine` → `{ key_reset_at, restored_at, request }`: the requester's own
+     state (`request` = its latest request of the current membership or null; the times null when not set).
+   - `DELETE /api/v1/rooms/{room_id}/history-requests/{request_id}` → `204`: the requester cancels its open request
+     (`404 history.request_not_found` otherwise). Open requests are cancelled as well when the membership ends.
+   - `GET /api/v1/rooms/{room_id}/history-requests` → `{ items: [HistoryRequest] }`: the open requests (oldest first, at
+     most 100); `restore_history` required (`403 history.forbidden`).
+
+   `HistoryRequest` = `{ id, room_id, user, display_name, message, status, joined_at, key_reset_at, created_at,
+   decided_at, decided_by, reason, partial, channels }`: `status` is `open`, `approved`, `denied` or `cancelled`;
+   `decided_by` an address; `channels` (filled for members with `restore_history`, else empty) lists every encrypted
+   channel of the room the requester may view, whatever its kind (text, announcement, forum, files; voice channels
+   store no content and are left out), as `{ channel_id, kind, window_start, reset_epoch }`: `window_start` is the
+   requester's normal window start in that channel (the policy and `read_history` from `joined_at`; null =
+   everything), `reset_epoch` the recorded reset epoch (null: nothing before the reset).
+3. **Decision.** `restore_history` is never granted to `@everyone`, no app-token scope covers it, and the owner and
+   `administrator` hold it as always.
+   - `POST /api/v1/rooms/{room_id}/history-requests/{request_id}/approve` `{ partial? }` → `200 HistoryRequest`. The request
+     must be open (`409 history.request_decided`; unknown `404 history.request_not_found`), its member still a member
+     with `key_reset_at` (`409 history.nothing_to_restore`), the setting `request` (`403 history.restore_disabled`), and
+     nobody approves their own request (`403 history.forbidden`): a taken-over account of a moderator must not unlock
+     itself. The node records the restore on the membership (`restored_at`; the cut is lifted and restore shares are
+     accepted for 30 days), writes the audit entry `history.restore_approved` (`meta { user, by }`) and
+     `system.history_restored { user, by }` into the welcome channel and sends `history.request_decided { room_id,
+     request }` to the requester and to the members who got `history.request`. `partial: true` tells the requester that
+     the approving device does not hold every key of the window.
+   - `POST /api/v1/rooms/{room_id}/history-requests/{request_id}/deny` `{ reason }` → `200 HistoryRequest`: `reason` 1–500
+     characters (`400 validation.length`); the same checks except the setting; audit `history.restore_denied` (`meta
+     { user, by, reason }`), `system.history_restore_denied { user, by }` (the reason stays in the audit log and in the
+     request, which the requester sees) and `history.request_decided`.
+
+   **Approval is the key share itself.** Right after approving, the approver's client sends restore shares from its
+   device for every encrypted channel of `channels` that it can read and in which a device of the requester is in the
+   group: every epoch it holds from the oldest epoch of the channel's encrypted content after `window_start` (messages:
+   `GET …/messages?after=<ULID floor>&limit=20`; files channels: `GET …/records?since=<window start>&limit=1`, `FILES.md`
+   §8.7; everything for null) up to the epoch before the current one, chunked as in "Sharing" step 2. Before approving it shows the request, the requester, its join date, the channels and epoch ranges
+   that will be shared and whether its device holds all of them (`partial`), and recommends verifying the person's
+   identity on another channel (a call, in person): an approval gives whoever controls the account now everything the
+   member could read before. Other members with `restore_history` may fill gaps while the restore is valid.
+4. **Clients.** A sharing client applies the reset window itself, also with nodes that do not announce
+   `history.restore`: a recipient whose keys document (§2.3) shows an `identity_reset_at` later than the pending item's
+   `since` is treated as if `key_reset_at` were that time, and without `min_epoch` the client shares nothing up to the
+   epoch of the newest encrypted content before the reset (`GET …/messages?before=<ULID floor>&limit=1`; nothing at
+   all when it cannot tell). Such a member
+   gets automatic shares only from the reset on. The requester's client shows its state (`…/mine`) with the request form
+   in a room whose encrypted history it lost (in the channel view and in the file browser of files channels),
+   receives the restore shares like any other share (also under `since_join`), and afterwards says which messages or
+   entries stayed locked (`partial`, or keys that did not arrive).
+
+Compatibility: nodes without `history.restore` keep the behaviour above, where clients that implement rule 4 still
+share nothing from before a reset; clients without it send pre-reset shares that nodes with `history.restore` refuse.
 
 ## 8. New device
 
@@ -882,7 +1037,8 @@ When the master secret is lost (no trusted device, no recovery key, no PRF passk
    single use, bound to the account; the provider must confirm the identity linked to it).
 3. The node sets the new identity key and `identity_reset_at = now`, deletes all device attestations,
    KeyPackages, backups, whiteboard scenes (§7a) and secret storage entries of the user and notifies the user's contacts
-   (`identity.changed`). The client uploads the new `recovery` entry (and passkey entries) afterwards.
+   (`identity.changed`) and sets `key_reset_at` on the user's room memberships, which stops the
+   automatic history sharing of §7b for everything before the reset ("History after a key reset"). The client uploads the new `recovery` entry (and passkey entries) afterwards.
 4. Each device of the user re-attests its **existing** device key under the new identity key (devices keep
    their keys; a device that is not re-attested is invalid), uploads new KeyPackages and rejoins all
    groups by external commit, which replaces its old leaf.
@@ -890,8 +1046,8 @@ When the master secret is lost (no trusted device, no recovery key, no PRF passk
 After the reset the node MUST reject commits, KeyPackages and encrypted messages from devices without a
 valid attestation under the current identity key (`403 e2ee.device_not_attested`) and MUST reject commits
 that add such devices. Leaves of non-attested devices are removed by housekeeping commits (§4.5 rule 4).
-Contacts see "security key changed". Old backups are gone and old history stays unreadable; everything
-else works immediately.
+Contacts see "security key changed". Old backups are gone and old history stays unreadable unless a member with
+`restore_history` restores it on request (§7b); everything else works immediately.
 
 **Bots** (`APPLICATIONS.md` §3.4) cannot reset themselves (the route needs a password). Their owner calls
 `POST /api/v1/applications/{id}/identity/reset` (full session): the node clears the bot's identity key, sets
@@ -974,6 +1130,12 @@ Consistent with design note 5.4:
 - **Malicious member**: reads what members read; cannot forge other devices' messages; can disturb the group
   (for example with a commit whose MLS membership tag is invalid, which the node cannot check). Clients
   detect failed processing and rejoin by external commit.
+- **Forced rejoin**: together with the node, a malicious member can make the other devices rejoin (a broken commit,
+  §4.3) and serve them a GroupInfo of its own making. The rejoined group is still checked like every group: the ghost
+  check (§4.6) verifies every leaf against the node's member list and the pinned identity keys (TOFU, §3.3, with
+  `key_changed` leaves held back until acknowledged), so a device of a non-member or under an unknown key is shown,
+  not trusted. The new epochs' keys are fresh, so the rejoin exposes no history; what remains is denial of service
+  and what any member can do anyway.
 - **The web client is code served by a node.** A malicious node can serve a modified web client and read
   everything that client decrypts. This is the inherent limit of browser-based E2EE; the native apps
   (phase 6) and reproducible builds mitigate it.
@@ -996,6 +1158,7 @@ Consistent with design note 5.4:
 | §4 | `Client::{create_group, add_members, remove_members, self_update, join_by_external_commit, join_by_welcome, merge_pending_commit, discard_pending_commit, process_handshake, roster}`, `ds::DsGroup` | `Client` |
 | §5 | `Client::{encrypt_content, decrypt_content}`, `content_header` | `Client.encryptContent`, `decryptContent`, `contentEpoch` |
 | §6 | `encrypt_file`, `decrypt_file` | `encryptFile`, `decryptFile` |
+| §5c | (not in the crypto core: WebCrypto in `@tavrn/e2ee`, `files.ts`) | `encryptFileStream`, `decryptFileChunks`, `encryptFileRecord`, `decryptFileRecord` (`@tavrn/e2ee`) |
 | §5a | `Client::export_voice_key`, `content::VOICE_EXPORTER_LABEL` | `Client.exportVoiceKey` |
 | §7 | `Client::{export_backup, import_backup, export_epoch_key, import_epoch_key}` | same, camelCase |
 | §7b | `Client::{known_epochs, export_epoch_key, import_epoch_key, encrypt_content, decrypt_content}` | same, camelCase; flows in `@tavrn/e2ee` (`HistorySync`, `history.ts`) |

@@ -182,7 +182,11 @@ Evaluated for every federated login, inbox message, claim and outbound request, 
 2. Domain on the node blocklist (`TAVRN_FEDERATION_BLOCKLIST`, admin node bans `POST /admin/bans` with a
    domain subject, automatic blocks of §9.4) → `403 federation.peer_blocked`. The blocklist always wins.
 3. `TAVRN_FEDERATION_ALLOWLIST` non-empty and the domain not on it → `403 federation.peer_blocked`.
-4. Per-domain rate limits (§11.1) → `429` with `Retry-After`.
+4. Per-domain rate limits (§11.1) → `429` with `Retry-After`. They are charged only for requests whose signature
+   verified, so requests forged in a peer's name cannot use up its budget. Before the signature check (which may
+   fetch the claimed issuer's keys) the receiver limits per client address: inbox and claims per address,
+   federated logins per (domain, address) with the per-domain value (a peer's own burst of invalid logins, as the
+   conformance check `rate.limits` of §9 sends, still reaches `429`).
 
 Blocking a domain on H also means H refuses federation tokens for it, so H's users cannot use rooms on a
 blocked node (clients show "Your home node does not federate with x.example"). Blocked domains are never
@@ -222,9 +226,19 @@ Issued by H for one target node, proves "this client acts for `alice@h.example` 
 | `pv` | the user's current `profile_version` (§2.7), a signed hint for profile refreshes |
 | `app` | bots only (`APPLICATIONS.md` §2.8): the application ULID on H; T shows the bot with `application_id = <iss>/<app>` |
 | `scopes` | bots only: the effective scopes of the bot's app token (array of strings); T applies them like H. Absent (older H) = all scopes; T ignores scope strings it does not know. Users' tokens carry neither claim (`401 federation.token_invalid`) |
+| `age_over_18` | `age.v1` (PROTOCOL.md §5e): `true` when H's account is 18 or older by its date of birth, `false` when it is younger, `null` when the account has no date of birth (`unknown`); bots carry their owner's value. Absent (older H) = `null`. Any other type makes the token invalid (`401 federation.token_invalid`) |
 
 Note that `sub` of a federation token is an **address**, while `sub` of a session token is the
 node-local user ULID.
+
+**The age claim (`age.v1`).** `age_over_18` is the only age information that ever leaves the home node: never the
+date of birth, never in the profile (§2.7), the directory or any event. H signs it into every federation token, so
+the claim travels with each federated login, and a user who turns 18 is an adult on T from the next login. T
+stores the claim of the latest federated login with the remote user (a stub user that never logged in has none),
+treats `false` and `null` alike as "below 18", enforces its age gates with it at join, read, search, notifications
+and voice exactly as for its own users (PROTOCOL.md §5e), and never exposes it: not in the federated session
+response, not in `GET /users/me` on T, not to other users, not in errors (`403 age.restricted` names the gate,
+never the status).
 
 ### 2.3 Node token (`typ = "s2s"`)
 
@@ -274,7 +288,8 @@ federation.bots_refused`) and not on T's application blocklist (`403 app.blocked
 remote-user quotas (`403 federation.remote_limit`). There is **no password,
 captcha or second factor on T**: H already enforced them before issuing the token.
 
-T then creates or updates the remote user (§2.6) and a device record for the home device:
+T then creates or updates the remote user (§2.6, including the age claim of §2.2) and a device record for the home
+device:
 
 - The device identity used everywhere on T (session claim `dev`, MLS committer checks, Welcomes, message
   `device_id`) is the home device id from the token's `device` claim, because MLS credentials and
@@ -438,7 +453,9 @@ KeyPackages when a member adds them to a DM, group DM or private channel.
 - **S2S claim** on H: `POST /api/v1/federation/key-packages/claim` with a node token (§2.3)
   `{ "user": "alice@h.example", "requester": "bob@b.example" }` → `200 { "key_packages": [ … ] }`, same
   semantics as the local claim (one per attested device, deleted on claim). `user` MUST be local to H
-  (`404 user.not_found`); `requester` is the user on whose behalf the room node claims (any domain). H
+  (`404 user.not_found`); `requester` is the user on whose behalf the room node claims (any domain; a user of H
+  itself only if they signed in on the room node, i.e. it is among their federation targets of §2.4, else `403
+  federation.claim_refused`). H
   refuses with `403 federation.claim_refused` if `user` blocked `requester`, and rate-limits per requesting
   node (`TAVRN_FEDERATION_RATE_CLAIMS`) and per `(requester, user)` (10 per hour). Errors of H are passed
   through to the client as `502 federation.peer_unreachable` / the original `4xx` code.
@@ -542,7 +559,7 @@ federation.payload_too_large`, checked before reading further):
 | `friend.request` | the requester's home node | user (domain = `iss`) → user | `{ request_id, message? }` (message ≤ 256 characters) | §6.2; drop silently when blocked |
 | `friend.accept` | the accepter's home node | user (domain = `iss`) → user | `{ request_id }` | §6.2 |
 | `friend.remove` | the remover's home node | user (domain = `iss`) → user | `{ request_id }` (`null` = friendship ended) | §6.2 |
-| `identity.changed` | the user's home node | user (domain = `iss`) → receiving domain | `{ identity_public_key, identity_reset_at }` | Invalidate and refetch the key cache; WS `identity.changed` (PROTOCOL.md §6) to local friends, DM/group DM co-members and the user's own sessions; `mls.remove_needed` for leaves no longer attested; `system.key_changed { rotated: false }` in the welcome channels of the user's rooms on the receiving node |
+| `identity.changed` | the user's home node | user (domain = `iss`) → receiving domain | `{ identity_public_key, identity_reset_at }` | Invalidate and refetch the key cache; WS `identity.changed` (PROTOCOL.md §6) to local friends, DM/group DM co-members and the user's own sessions; `mls.remove_needed` for leaves no longer attested; `system.key_changed { rotated: false }` in the welcome channels of the user's rooms on the receiving node and `key_reset_at` on the user's memberships there (`ENCRYPTION.md` §7b "History after a key reset") |
 | `devices.changed` | the user's home node | user (domain = `iss`) → receiving domain | `{}` | Refetch the key cache; `mls.remove_needed` for leaves of devices that disappeared. Also sent after an identity key rotation (`ENCRYPTION.md` §9a): a refetch that shows another identity key writes `system.key_changed` into the welcome channels of the user's rooms on the receiving node (`rotated` = the document's continuity chain leads from the cached key to the new one) and sends WS `identity.rotated` (or `identity.changed`) to local contacts |
 | `session.revoke` | the user's home node | user (domain = `iss`) → receiving domain | `{ device: id \| null }` | §2.9 |
 | `node.announce` | the announcing node | domain = `iss` → receiving domain | §7.2 | §7.2 |
@@ -554,12 +571,22 @@ federation.payload_too_large`, checked before reading further):
 | `legal.notice` | the node that received a takedown notice | domain = `iss` → receiving domain | `{ case_id, basis, work, explanation, locations: [{ kind, value }], reporter: { name, email, address, phone }, good_faith, accuracy, perjury, signature, submitted_at }` | Opens a case of its own (state `received`, origin `iss` and `case_id` recorded, idempotent per origin case) and mails the reporter; the fields are checked like the public form (`400 federation.payload_invalid`). Accepted even when the receiver's public form is off (`LEGAL.md` §1.5) |
 | `user.deleted` | the user's home node | user (domain = `iss`) → receiving domain | `{ delete_messages: bool }` | The stub is tombstoned like a local deletion (`LEGAL.md` §3.3): memberships, sessions, devices and keys go, messages move to a "Deleted user" tombstone with device ids and signatures stripped, their content and files are deleted too when `delete_messages`; the request is recorded in the audit log (`federation.user_deleted`) and the stub row is removed |
 
+Claims about the receiver's own users: a user address of the receiving node named as the inviter (`from` of
+`room.invite` and `conversation.invite`) or as the caller of a ring hint (`call.from` of `notify`) must belong to a
+user who signed in on the sending node (the sender is among their federation targets, §2.4); otherwise the sender
+claims something that cannot have happened (`400 federation.envelope_invalid`). Addresses of the sending node and
+of third nodes are accepted as before (their users act on the sending node through federated sessions the receiver
+cannot see). `notify` hints, rings included, are accepted only for a recipient who signed in on the sending node
+(a member of something there); others are dropped silently (`202`). The block filters apply as listed in the
+table.
+
 Who sends what:
 - `identity.changed`, `devices.changed`, `session.revoke`: H to every domain in `federation_targets` of the user
   (§2.4) plus the home domains of the user's friends and of members of DMs/group DMs hosted on H.
 - `notify`: the conversation's node to the home node of a remote member who has **no open WebSocket** on that
   node, for messages matching the member's notification setting on that node (default: DMs, group DMs and
-  mentions),
+  mentions) in conversations the member can view (in room channels: `view_channel` at the time of the message,
+  PROTOCOL.md §6; thread follows and mentions do not override it),
   coalesced to at most one per conversation and user per 60 seconds; remote users can turn it off per node
   (`PATCH /api/v1/users/me { push_relay: false }` on T). It never carries content, author or message id.
 - `ban.notify`: optional, only when the room (or node) setting `notify_bans` is on (default off).
@@ -685,6 +712,10 @@ unreachable for 30 days are removed. At most 10 000 entries; beyond that the lea
 - `GET /api/v1/directory/rooms?q=&node=&local=&limit=50&cursor=…` → `{ items: [ { node, room_id, name,
   description, icon_url, member_count, listing } ], next }`: the node's own discoverable rooms plus cached
   rooms of peers (`remote_rooms`), searchable by name/description; `local=true` returns only the node's own.
+- Items carry `age_gate` (`none` or `adults_only`, PROTOCOL.md §5e). Rooms with a gate are listed only to requests
+  with the session of an adult (the route accepts an optional `Authorization` header); for anonymous requests, and
+  so for the directory refreshes of other nodes, they are absent. Gated rooms therefore never enter other nodes'
+  `remote_rooms`; users of other nodes reach them through invite links.
 - Rooms appear only when their owner (or a holder of `manage_room`) marked them **discoverable**
   (`PATCH /api/v1/rooms/{room_id} { discoverable: true }`, only for `join_mode = public`, audited). The
   existing `GET /api/v1/rooms/discover` returns only discoverable rooms from phase 3 on.
@@ -998,6 +1029,10 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
 - Verifying is optional for clients: the device key comes from the author's attested devices fetched from the
   author's home node and checked against the pinned identity key. Valid → normal; missing → "unverified" marker;
   invalid → the content is hidden behind "This message could not be verified".
+- The first message of a thread created together with it (a forum post, `PROTOCOL.md` §7e) is signed with the
+  thread id the client chose for the thread (`id` of the creation request), so one rule covers every message.
+  First messages of threads created without a client-chosen id (older clients and posts) carry no signature and
+  are shown unverified, not invalid.
 - Signing becomes mandatory with the capability `content.signed1`: a client announcing it MUST sign every
   plaintext message, and a node MAY then refuse unsigned plaintext messages from that device
   (`400 message.signature_missing`). Phase 3 decides from which release the reference client announces it;
@@ -1047,7 +1082,7 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
 | Replay | `jti` per issuer until `exp + 5 min`; inbox ids 7 days; message ids older than 7 days refused |
 | Lifetimes | federation token ≤ 10 min, node token ≤ 5 min, federated session ≤ 7 days (access 1 h), listing 48 h, `.well-known` cache 5 min – 1 h, key cache 1 h (stale ≤ 24 h only for MLS checks) |
 | Sizes | inbox body 64 KiB, `.well-known` 64 KiB, profile 16 KiB, keys 256 KiB, claim 512 KiB, avatar 1 MiB, directory page 1 MiB, index 512 KiB / 2000 entries |
-| Rate limits per remote domain | federated logins `TAVRN_FEDERATION_RATE_LOGINS` (60/min), inbox `TAVRN_FEDERATION_RATE_INBOX` (300/min), API requests of its users `TAVRN_FEDERATION_RATE_API` (3000/min), KeyPackage claims per requesting node `TAVRN_FEDERATION_RATE_CLAIMS` (120/min); per-user limits as for local users |
+| Rate limits per remote domain | federated logins `TAVRN_FEDERATION_RATE_LOGINS` (60/min), inbox `TAVRN_FEDERATION_RATE_INBOX` (300/min), API requests of its users `TAVRN_FEDERATION_RATE_API` (3000/min), KeyPackage claims per requesting node `TAVRN_FEDERATION_RATE_CLAIMS` (120/min); charged after the signature check, per client address before it (§1.5); per-user limits as for local users |
 | Quotas | `TAVRN_FEDERATION_MAX_REMOTE_USERS` (10000), `…_PER_DOMAIN` (1000), `TAVRN_DIRECTORY_MAX_ROOMS` (5000), known nodes 10000 |
 | Outbox | retries 1 m, 5 m, 30 m, 2 h, 12 h, then 12-hourly; give up after 3 days |
 
