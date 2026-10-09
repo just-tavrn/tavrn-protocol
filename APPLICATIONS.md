@@ -741,7 +741,12 @@ the URL response body). Only the first response counts (`409 interaction.already
 
 `content` follows the conversation's mode exactly like a message: a JSON content object in unencrypted
 conversations, the ciphertext of `ENCRYPTION.md` §5.2 (author = bot, device = the bot device, current epoch) in
-encrypted ones (`400 interaction.encryption_mismatch` otherwise).
+encrypted ones (`400 interaction.encryption_mismatch` otherwise). In encrypted conversations the bot puts the signed
+context `"ctx": { "thread_id": <the thread the answer goes to or null>, "reply_to": null, "interaction": "<interaction
+id>" }` into the encrypted JSON of every reply and follow-up, ephemeral or not; clients compare `interaction` with the
+answer's `interaction.id` (stored messages) or `interaction_id` (`EphemeralReply`) and `thread_id` with its thread, and
+show a mismatch as `envelope_mismatch` (`ENCRYPTION.md` §5.2), so the node cannot move an answer to another
+invocation, thread or user.
 
 ### 5.8 Commands in encrypted conversations
 

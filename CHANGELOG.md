@@ -5,6 +5,19 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **History shares v2 and signed titles and answers** (`ENCRYPTION.md`, capability `history.shares2`). Every device
+  has an X25519 share key, signed by its device key, published with the device key (`PUT
+  /users/me/devices/{id}/key` gets `share_public_key` and `share_key_signature`) or once with the new `PUT
+  /users/me/devices/{id}/share-key` (`409 e2ee.share_key_exists`, `400 e2ee.share_key_invalid`), and served in the
+  keys document next to the attestation (§3.1). History shares of format 2 encrypt the payload (`"v": 2`) under a
+  fresh key and seal it to every roster device of the recipient: `POST …/history-keys` takes `v` and `boxes` (1–20,
+  each at most 128 bytes, devices attested with a share key, `400 history.invalid`), `GET` returns `v` and the
+  requesting device's own `box` and omits format 2 shares without one (§7b). Clients send format 2 when the node
+  announces the capability and every roster device of the recipient has a verified share key, format 1 otherwise;
+  format 1 is to be removed. Encrypted thread titles carry `ctx { thread_id }`, bot answers to interactions
+  `ctx { thread_id, reply_to, interaction }`; a mismatch is `envelope_mismatch` (§5.2, `PROTOCOL.md` §7e,
+  `APPLICATIONS.md` §5.7). New reference values in `testvectors/encryption.json`: `device_share_key`,
+  `history_share_v2`.
 - **Encryption review** (`ENCRYPTION.md`). Messages carry a signed context `ctx { thread_id, reply_to }` inside the
   encrypted JSON; receivers compare it with the envelope and show a mismatch as `envelope_mismatch` (content without
   `ctx` stays valid, §5.2). Devices under a changed, unacknowledged identity key are not added to DMs and are ghosts

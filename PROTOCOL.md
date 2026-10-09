@@ -112,7 +112,8 @@ since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.
 (reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
 sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
 them), `age.v1` (date of birth, private age status and age gates, §5e, announced by every node that implements it), `history.restore` (history restore after a key reset by request and approval, `ENCRYPTION.md` §7b, announced
-by every node that implements it), `files.e2ee` (end-to-end encrypted files channels, `FILES.md` §8, announced by every node that implements
+by every node that implements it), `history.shares2` (history shares sealed to each recipient device and device share
+keys, `ENCRYPTION.md` §3.1 and §7b "Format v2", announced by every node that implements them), `files.e2ee` (end-to-end encrypted files channels, `FILES.md` §8, announced by every node that implements
 them).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
@@ -1315,8 +1316,11 @@ other nodes use the same routes with their federated session. Nothing crosses no
   `thread_id` null); null for standalone threads and forum posts. One thread per root message. When the root is
   deleted the thread stays, `root_deleted` becomes true and clients show "(original message deleted)".
 - **Titles** are 1–100 characters. In encrypted channels the node never sees them: `title` is encrypted content
-  format 1 (`ENCRYPTION.md` §5.2) of the JSON object `{ "type": "thread.title", "body": "<title>" }`, encrypted and
-  signed by the device that set it (`title_author`, `title_device_id`) under `title_epoch`; the node applies the
+  format 1 (`ENCRYPTION.md` §5.2) of the JSON object `{ "type": "thread.title", "body": "<title>", "ctx"?: {
+  "thread_id": "<thread id>" } }`, encrypted and signed by the device that set it (`title_author`, `title_device_id`)
+  under `title_epoch`; `ctx` binds the title to its thread (clients compare it with the thread they render and show
+  a mismatch like an unreadable title; it is set whenever the device knows the id: renames, and new threads with a
+  client-chosen `id`); the node applies the
   ciphertext checks of `ENCRYPTION.md` §5.3 (`400 thread.title_invalid` for a malformed one, at most 2048
   characters, plus `message.epoch_mismatch`, `message.epoch_unknown`, `mls.epoch_stale`, `e2ee.device_not_attested`) and clients
   decrypt and verify it like message content and drop anything whose `type` is not `thread.title` or whose body is
@@ -1345,7 +1349,8 @@ other nodes use the same routes with their federated session. Nothing crosses no
   (`FEDERATION.md` §10.3) covers its `thread_id` like every other message of the thread: a ULID in its canonical
   form (26 characters, uppercase) whose time lies within 10 minutes of the node's clock (`400 thread.id_invalid`),
   not used by another thread (`409 thread.id_taken`; pick a new one). Without `id` the node picks it and the first
-  message cannot be signed. Clients send `id` whenever they send `message` and the node announces
+  message cannot be signed. Clients send `id` whenever they send `message` or create a thread in an encrypted
+  channel (the title's signed context names the thread, `ENCRYPTION.md` §5.2) and the node announces
   `threads.client_ids` (§3).
   Text and announcement channels: `send_messages` and `create_threads` (`403 message.send_forbidden`,
   `403 thread.create_forbidden`); `root_message_id` must be a message of the channel outside any thread (`400 thread.root_invalid`), at most one thread per root

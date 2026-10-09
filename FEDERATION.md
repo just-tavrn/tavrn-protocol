@@ -439,7 +439,8 @@ KeyPackages when a member adds them to a DM, group DM or private channel.
 
 - **Keys**: the room node fetches `GET https://<home>/api/v1/users/{username}/keys` (public), checks that
   `user` equals the requested address and verifies every attestation (ENCRYPTION.md §3.1) against the
-  returned identity key, dropping invalid devices. Cache `remote_device_keys` with TTL **1 hour**; refetch
+  returned identity key, dropping invalid devices, and every device's share key against its device key, dropping
+  invalid share keys (the device stays). Cache `remote_device_keys` with TTL **1 hour**; refetch
   (at most once per minute per user) when a device identity is not in the cache, on `identity.changed`
   and `devices.changed` (§5.2) and after TTL. If H is unreachable, an expired cache MAY be used for up to
   24 hours; beyond that requests that need it fail with `503 federation.keys_unavailable`.
@@ -1248,7 +1249,8 @@ otherwise.
 
 - **Key cache**: stored on the remote user's rows instead of a separate `remote_device_keys` table: the
   identity key in `users.identity_pubkey`, every attested device as a device row keyed by `(user, home
-  device id)` with `public_key`, `identity_signature` and `attested_identity_key`, the fetch time in
+  device id)` with `public_key`, `identity_signature`, `attested_identity_key` and the share key
+  (`share_public_key`, `share_key_signature`, ENCRYPTION.md §3.1), the fetch time in
   `remote_users.keys_fetched_at`. So every "attested under the current identity key" check works unchanged
   for remote devices, and device rows exist before a device's first federated login (Welcomes can be stored
   for them). A fetch verifies every attestation against the identity key of the same document and drops

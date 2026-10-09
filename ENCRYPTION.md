@@ -132,11 +132,12 @@ the wrapped copies of the master secret (§2.4).
     "continuity": [],
     "devices": [
       { "device_id": "01J…", "device_public_key": "<base64url>", "identity_signature": "<base64url>",
-        "created_at": "2026-10-04T12:00:00Z" }
+        "created_at": "2026-10-04T12:00:00Z", "share_public_key": "<base64url>", "share_key_signature": "<base64url>" }
     ]
   }
   ```
-  Only devices attested under the current identity key are listed. `identity_generation` is 0 for the key derived
+  Only devices attested under the current identity key are listed, each with its share key (§3.1; both fields null
+  while the device has not published one). `identity_generation` is 0 for the key derived
   from the master secret and n after n rotations; `continuity` is the chain of continuity statements `{ old_key,
   new_key, at, sig_old, sig_new }`, oldest first (§9a), empty until the first rotation and after a reset. A room node
   answering for a remote user from its key cache returns an empty chain and `identity_generation: null`: clients ask
@@ -293,9 +294,35 @@ identity_signature  = Ed25519-Sign(identity_sk, attestation_message)
 A device key is immutable: a new key means a new device (new device id). Exception: an identity reset
 (§9) keeps the device keys and only renews the attestations.
 
-- `PUT /api/v1/users/me/devices/{device_id}/key` `{ "device_public_key", "identity_signature" }`: only for
-  the device of the current session. The node MUST verify the signature against the stored `identity_pk`
-  and refuse to overwrite an existing key (`409 e2ee.device_key_exists`).
+- `PUT /api/v1/users/me/devices/{device_id}/key` `{ "device_public_key", "identity_signature", "share_public_key"?,
+  "share_key_signature"? }`: only for the device of the current session. The node MUST verify the signature against
+  the stored `identity_pk` and refuse to overwrite an existing key (`409 e2ee.device_key_exists`). The share key
+  fields (below) come together or not at all and are checked before anything is stored (`400
+  e2ee.share_key_invalid`; another share key than the stored one: `409 e2ee.share_key_exists`).
+
+**Share key.** Every device also has an X25519 key pair, its **share key**, to which other devices seal secrets for
+it alone (history shares, §7b). It lives exactly like the device key: stored with it in the device's local storage,
+kept by an identity reset (§9), never moved to another device; a new device has a new pair. The reference
+implementation derives it from the device secret key (32-byte Ed25519 seed):
+
+```
+share_secret = HKDF-SHA256(salt = "" (empty), IKM = device secret key, info = "tavrn device share key v1", L = 32)
+share_public = X25519(share_secret, 9)                 # share_secret used as libsodium stores X25519 secret keys
+share_key_signature = Ed25519-Sign(device_sk, "tavrn device share key v1" || 0x00
+                                   || share_public(32) || device_public_key(32) || str16(device_id))
+```
+
+Other implementations MAY generate a random pair and store it next to the device key instead; others only ever see
+the public key and the signature. The share key is published with the device key (above) or, by devices attested
+before share keys existed, once with `PUT /api/v1/users/me/devices/{device_id}/share-key` `{ share_public_key,
+share_key_signature }` (the session's attested device only, `403 e2ee.wrong_device` / `403 e2ee.device_not_attested`;
+the node verifies the signature against the stored device key, `400 e2ee.share_key_invalid`; the same key again is
+`204`, another one `409 e2ee.share_key_exists`: share keys are immutable). It is served wherever the device's
+attestation is served (the keys document, §2.3, also through the key cache of room nodes, `FEDERATION.md` §3.5) as
+`share_public_key` and `share_key_signature`. Clients use a share key only after verifying the device's attestation
+(§3.3) **and** this signature with the attested device key; room nodes drop share keys whose signature does not verify
+(the device stays). Test vector: `device_share_key` (device secret, share key pair, signing input, signature;
+`tavrn_crypto::share`, `@tavrn/crypto` `Client.shareKey`, `verifyDeviceShareKey`).
 
 ### 3.2 KeyPackages
 
@@ -569,7 +596,18 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
   another message (plaintext signatures cover the same fields, FEDERATION.md §10.3). Content without `ctx` (older
   clients) is accepted as before; the node cannot see `ctx` and accepts both forms. A sender that cannot know the
   thread id (a new thread on a node that does not announce `threads.client_ids`, PROTOCOL.md §7e) omits `ctx`.
-  Thread titles, history shares and ephemeral events carry no `ctx`. Test vector: `content_context`.
+  History shares and ephemeral events carry no `ctx`. Test vector: `content_context`.
+- **Answers of applications** (`APPLICATIONS.md` §5.7): a bot's replies and follow-ups to an interaction carry a third
+  field, `"ctx": { "thread_id", "reply_to": null, "interaction": "<interaction id>" }`. Receivers compare `interaction`
+  with the envelope's `interaction.id` (stored answers) or the `interaction_id` of an ephemeral reply; a different
+  value, or `interaction` on content whose envelope names no interaction, is `envelope_mismatch`. So the node cannot
+  present a bot's answer to one invocation as the answer to another (or to someone else's command). `ctx` with exactly
+  `thread_id` and `reply_to` stays valid for answers (older bots), as does an answer without `ctx`.
+- **Thread titles** carry `"ctx": { "thread_id": "<thread id>" }` (exactly this field, a string) when the setting
+  device knows the thread id: a rename always, a new thread where the client chooses the id (`threads.client_ids`,
+  PROTOCOL.md §7e). Receivers compare it with the thread whose title they render; a different value or a malformed
+  `ctx` is `envelope_mismatch` (shown like any title that cannot be read), so the node cannot swap encrypted titles
+  between threads. A title without `ctx` (older clients, nodes without client ids) is accepted as before.
 - Senders always use the current epoch of their local group. Before encrypting, the client processes the handshake log
   (§4.3); when that fails (network error, a node error), it does **not** send: the composer shows the error and offers
   to retry, so a message never goes out under an epoch that removed members may still hold. The ghost check (§4.6) runs
@@ -586,8 +624,8 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
 - A second message with the same `(epoch, nonce)` is a replay and MUST be shown as a duplicate or hidden.
 - Edits are encrypted the same way under the current epoch.
 - Thread titles in encrypted channels (`PROTOCOL.md` §7e) use the same format with the JSON object
-  `{ "type": "thread.title", "body": "…" }`; `author` and `device_id` are the thread's `title_author` and
-  `title_device_id`, `epoch` its `title_epoch`.
+  `{ "type": "thread.title", "body": "…", "ctx"?: { "thread_id" } }`; `author` and `device_id` are the thread's
+  `title_author` and `title_device_id`, `epoch` its `title_epoch`.
 
 ### 5.3 Node checks
 
@@ -833,21 +871,27 @@ member acknowledges a share and expires after 30 days.
 **Shares.** Routes on the node hosting the conversation (members of other nodes use their federated session
 there, as for every conversation route):
 
-- `POST /api/v1/conversations/{id}/history-keys` `{ to_user, epoch_from, epoch_to, ciphertext }` → `201 { id }`.
+- `POST /api/v1/conversations/{id}/history-keys` `{ to_user, epoch_from, epoch_to, ciphertext, v?, boxes? }` →
+  `201 { id }`.
   The sender must be entitled (§4.5) with an attested device (`403 e2ee.device_not_attested`). The conversation
   must be an encrypted room channel (`400 history.not_encrypted`; DMs and group DMs `403 history.forbidden`) whose
   policy is not `since_join` (`403 history.forbidden`). `to_user` is an address of another member with
   `view_channel` and `read_history` (`403 history.forbidden`; oneself `400 history.self`). `0 ≤ epoch_from ≤
   epoch_to ≤` the group's epoch and at most 1000 epochs (`400 history.invalid`); `ciphertext` is content format 1
-  (§5.2) under a known epoch (`400 history.invalid`), at most 64 KiB (`413 history.too_large`). At most 20 shares
-  per recipient and conversation within 24 hours, acknowledged ones included (`429`). The recipient's connections
-  get `history.keys_available { conversation_id }`.
+  (§5.2) under a known epoch (`400 history.invalid`), at most 64 KiB (`413 history.too_large`). `v` is the share
+  format, 1 (default) or 2 ("Format v2" below, capability `history.shares2`); a format 2 share carries `boxes`, an
+  object of device id → base64url sealed key, 1 to 20 entries, each box at most 128 bytes, every device id an
+  attested device of `to_user` (under its current identity key) with a share key (§3.1); a format 1 share carries no
+  `boxes`; anything else is `400 history.invalid`. At most 20 shares per recipient and conversation within 24 hours,
+  acknowledged ones included (`429`). The recipient's connections get `history.keys_available { conversation_id }`.
 - `GET /api/v1/conversations/{id}/history-keys` → `{ items: [ { id, from_user, from_device, epoch_from, epoch_to,
-  ciphertext, created_at } ] }`: the unacknowledged shares addressed to the requester (oldest first, at most 100);
-  nobody else sees them.
-- `DELETE /api/v1/conversations/{id}/history-keys/{share_id}` → `204`: the recipient acknowledges a share
-  (`404 history.share_not_found` otherwise); the node drops its ciphertext and clears the member's pending mark.
-  Housekeeping deletes acknowledged shares after a day and every share after 30 days.
+  ciphertext, created_at, v, box } ] }`: the unacknowledged shares addressed to the requester (oldest first, at most
+  100); nobody else sees them. Format 1 shares are served to every device of the recipient with `box: null`; a format
+  2 share only to the devices it has a box for, each with **its own** box and never the others'.
+- `DELETE /api/v1/conversations/{id}/history-keys/{share_id}` → `204`: the recipient acknowledges a share (one
+  acknowledgement per user, from any of its devices; `404 history.share_not_found` otherwise); the node drops its
+  ciphertext and boxes and clears the member's pending mark. Housekeeping deletes acknowledged shares after a day and
+  every share (with its boxes) after 30 days.
 
 **Payload.** The plaintext is the RFC 8785 (JCS) form of
 
@@ -858,9 +902,24 @@ there, as for every conversation route):
 
 encrypted and signed exactly like message content (§5.2) under the group's **current** epoch by the sharing
 device (`author` = `from_user`, `device_id` = `from_device`): only current members can read it, and the device
-signature covers the canonical JSON. It is never sent as a message and never stored as one.
+signature covers the canonical JSON. It is never sent as a message and never stored as one. Format 1 is **to be
+removed** in a later release: clients send it only where format 2 is not possible (below).
+
+**Format v2 (capability `history.shares2`).** The payload is the same object with `"v": 2`. The sharing device
+encrypts and signs it exactly like content format 1 (§5.2: same AAD, bound to the conversation, the device signature
+inside), but under a **fresh random 32-byte share key** instead of the epoch's content key; the header epoch is the
+group's current epoch, so the node applies its usual checks (it cannot tell the two formats apart by the ciphertext).
+It then seals the share key with libsodium `crypto_box_seal` (§5b) to the share key (§3.1) of every device of the
+recipient that is in the current MLS roster and has a verified share key: `boxes = { "<device id>": base64url(
+crypto_box_seal(share key, share_public)) }` (80 bytes each), and zeroes the share key. Test vector:
+`history_share_v2` (payload, share key, ciphertext, a recipient device's share key pair and a box with a fixed
+ephemeral key; `Client.encryptShare`, `sealShareKey`, `Client.openShareBox`, `decryptContentWithKey`).
 
 **Sharing (client).**
+
+0. Format: a client sends format 2 when the node announces `history.shares2` **and** every device of the recipient in
+   the current roster has a share key whose signature verifies with its attested device key (§3.1, §3.3); otherwise
+   format 1. The same rule holds for restore shares ("History after a key reset" below).
 
 1. The device that committed a member's Add shares right away. Otherwise, on `history.pending` and when a member
    opens the channel, clients read `…/history-pending`; per waiting member every candidate device (devices in the
@@ -878,9 +937,12 @@ shares and for each:
 
 1. rejects it unless `from_user/from_device` is a leaf of the current roster;
 2. decrypts and verifies it like message content (§5.2; the device key from the verified attestation, §3.3); a
-   share it cannot decrypt yet (missing epoch) is retried later, any other failure rejects it;
-3. rejects it unless the payload has exactly the fields above, `type`, `v`, `conversation` and `to` match, and
-   every epoch is an integer within `[epoch_from, epoch_to]`, listed once, with a 32-byte key;
+   share it cannot decrypt yet (missing epoch) is retried later, any other failure rejects it. A format 2 share
+   (`v: 2`) is accepted only when its `box` opens with the device's own share secret to a 32-byte key; that key takes
+   the place of the epoch's content key here (nothing is missing then), and it is zeroed after use;
+3. rejects it unless the payload has exactly the fields above, `type`, `v` (equal to the share's `v`),
+   `conversation` and `to` match, and every epoch is an integer within `[epoch_from, epoch_to]`, listed once, with a
+   32-byte key;
 4. **checks every key it does not hold yet** against a stored message of that epoch (`GET …/messages?epoch=n`,
    preferring a message whose author is not the sharer): the key must open the message's AES-256-GCM ciphertext
    (same AAD, nonce and tag, §5.2) **and** the decrypted content's signature must verify with the key of its author
@@ -906,12 +968,15 @@ channel; afterwards the history loads lazily as before.
   forge a share (device signature), redirect one (`to` and `conversation` are inside the signed payload and the
   ciphertext is bound to the conversation by the AAD) or plant keys (the per-key check against stored, signed
   messages).
-- **Shares are readable by every current member.** A share is encrypted under the group's current epoch (§5.2), so
-  every device in the group at that epoch can decrypt a share addressed to someone else; `to` only tells the
-  recipient that it is meant for it. The node's routing is the only barrier: it serves a share to its recipient alone
-  (`GET …/history-keys`) and drops it after the acknowledgement. A node that leaks shares to other members hands them
-  keys of epochs before their own join, within the channel's policy (they could have received them by a share of
-  their own). Sealing each share to the recipient's devices is planned.
+- **Who can read a share.** A format 2 share is readable only by the recipient devices it carries a box for: the share
+  key is fresh and sealed to their share keys, whose signatures by the attested device keys the sharer verified, so
+  neither the node nor other members (who know the epoch's content key) can open it, and the node cannot add a
+  device of its own (it would need a device attested by the recipient's identity key and a share key signed by that
+  device). A format 1 share is encrypted under the group's current epoch, so every device in the group at that epoch
+  can decrypt it; there only the node's routing (it serves a share to its recipient alone and drops it after the
+  acknowledgement) keeps it from other members, which is why format 1 is used only as a fallback and will be
+  removed. A leaked format 1 share hands other members keys of epochs before their own join, within the channel's
+  policy.
 - A replayed share only repeats keys the recipient already validated or holds; keys are never overwritten.
 - A member could post a message under a forged key and then "prove" that key with it; the recipient therefore
   prefers messages of other authors for the check. The residual risk equals what any member can do anyway (show
@@ -993,8 +1058,8 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
      { user, by, reason }`), `system.history_restore_denied { user, by }` (the reason stays in the audit log and in the
      request, which the requester sees) and `history.request_decided`.
 
-   **Approval is the key share itself.** Right after approving, the approver's client sends restore shares from its
-   device for every encrypted channel of `channels` that it can read and in which a device of the requester is in the
+   **Approval is the key share itself.** Right after approving, the approver's client sends restore shares (format 2
+   under the rule of "Sharing" step 0) from its device for every encrypted channel of `channels` that it can read and in which a device of the requester is in the
    group: every epoch it holds from the oldest epoch of the channel's encrypted content after `window_start` (messages:
    `GET …/messages?after=<ULID floor>&limit=20`; files channels: `GET …/records?since=<window start>&limit=1`, `FILES.md`
    §8.7; everything for null) up to the epoch before the current one, chunked as in "Sharing" step 2. Before approving it shows the request, the requester, its join date, the channels and epoch ranges
@@ -1110,6 +1175,7 @@ rotation keeps.
 ## 10. Versions and capabilities
 
 - `e2ee.mls1` (PROTOCOL.md §3) means this document: ciphersuite `0x0001`, content format 1.
+- `history.shares2`: the node accepts and serves history shares of format 2 (§7b) and device share keys (§3.1).
 - Version bytes: key file `0x01`, recovery key `0x02`, wrapped master secret `0x01`, identity blob `0x01`,
   content `0x01`, backup `0x01`. Unknown versions MUST be rejected; new versions are introduced together with a new
   capability or envelope `format`.
@@ -1154,6 +1220,7 @@ Consistent with design note 5.4:
 | §2 | `MasterSecret::{generate, to_key_file, from_key_file, identity_public_key, backup_key, local_storage_key}` | `MasterSecret` (`localStorageKey`) |
 | §2.4 | `RecoveryKey::{generate, to_words, to_compact, to_text, from_text, wrapping_key}`, `secret_storage::{wrap_master_secret, unwrap_master_secret, passkey_wrapping_key, passkey_method, PRF_INPUT}` | `RecoveryKey`, `wrapMasterSecret`, `unwrapMasterSecret`, `passkeyWrappingKey`, `passkeyMethod`, `secretStoragePrfInput` |
 | §3 | `Device`, `attest_device`, `verify_device_attestation`, `ds::inspect_key_package` | `Client.create`, `MasterSecret.attestDevice`, `verifyDeviceAttestation` |
+| §3.1 share key | `Device::{share_secret, share_public_key, share_key_signature}`, `share::{share_secret, share_key_signing_input, verify_share_key}` | `Client.shareKey`, `verifyDeviceShareKey`, `deviceShareSecretKey`, `sharePublicKey` |
 | §9a | `IdentityKey::{generate, from_master, from_seed, attest_device}`, `wrap_identity_key`, `unwrap_identity_key`, `sign_continuity`, `verify_continuity`, `continuity_reaches` | `IdentityKey`, `wrapIdentityKey`, `unwrapIdentityKey`, `signContinuity`, `verifyContinuity`, `continuityReaches`; flows in `@tavrn/e2ee` (`identity.ts`, repository `tavrn-js`) |
 | §4 | `Client::{create_group, add_members, remove_members, self_update, join_by_external_commit, join_by_welcome, merge_pending_commit, discard_pending_commit, process_handshake, roster}`, `ds::DsGroup` | `Client` |
 | §5 | `Client::{encrypt_content, decrypt_content}`, `content_header` | `Client.encryptContent`, `decryptContent`, `contentEpoch` |
@@ -1161,4 +1228,4 @@ Consistent with design note 5.4:
 | §5c | (not in the crypto core: WebCrypto in `@tavrn/e2ee`, `files.ts`) | `encryptFileStream`, `decryptFileChunks`, `encryptFileRecord`, `decryptFileRecord` (`@tavrn/e2ee`) |
 | §5a | `Client::export_voice_key`, `content::VOICE_EXPORTER_LABEL` | `Client.exportVoiceKey` |
 | §7 | `Client::{export_backup, import_backup, export_epoch_key, import_epoch_key}` | same, camelCase |
-| §7b | `Client::{known_epochs, export_epoch_key, import_epoch_key, encrypt_content, decrypt_content}` | same, camelCase; flows in `@tavrn/e2ee` (`HistorySync`, `history.ts`) |
+| §7b | `Client::{known_epochs, export_epoch_key, import_epoch_key, encrypt_content, decrypt_content, encrypt_share, open_share_box}`, `share::{seal_share_key, open_share_box, decrypt_content_with_key}` | same, camelCase, plus `sealShareKey`, `decryptContentWithKey`; flows in `@tavrn/e2ee` (`HistorySync`, `history.ts`) |
