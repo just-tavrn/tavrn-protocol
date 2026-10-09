@@ -63,8 +63,8 @@ detail; this document covers the concepts and rules that span individual routes.
 - Per-user and per-room limits above these policies (plans, grants, admin API tokens, attachment retention) are
   node-local and specified in `ENTITLEMENTS.md`; clients read their effective values from
   `GET /users/me/entitlements`, and an attachment whose file retention deleted is listed with `expired: true`.
-- Files channels (channel kind `files`: folders and files instead of messages, never end-to-end encrypted,
-  optional external WebDAV/S3 storage) are specified in `FILES.md`.
+- Files channels (channel kind `files`: folders and files instead of messages, end-to-end encrypted by default
+  with `files.e2ee`, optional external WebDAV/S3 storage) are specified in `FILES.md`.
 - `web` is the origin of the node's web client (`TAVRN_WEBAUTHN_ORIGIN`, default the public URL). The connect
   flow of `FEDERATION.md` §8 redirects to `<web>/connect`; native apps open the same page with an app session
   (`connect.app`).
@@ -112,7 +112,8 @@ since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.
 (reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
 sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
 them), `age.v1` (date of birth, private age status and age gates, §5e, announced by every node that implements it), `history.restore` (history restore after a key reset by request and approval, `ENCRYPTION.md` §7b, announced
-by every node that implements it).
+by every node that implements it), `files.e2ee` (end-to-end encrypted files channels, `FILES.md` §8, announced by every node that implements
+them).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
 `threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
@@ -715,7 +716,9 @@ nothing (`all`). Plaintext messages are never cut; owners and administrators fol
 are not members, and DMs, are not cut; group DM members start at their own join. A re-join starts a new window.
 `GET …/messages?epoch=<n>` lists only encrypted messages of that epoch (within the window), for key checks. The
 history key routes `POST|GET /conversations/{id}/history-keys`, `DELETE /conversations/{id}/history-keys/{share_id}`
-and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b.
+and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b. Files channels differ: their
+policy is `all` (their default) or `since_join`, never `days:<n>`, and entry records take the place of messages
+(`FILES.md` §8.7).
 
 **History after a key reset (capability `history.restore`, normative: `ENCRYPTION.md` §7b "History after a key
 reset").** An identity reset sets `key_reset_at` on the member's room memberships: the message cut and the automatic
@@ -1421,9 +1424,9 @@ count their messages again (§7e).
 If a channel has `encrypted = false`, every client **must** permanently and clearly show a notice above the
 message area, along the lines of: *"This channel is not end-to-end encrypted. The operator of node.example can
 read along."* Additionally the channel is marked with a crossed-out lock in lists. Direct messages, group DMs
-and voice channels are always encrypted and have no such flag. Files channels are never end-to-end encrypted;
-clients show "Files in this channel are not end-to-end encrypted" permanently above the file list
-(`FILES.md` §1).
+and voice channels are always encrypted and have no such flag. Files channels follow their `encrypted` flag, which is
+fixed at creation (`FILES.md` §1); for unencrypted ones clients show "Files in this channel are not end-to-end
+encrypted" permanently above the file list.
 
 ## 8a. Direct messages, group DMs and friends
 
