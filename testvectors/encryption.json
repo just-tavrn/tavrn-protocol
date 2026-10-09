@@ -36,6 +36,268 @@
     "plaintext": "ZmlsZSBjb250ZW50cw",
     "sha256": "pv7WsaLi_hlgLwcRAAYYqCon1kJ5xa4E1xXyx_eW5lU"
   },
+  "file_chunks": {
+    "aad_last": "dGF2cm4gZmlsZSBjaHVuayB2MQAB",
+    "aad_not_last": "dGF2cm4gZmlsZSBjaHVuayB2MQAA",
+    "cases": [
+      {
+        "ciphertext": "SC65w3pAYhryQDMbV2YJx5XSTeyKClammUsv10yrjSDZe1M4MZhU",
+        "name": "small",
+        "part": "content",
+        "plaintext": "ZmlsZSBjb250ZW50cyBpbiBjaHVua3M"
+      },
+      {
+        "ciphertext": "zbNqNgejERTeETf5Q1A5GA",
+        "name": "empty",
+        "part": "content",
+        "plaintext": ""
+      },
+      {
+        "ciphertext": "kV-DlF2t0dMpwxmeLnq4FH9Sy1Xh9JOV-A",
+        "name": "thumbnail",
+        "part": "thumbnail",
+        "plaintext": "iVBORyB0aW55"
+      },
+      {
+        "ciphertext_sha256": "8LIuMMhHCv3Xsr7EflrpgJZDIFKijs4Snbe2IePUcu8",
+        "ciphertext_size": 2098200,
+        "last_chunk": "AQPG83xMwAco3tvLVwW_LUsNzGFgiRdJVoTbSjs7TUa6Yqwoz9uLXMdOjdh1HNgLPB2mkmVANAZKKpzAjszK0q_5uVEcdqCSu4ZhFR0d2DduZaGC-fOqiBspdplZdKhZBxM7V23CI8S5TOx720zSI1QqHyQ-NsevCezOGTTv7XPOkQNW_I1FUOOb9lW6IUhTQOQRcg04kFgYKPhp2I5Dj1AXge6_IdkQQknlpDvyD4VGToel1uFETLbjWprCG_LYKSZBwrRHsIBe06vLDqt1YpRhxOY0CFakwB0aPh8CgFcEMT_orNhD1WqbjhfwVPy_Fvzof03mmbV4zpVLWoGN0z1EermvPzaNQBjWGMRDnHZtWo5x-PcbZg-jhRJigHO-_L9U0DfMmfBb12Dsxk-N3rnw0PxXnFEEWnygk7tux1sUVV_9tH218bm18EnaXrqdo00jVoVaTlj0_ad-CDnCRkPWQFyhPEEdZImAKh6ZOGroOHwOC2Vwe5K-_3dHX7ximKY8P0yLEH2GBI3aFP71lyqn0Ko4K1wuGPtnygfinzDM3IsYnWbN9AJ8-KXQkyLy8h_zwtTXkHY1V7hLNd7Ny5rxkoiR6-EJDJtZlSlPckmAcizt1QkelvD45qwdp-SlG2tr9Ya7NOUw_wndDJZhxerZuiXGrPcspQCcQA987SNZE1R2RnE5NsJsnpFhL62oSisTsCoJro9JcxuFsWYwyYQ-WbngBO7-RaZFRc8tO7kyRLf4dzJ6Tmgd3UW20rzpO8y7GDJkt0gBcYYrogNYREWbrBcq-sFgvrUARpZaADTJmpdJjg6KPOTwl7BTgrFTkP90DVQK6rxW7hhDTB7L8m0Xq2LuZeHazBH4RTSntAa4CbPfr3AIFJQoepJIuATbETWmULr01Emj-XP3V-FeVjd0Hv6meODzEc1Ry2LWq42r19Np_yesLoBY2eD1wxzu9lpJW-lAElq8PiZggGfyeBbpyYx8_8nOW6PIhE0Myxc2ydMLWWKuhVUaFxrM9qxuvCXiuN5op9YJihx-FSNbC9aDnGtVzixw-m4adxGTAW2chmNqCHYGwI_EuMryw74YrQ6JMTBtR5a-2QBDFAv7zl6HKhF6mJ8_mWbFNYGnG2tqmIsDwaJvF_YgRadjvlWJ0pYtUCdlcxCne3NFCBesFsuVywFICuxIAvRI663J3r3fIdCTfoa-neugMRXLloMtBld-6-m7Wn3ObvtSEiYc_q-BOysfecWqB-SqVw8M3erZysDpBNVG8-4FMS59LImGDueKLD-u94a1DVRVgQPoy7fdmW7qNrPw7Lw_eOcDxHQX0Re1wfRuQEVywDBEl-2ukrXcSBPTYKk",
+        "name": "three_chunks",
+        "part": "content",
+        "plaintext_rule": "byte i = i mod 251",
+        "plaintext_size": 2098152,
+        "tags": [
+          "EuqHVfKFC_EHg_D4iQC9Rw",
+          "siqFmPVX-qvNPx5fdRJ8Ww",
+          "RXLAMESX7a6StdxIE9NgqQ"
+        ]
+      }
+    ],
+    "chunk_size": 1048576,
+    "description": "Chunked file encryption of FILES.md §8.3 with the file key `key`. `cases` give the whole ciphertext of small parts; `three_chunks` is 2 MiB + 1000 bytes (byte i = i mod 251) with the SHA-256 of the whole ciphertext, the tag of every chunk and the complete last chunk.",
+    "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+    "nonce_1": "AAAAAAAAAAAAAAAB",
+    "part_keys": {
+      "content": "BRTlyKekfLUIsAC8azgXpgAJN9XjyG_hzRmV8X28I5g",
+      "thumbnail": "EfDV3a4KevbOiNbh3xnpqKutbe255dTarmd3YGiUTTw"
+    }
+  },
+  "file_record": {
+    "description": "Entry records of FILES.md §8.4 (the JSON inside the content format of ENCRYPTION.md §5.2). Each record belongs to the entry `entry` (kind and ciphertext size as stored by the node); clients accept `valid` and `folder` and refuse every `invalid` record.",
+    "entry": {
+      "id": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+      "kind": "file",
+      "size": 39
+    },
+    "folder": {
+      "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF2",
+      "kind": "folder",
+      "name": "Reports",
+      "type": "files.entry",
+      "v": 1
+    },
+    "folder_entry": {
+      "id": "01J9ZK3G5M8Q2W4E6R8T0Y2VF2",
+      "kind": "folder",
+      "size": 0
+    },
+    "invalid": [
+      {
+        "name": "other_entry",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF3",
+          "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "Quarterly report.pdf",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 1
+        }
+      },
+      {
+        "name": "other_kind",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+          "kind": "folder",
+          "mime": "application/pdf",
+          "name": "Quarterly report.pdf",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 1
+        }
+      },
+      {
+        "name": "size_mismatch",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "Quarterly report.pdf",
+          "size": 24,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 1
+        }
+      },
+      {
+        "name": "short_key",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "key": "oKGio6SlpqeoqaqrrK2urw",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "Quarterly report.pdf",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 1
+        }
+      },
+      {
+        "name": "missing_key",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "Quarterly report.pdf",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 1
+        }
+      },
+      {
+        "name": "name_with_slash",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "a/b.pdf",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 1
+        }
+      },
+      {
+        "name": "name_dot_dot",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "..",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 1
+        }
+      },
+      {
+        "name": "name_bidi_control",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "invoice\u202etxt.exe",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 1
+        }
+      },
+      {
+        "name": "unknown_version",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "Quarterly report.pdf",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "files.entry",
+          "v": 2
+        }
+      },
+      {
+        "name": "wrong_type",
+        "record": {
+          "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+          "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+          "kind": "file",
+          "mime": "application/pdf",
+          "name": "Quarterly report.pdf",
+          "size": 23,
+          "thumbnail": {
+            "height": 180,
+            "mime": "image/webp",
+            "width": 320
+          },
+          "type": "thread.title",
+          "v": 1
+        }
+      }
+    ],
+    "valid": {
+      "entry": "01J9ZK3G5M8Q2W4E6R8T0Y2VF1",
+      "key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+      "kind": "file",
+      "mime": "application/pdf",
+      "name": "Quarterly report.pdf",
+      "size": 23,
+      "thumbnail": {
+        "height": 180,
+        "mime": "image/webp",
+        "width": 320
+      },
+      "type": "files.entry",
+      "v": 1
+    }
+  },
   "identity_rotation": {
     "continuity": {
       "at": "2026-10-06T12:00:00Z",

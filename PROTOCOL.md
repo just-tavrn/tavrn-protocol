@@ -60,8 +60,8 @@ detail; this document covers the concepts and rules that span individual routes.
 - Per-user and per-room limits above these policies (plans, grants, admin API tokens, attachment retention) are
   node-local and specified in `ENTITLEMENTS.md`; clients read their effective values from
   `GET /users/me/entitlements`, and an attachment whose file retention deleted is listed with `expired: true`.
-- Files channels (channel kind `files`: folders and files instead of messages, never end-to-end encrypted,
-  optional external WebDAV/S3 storage) are specified in `FILES.md`.
+- Files channels (channel kind `files`: folders and files instead of messages, end-to-end encrypted by default
+  with `files.e2ee`, optional external WebDAV/S3 storage) are specified in `FILES.md`.
 - `web` is the origin of the node's web client (`TAVRN_WEBAUTHN_ORIGIN`, default the public URL). The connect
   flow of `FEDERATION.md` §8 redirects to `<web>/connect`; native apps open the same page with an app session
   (`connect.app`).
@@ -108,6 +108,7 @@ Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, 
 since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set), `reports.v1` and `automod.v1`
 (reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
 sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
+them), `files.e2ee` (end-to-end encrypted files channels, `FILES.md` §8, announced by every node that implements
 them).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
@@ -1314,9 +1315,9 @@ count their messages again (§7e).
 If a channel has `encrypted = false`, every client **must** permanently and clearly show a notice above the
 message area, along the lines of: *"This channel is not end-to-end encrypted. The operator of node.example can
 read along."* Additionally the channel is marked with a crossed-out lock in lists. Direct messages, group DMs
-and voice channels are always encrypted and have no such flag. Files channels are never end-to-end encrypted;
-clients show "Files in this channel are not end-to-end encrypted" permanently above the file list
-(`FILES.md` §1).
+and voice channels are always encrypted and have no such flag. Files channels follow their `encrypted` flag, which is
+fixed at creation (`FILES.md` §1); for unencrypted ones clients show "Files in this channel are not end-to-end
+encrypted" permanently above the file list.
 
 ## 8a. Direct messages, group DMs and friends
 

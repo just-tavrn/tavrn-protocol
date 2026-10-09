@@ -674,6 +674,17 @@ no output of one use is ever an input of the other.
   one arrives (seconds at most); such posts say their epoch and are readable by that epoch's members.
 - Who posts when, the sizes, mentions of node-sealed posts and the webhook's name stay visible metadata.
 
+## 5c. Files of encrypted files channels
+
+End-to-end encrypted files channels (`FILES.md` §8, capability `files.e2ee`) have an MLS group like a text channel.
+Every file gets its own random 32-byte key; the content and a client-made thumbnail are encrypted in 1 MiB chunks
+with AES-256-GCM under keys derived from it (`FILES.md` §8.3, test vectors `file_chunks`), so uploads and downloads
+stream and ranges keep working. The file key, the name and the type travel in an **entry record**, content format 1
+(§5.2) with the JSON object `{ "type": "files.entry", … }` under the channel's current epoch, signed by the writing
+device (`FILES.md` §8.4, test vectors `file_record`); folders have records with their name. The node stores the
+ciphertext, the record and the few plaintext fields of `FILES.md` §8.2. History for new members (§7b) applies to
+entry records as to messages (`FILES.md` §8.7).
+
 ## 6. Encrypted attachments
 
 1. The client creates a random 32-byte file key and 12-byte nonce and encrypts the whole file in one shot:
@@ -996,6 +1007,7 @@ Consistent with design note 5.4:
 | §4 | `Client::{create_group, add_members, remove_members, self_update, join_by_external_commit, join_by_welcome, merge_pending_commit, discard_pending_commit, process_handshake, roster}`, `ds::DsGroup` | `Client` |
 | §5 | `Client::{encrypt_content, decrypt_content}`, `content_header` | `Client.encryptContent`, `decryptContent`, `contentEpoch` |
 | §6 | `encrypt_file`, `decrypt_file` | `encryptFile`, `decryptFile` |
+| §5c | (not in the crypto core: WebCrypto in `@tavrn/e2ee`, `files.ts`) | `encryptFileStream`, `decryptFileChunks`, `encryptFileRecord`, `decryptFileRecord` (`@tavrn/e2ee`) |
 | §5a | `Client::export_voice_key`, `content::VOICE_EXPORTER_LABEL` | `Client.exportVoiceKey` |
 | §7 | `Client::{export_backup, import_backup, export_epoch_key, import_epoch_key}` | same, camelCase |
 | §7b | `Client::{known_epochs, export_epoch_key, import_epoch_key, encrypt_content, decrypt_content}` | same, camelCase; flows in `@tavrn/e2ee` (`HistorySync`, `history.ts`) |
