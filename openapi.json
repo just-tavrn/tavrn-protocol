@@ -3270,6 +3270,73 @@
         ]
       }
     },
+    "/api/v1/admin/users/{user_id}/date-of-birth": {
+      "put": {
+        "tags": [],
+        "summary": "Correct a local user's date of birth on request (PROTOCOL.md §5e: users set it once). Audited as\n`admin.date_of_birth` without the date itself. The minimum age is not applied here: an account the operator\nfinds too young is disabled or deleted instead.",
+        "operationId": "admin_set_date_of_birth",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDateOfBirthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/users/{user_id}/delete": {
       "post": {
         "tags": [],
@@ -11992,7 +12059,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Public rooms of this node (\"Discover\").",
+        "summary": "Public rooms of this node (\"Discover\"). Rooms with an age gate are listed only when the request carries the\nsession of an adult (the `Authorization` header is optional here; PROTOCOL.md §5e).",
         "operationId": "discover_rooms",
         "responses": {
           "200": {
@@ -20137,6 +20204,70 @@
         ]
       }
     },
+    "/api/v1/users/me/date-of-birth": {
+      "put": {
+        "tags": [],
+        "summary": "Add the date of birth to an account that has none yet (accounts from before `age.v1`, accounts provisioned by\nsingle sign-on; PROTOCOL.md §5e). Until then the node answers `age.status_required` everywhere else. It is set\nonce: the node operator corrects it on request.",
+        "operationId": "set_date_of_birth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DateOfBirthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPrivate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/devices": {
       "get": {
         "tags": [
@@ -23834,6 +23965,18 @@
           }
         }
       },
+      "AdminDateOfBirthRequest": {
+        "type": "object",
+        "properties": {
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`YYYY-MM-DD` between 1900-01-01 and today; null removes it (the user is asked again at the next request)."
+          }
+        }
+      },
       "AdminOverview": {
         "type": "object",
         "required": [
@@ -24054,6 +24197,52 @@
             }
           }
         ]
+      },
+      "AgeInfo": {
+        "type": "object",
+        "description": "`age` of `GET /node` and `/.well-known/tavrn` (PROTOCOL.md §5e).",
+        "required": [
+          "self_declared",
+          "gates",
+          "minimum_age"
+        ],
+        "properties": {
+          "gates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The room and channel gates this node enforces."
+          },
+          "minimum_age": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Registration refuses younger people (`TAVRN_MINIMUM_AGE`).",
+            "minimum": 0
+          },
+          "self_declared": {
+            "type": "boolean",
+            "description": "The date of birth is the user's own statement (no verification)."
+          }
+        }
+      },
+      "AgeStatus": {
+        "type": "object",
+        "description": "`age_status` of `GET /users/me` (the user's own account only).",
+        "required": [
+          "tier",
+          "method"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "description": "`self` for a self-declared date of birth, `none` while the status is unknown."
+          },
+          "tier": {
+            "type": "string",
+            "description": "`adult` (18 or older), `minor` (younger) or `unknown` (no date of birth yet). `unknown` counts as `minor`."
+          }
+        }
       },
       "AppToken": {
         "type": "object",
@@ -25114,6 +25303,14 @@
           "user_limit"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "The channel's own age gate: `none` or `adults_only` (PROTOCOL.md §5e)."
+          },
+          "age_gate_effective": {
+            "type": "string",
+            "description": "The gate that applies: `adults_only` when the channel's or its room's gate says so. Users below it see the\nchannel locked: no messages, files, voice or events."
+          },
           "auto_archive_minutes": {
             "type": "integer",
             "format": "int64",
@@ -26253,6 +26450,13 @@
           "name"
         ],
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` (default) or `adults_only` (PROTOCOL.md §5e); the room's gate is the minimum. Only an adult can set\n`adults_only`."
+          },
           "bitrate_kbps": {
             "type": [
               "integer",
@@ -26934,6 +27138,18 @@
           }
         }
       },
+      "DateOfBirthRequest": {
+        "type": "object",
+        "required": [
+          "date_of_birth"
+        ],
+        "properties": {
+          "date_of_birth": {
+            "type": "string",
+            "description": "`YYYY-MM-DD`, between 1900-01-01 and today, at least the node's minimum age."
+          }
+        }
+      },
       "DeclineRequest": {
         "type": "object",
         "properties": {
@@ -27369,9 +27585,14 @@
           "name",
           "description",
           "member_count",
-          "listing"
+          "listing",
+          "age_gate"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e). Gated rooms are listed only to requests with an adult's session."
+          },
           "description": {
             "type": "string"
           },
@@ -30185,9 +30406,14 @@
           "dm_policy",
           "voice",
           "preview_auto_max_bytes",
-          "legal"
+          "legal",
+          "age"
         ],
         "properties": {
+          "age": {
+            "$ref": "#/components/schemas/AgeInfo",
+            "description": "Date of birth and age gates (`age.v1`, PROTOCOL.md §5e)."
+          },
           "capabilities": {
             "type": "array",
             "items": {
@@ -31899,9 +32125,14 @@
           "name",
           "description",
           "icon_animated",
-          "member_count"
+          "member_count",
+          "age_gate"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e). Gated rooms are listed only to adults; invite previews carry the\ngate so clients can explain a refused join."
+          },
           "description": {
             "type": "string"
           },
@@ -32555,6 +32786,13 @@
             ],
             "description": "Captcha token, if the node requires one (see `/node`)."
           },
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required (`age.v1`, PROTOCOL.md §5e): the date of birth `YYYY-MM-DD`, between 1900-01-01 and today. Below the\nnode's minimum age (`GET /node` → `age.minimum_age`) the registration is refused with `age.below_minimum`.\nStored on this node only, never shown to others."
+          },
           "device_name": {
             "type": [
               "string",
@@ -33031,9 +33269,14 @@
           "discoverable",
           "icon_animated",
           "no_bots",
-          "bots_in_encrypted_channels"
+          "bots_in_encrypted_channels",
+          "age_gate"
         ],
         "properties": {
+          "age_gate": {
+            "type": "string",
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): users below 18 never find the room in Discover and cannot join it;\nevery channel of the room is locked for them."
+          },
           "attachment_retention_days": {
             "type": [
               "integer",
@@ -34574,6 +34817,13 @@
       "UpdateChannelRequest": {
         "type": "object",
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): the channel's own age gate; the room's gate stays the minimum.\nOnly an adult can switch it on. Audited as `channel.age_gate`."
+          },
           "auto_archive_minutes": {
             "type": [
               "integer",
@@ -34908,6 +35158,13 @@
       "UpdateRoomRequest": {
         "type": "object",
         "properties": {
+          "age_gate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`none` or `adults_only` (PROTOCOL.md §5e): the room's age gate, the minimum of every channel. Only an adult can\nswitch it on. Audited as `room.age_gate`."
+          },
           "attachment_retention_days": {
             "type": [
               "integer",
@@ -35428,12 +35685,30 @@
               "has_identity_key"
             ],
             "properties": {
+              "age_status": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AgeStatus",
+                    "description": "`GET /users/me` of local users only: the private age status. Never part of any other response."
+                  }
+                ]
+              },
               "auto_preview": {
                 "type": [
                   "string",
                   "null"
                 ],
                 "description": "`GET /users/me` and `PATCH /users/me` of local users: load image previews automatically\n(`always`, `friends_and_shared` or `never`)."
+              },
+              "date_of_birth": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "`GET /users/me` of local users only: the own date of birth `YYYY-MM-DD` (null until given; PROTOCOL.md §5e)."
               },
               "email": {
                 "type": [
@@ -36246,9 +36521,14 @@
           "registration",
           "email",
           "policies",
-          "directory_listing"
+          "directory_listing",
+          "age"
         ],
         "properties": {
+          "age": {
+            "$ref": "#/components/schemas/AgeInfo",
+            "description": "Date of birth and age gates (`age.v1`, PROTOCOL.md §5e)."
+          },
           "api": {
             "type": "string",
             "description": "API base of the node (`<TAVRN_PUBLIC_URL>/api/v1`); its host may differ from `domain` (delegation)."
