@@ -108,7 +108,8 @@ Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, 
 since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set), `reports.v1` and `automod.v1`
 (reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
 sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
-them).
+them), `history.restore` (history restore after a key reset by request and approval, `ENCRYPTION.md` §7b, announced
+by every node that implements it).
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
 
 `threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
@@ -516,8 +517,10 @@ connection of that device). Event types besides the room/message events of phase
 | `mls.commit` | conversation audience¹ | `{ conversation_id, epoch }`: the group is now at `epoch` (0 after creation) |
 | `mls.welcome` | the added devices | `{ conversation_id, epoch }`: fetch `GET /mls/welcomes` |
 | `mls.remove_needed` | conversation audience¹ | `{ conversation_id, identities }`: leaves the node wants removed (`ENCRYPTION.md` §4.5) |
-| `history.pending` | conversation audience¹ | `{ conversation_id, user, since }`: `user` joined the group of an encrypted channel whose policy gives it history and waits for keys (`ENCRYPTION.md` §7b) |
+| `history.pending` | conversation audience¹ | `{ conversation_id, user, since, key_reset_at, min_epoch }`: `user` joined the group of an encrypted channel whose policy gives it history and waits for keys (`ENCRYPTION.md` §7b; `key_reset_at`/`min_epoch` non-null only after a key reset) |
 | `history.keys_available` | the recipient (all of their connections on the hosting node) | `{ conversation_id }`: a history key share for the user waits at `GET …/history-keys` |
+| `history.request` | the room's owner and the members whose roles hold `restore_history` or `administrator` | `{ room_id, request }`: a member asks to restore its history after a key reset (`ENCRYPTION.md` §7b, `HistoryRequest`) |
+| `history.request_decided` | the requester and the recipients of `history.request` | `{ room_id, request }`: the request was approved or denied |
 | `identity.changed` | the user, friends, DM contacts | `{ user, user_id, identity_reset_at, at }` |
 | `identity.rotated` | the user, friends, DM contacts | `{ user, user_id, identity_public_key?, identity_generation?, at }`: the identity key was rotated with a continuity statement (`ENCRYPTION.md` §9a); the user's other devices pick up the new key, contacts re-check it (the key fields only on the home node) |
 | `friend.request` | both parties | `{ request: { id, user, direction, created_at } }` (`user` = the other party) |
@@ -620,6 +623,15 @@ are not members, and DMs, are not cut; group DM members start at their own join.
 `GET …/messages?epoch=<n>` lists only encrypted messages of that epoch (within the window), for key checks. The
 history key routes `POST|GET /conversations/{id}/history-keys`, `DELETE /conversations/{id}/history-keys/{share_id}`
 and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b.
+
+**History after a key reset (capability `history.restore`, normative: `ENCRYPTION.md` §7b "History after a key
+reset").** An identity reset sets `key_reset_at` on the member's room memberships: the message cut and the automatic
+key shares then start at the reset, and history from before it comes back only when a member with permission bit 37
+`restore_history` approves the member's request (`POST|GET /rooms/{room_id}/history-requests`, `GET
+…/history-requests/mine`, `DELETE …/history-requests/{id}`, `POST …/history-requests/{id}/approve|deny`). Rooms switch
+requests off with the setting `history_restore: "off"` (default `"request"`, `PATCH /rooms/{room_id}`,
+`manage_room`). Decisions go to the audit log (`history.restore_requested`, `history.restore_approved`,
+`history.restore_denied`) and the welcome channel (`system.history_restored`, `system.history_restore_denied`).
 
 **Channels with webhooks.** Channels carry `has_webhooks` (computed, announced with `channel.update` when a webhook
 is created, moved or deleted). In encrypted channels with webhooks the device that commits an epoch publishes the
@@ -920,7 +932,7 @@ plaintext content (`400 message.embeds_invalid`), clients check encrypted conten
 embeds after decrypting. Embeds never contain images; clients render them through the message Markdown sanitizer
 and show links with their full host. Unknown embed fields are ignored.
 
-Reserved `type` values: `text`, `action`, `system.join`, `system.leave`, `system.key_changed`, `system.bot_added`, `system.bot_removed`, `system.pin`, `system.encryption_changed`,
+Reserved `type` values: `text`, `action`, `system.join`, `system.leave`, `system.key_changed`, `system.bot_added`, `system.bot_removed`, `system.pin`, `system.encryption_changed`, `system.history_restored`, `system.history_restore_denied`,
 `command.args` (encrypted command arguments, `APPLICATIONS.md` §5.8: `{ type, command, nonce, issued_at, args }`,
 only ever inside `args_ciphertext` of an invocation, never as a message), `poll` (later). Unknown types are shown by clients as "Your client cannot display this message". `action`
 (`{ "type": "action", "body": "waves" }`, `/me`) follows the rules of `text` and is rendered in italics after the
@@ -937,8 +949,10 @@ clients cannot send `system.*`, `400 message.type_reserved`):
 | `system.key_changed` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, at, rotated }`: the member's identity key changed (`at`, RFC 3339). `rotated: true` for a rotation with a valid continuity statement (`ENCRYPTION.md` §9a), `false` for an identity reset (§9) or any other change |
 | `system.bot_added` | the room's welcome channel | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, by }`: a bot's first leaf joined the encryption group of the encrypted channel `channel` (`by` = the committer's address; `APPLICATIONS.md` §3.6) |
 | `system.bot_removed` | the room's welcome channel | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, reason }`: the bot's last leaf left that group (`reason`, `APPLICATIONS.md` §3.6) |
+| `system.history_restored` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, by }`: `by` (an address) approved the request of `user` to restore its encrypted history after a key reset (`ENCRYPTION.md` §7b) |
+| `system.history_restore_denied` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, by }`: `by` denied that request (the reason stays in the audit log) |
 
-The message author of `system.join`/`system.leave`/`system.key_changed` is the member concerned (of `system.bot_*` the
+The message author of `system.join`/`system.leave`/`system.key_changed`/`system.history_restore*` is the member concerned (of `system.bot_*` the
 bot). Clients render them
 localized in the viewer's language with the avatar. `system.key_changed` is informational: the client decides with its
 own pin of the user's key what it shows (`ENCRYPTION.md` §3.3): the same "security key changed" warning as elsewhere

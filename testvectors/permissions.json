@@ -301,5 +301,24 @@
       "sync_with_category": true, "timed_out": false, "kind": "bot", "scopes": ["messages:write"]
     },
     "expected": "65"
+  },
+  {
+    "name": "restore_history (bit 37) is an ordinary role bit for users",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 137438953473]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false
+    },
+    "expected": "137438953473"
+  },
+  {
+    "name": "Bot: no scope covers restore_history (bit 37)",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [["r1", 137438953473]], "category_overrides": [], "channel_overrides": [],
+      "sync_with_category": true, "timed_out": false, "kind": "bot",
+      "scopes": ["messages:read", "messages:write", "members:read", "moderation", "rooms:manage"]
+    },
+    "expected": "1"
   }
 ]
