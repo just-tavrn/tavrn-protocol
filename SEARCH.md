@@ -135,10 +135,11 @@ conversation keyed by the entry id (a ULID, so newest-first ordering works as fo
   background sync pages through `GET …/files/records` (`FILES.md` §3) of every encrypted files channel the device has
   a group for, under the same throttling and lock rules as for messages, and resolves folder paths from the folder
   records (fetching a missing parent with `GET …/files/{id}`).
-- **Updates and deletes:** a renamed or moved entry is indexed again (folders: the entries below them with the new
-  path, as far as they are indexed). Entries this client deletes are removed with every indexed entry below them; a
-  folder listing removes indexed entries of that folder the node no longer lists; a result whose entry is gone (`404`)
-  is removed when it is opened. "Clear the local index" and signing out remove them like messages.
+- **Updates and deletes:** a renamed entry is indexed again when its new record is decrypted (browsing or the sync,
+  which meets every rewritten record again in the record order); a moved entry when its new folder is browsed. Entries
+  below a renamed or moved folder keep their old path in the index until they are decrypted again. Entries this
+  client deletes are removed; a result whose entry is gone (`404`) is removed when it is opened. "Clear the local
+  index" and signing out remove them like messages.
 - **Budget:** the window of §3.3 is measured on the upload date (entries uploaded more than 90 days ago are evicted
   first and not added again, unless the channel keeps its full history); entries count towards the 200 MB cap.
 - **Queries and filters:** the same terms as for messages; filters by type category (`images`, `audio`, `video`,
