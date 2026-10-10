@@ -7,7 +7,7 @@ media: `ENCRYPTION.md` §5a. Error format, ids and addresses: `PROTOCOL.md`.
 
 ## 1. Overview
 
-```
+```text
 client ──REST──▶ node: POST …/voice/join          → LiveKit token + limits + participants + MLS epoch
 client ──WSS───▶ node /rtc ──(token checked)──▶ LiveKit 127.0.0.1:7880   (signaling, proxied)
 client ══UDP═══▶ LiveKit TAVRN_RTC_UDP_PORT_RANGE                      (media, end-to-end encrypted)

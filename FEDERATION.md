@@ -975,7 +975,7 @@ Stored per peer in `known_nodes.conformance` (JSON):
 For two users with addresses `a`, `b` (`a ≠ b`) and identity public keys `ka`, `kb`, sort the pairs by address
 (byte-wise UTF-8) into `(a1, k1), (a2, k2)`:
 
-```
+```text
 digest        = SHA-256( "tavrn safety number v1" || 0x00 || str16(a1) || k1(32) || str16(a2) || k2(32) )
 safety_number = decimal( big-endian unsigned integer(digest) ) mod 10^60, left-padded with "0" to 60 digits
 ```
@@ -983,7 +983,7 @@ safety_number = decimal( big-endian unsigned integer(digest) ) mod 10^60, left-p
 Displayed as 12 groups of 5 digits (3 lines of 4 groups); both users see the same number. QR payload (UTF-8,
 byte mode):
 
-```
+```text
 tavrn:verify?v=1&a=<a1>&ka=<base64url k1>&b=<a2>&kb=<base64url k2>
 ```
 
@@ -1009,7 +1009,7 @@ Messages with `encrypted = false` are authenticated only by the session, so the 
 (design note 9d). The envelope (PROTOCOL.md §7) gets the field `signature` (base64url, 80 bytes), null for
 encrypted messages and for unsigned plaintext messages:
 
-```
+```text
 signed    = "tavrn plaintext signature v1" || 0x00
             || str16(conversation id)                   # qualified: <node domain>/<conversation ULID>
             || str16(author) || str16(device_id)

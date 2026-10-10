@@ -8,7 +8,7 @@ participant renders it locally and only changes travel, as **ephemeral events** 
 
 ## 1. Overview
 
-```
+```text
 owner device ──POST /conversations/{id}/ephemeral──▶ node ──WS `ephemeral`──▶ every member with read access
                                                        │                       (except the sending device)
                                      whiteboard.open / grant / close: the node keeps a tiny session

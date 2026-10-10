@@ -188,7 +188,7 @@ metadata of messages (`ENCRYPTION.md` §5.4).
 Every file gets a random 32-byte `file_key`. A file's content (part `content`) and its client-made thumbnail (part
 `thumbnail`, optional) are encrypted separately in chunks of 1 MiB:
 
-```
+```text
 part_key  = HKDF-SHA256(IKM = file_key, salt = 32 zero bytes, info = "tavrn file chunk v1" || 0x00 || part, L = 32)
 chunks    = max(1, ceil(n / 2^20))                  # n = plaintext bytes of the part; an empty part is one empty chunk
 chunk_i   = plaintext[i · 2^20 .. min((i + 1) · 2^20, n))

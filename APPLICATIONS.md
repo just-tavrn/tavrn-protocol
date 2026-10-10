@@ -39,7 +39,7 @@ Problem Details with stable `code`s (`PROTOCOL.md` §4).
 
 ### 1.1 Data model
 
-```
+```text
 applications(id, bot_user_id, owner_id, name, description, public, requested_permissions, scopes,
              interactions_url, rpc_origins, commands_version, disabled_at, disabled_reason, created_at)
 application_tokens(id, application_id, device_id, name, scopes, jti, token_hash, prev_jti, prev_valid_until,
@@ -254,7 +254,7 @@ the bot user, and the effective scopes = `scp ∩ applications.scopes`.
 Scopes cap what a token may do **at all**; room permissions still decide what it may do **where**. Effective
 permission of a bot in a channel:
 
-```
+```text
 eval      = permissions.md evaluation for the bot member (administrator / owner expand to all bits first)
 perm(bot) = 0                                          if the channel's effective no_bots flag is set (§3.5)
           = eval ∩ (ALWAYS ∪ ⋃ bits(scope) for scope in effective scopes)   otherwise
@@ -1040,7 +1040,7 @@ The node announces `sso.oidc` (§10) and `GET /node` carries `sso: { label, only
 
 ### 8.2 Login flow
 
-```
+```text
 client                               node                                         IdP
   │ POST /auth/oidc/start ─────────────▶ store state, nonce, PKCE verifier,
   │   { code_challenge, client_state,     client challenge (10 min, single use)

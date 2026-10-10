@@ -244,7 +244,7 @@ logins are authenticated by the identity provider (§5a.6); both are exempt. Pas
 
 ### 5a.1 States
 
-```
+```text
                  password ok, no factor                    first factor confirmed
  POST /auth/login ─────────────────────► enrollment_required ───────────────────────┐
  POST /auth/register ──────────────────►  (pre-auth, stage enroll)                  ▼

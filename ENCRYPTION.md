@@ -32,7 +32,7 @@ a group for a conversation of another node. Implementations MUST reject malforme
 
 ## 1. Overview
 
-```
+```text
 recovery key (32 bytes, only with the user) ─┐   passkey PRF output (per credential) ─┐
                                               ▼                                        ▼
                          secret storage on the home node: master secret wrapped per method (§2.4)
@@ -58,7 +58,7 @@ GroupInfo and routes Welcome messages. It never holds key material that would le
 The master secret is 32 bytes from a cryptographically secure RNG, created by the client at
 registration (or at an identity reset, §9). Derivation:
 
-```
+```text
 PRK          = HKDF-Extract(salt = "tavrn master v1", IKM = master_secret)
 identity_sk  = HKDF-Expand(PRK, info = "tavrn identity key v1", L = 32)   # Ed25519 secret key (seed)
 backup_key   = HKDF-Expand(PRK, info = "tavrn backup key v1",   L = 32)   # AES-256-GCM key
@@ -73,7 +73,7 @@ all epoch keys stay. The *current* identity key is therefore the derived one, or
 Clients additionally derive a **local storage key** per device, under which they encrypt everything
 cryptographic they keep locally (MLS client state, epoch keys, message cache); it never leaves the device:
 
-```
+```text
 local_key    = HKDF-Expand(PRK, info = "tavrn local storage key v1" || 0x00 || str16(device_id), L = 32)
 ```
 
@@ -90,7 +90,7 @@ recovery key (`0x02`, §2.4). Since the secret storage exists, clients use the *
 user-facing backup; exporting the master secret as a key file is an optional expert feature. The
 master secret key file is a text file named `tavrn-key-<username>.txt`:
 
-```
+```text
 # tavrn security key v1 - keep this file secret and safe
 # Account: alice@node.example
 # Whoever has this file can read your encrypted messages.
@@ -179,7 +179,7 @@ node. It is shown to the user once as 24 BIP-39 words (primary form) and as a co
 download is optional. The user MUST confirm having saved it (clients SHOULD ask for some of the words
 again). Encoding (same rules as the key file, §2.2, with version byte `0x02`):
 
-```
+```text
 # tavrn recovery key v1 - keep this key secret and safe
 # Account: alice@node.example
 # Together with your login it unlocks your encrypted messages on new devices.
@@ -192,7 +192,7 @@ re-wraps the **same** master secret and replaces the `recovery` entry; it is not
 
 **Wrapping keys** (HKDF-SHA256, "salt = none" is RFC 5869's default of 32 zero bytes):
 
-```
+```text
 recovery_wrap_key = HKDF(salt = none, IKM = recovery_key, info = "tavrn secret storage recovery v1", L = 32)
 passkey_wrap_key  = HKDF(salt = none, IKM = prf_output,   info = "tavrn secret storage passkey v1",  L = 32)
 ```
@@ -205,7 +205,7 @@ set it serves (PROTOCOL.md §5a), so one ceremony can log in and unlock at the s
 
 **Entry** (61 bytes, uploaded and served as base64url):
 
-```
+```text
 wrapped = 0x01 || nonce(12) || AES-256-GCM(wrap_key, nonce, aad, master_secret(32))
 aad     = "tavrn secret storage v1" || 0x00 || str16(user address) || str16(method label)
 ```
@@ -285,7 +285,7 @@ Every device generates its own Ed25519 key pair; the secret key never leaves the
 is the device's MLS signature key and signs encrypted content (§5). The account binds it with an
 **identity signature**:
 
-```
+```text
 attestation_message = "tavrn device attestation v1" || 0x00
                       || device_public_key(32) || str16(device_id) || str16(user_address)
 identity_signature  = Ed25519-Sign(identity_sk, attestation_message)
@@ -305,7 +305,7 @@ it alone (history shares, §7b). It lives exactly like the device key: stored wi
 kept by an identity reset (§9), never moved to another device; a new device has a new pair. The reference
 implementation derives it from the device secret key (32-byte Ed25519 seed):
 
-```
+```text
 share_secret = HKDF-SHA256(salt = "" (empty), IKM = device secret key, info = "tavrn device share key v1", L = 32)
 share_public = X25519(share_secret, 9)                 # share_secret used as libsodium stores X25519 secret keys
 share_key_signature = Ed25519-Sign(device_sk, "tavrn device share key v1" || 0x00
@@ -376,7 +376,7 @@ A login on a browser or program that still holds a device of the account continu
 a new one (PROTOCOL.md §5b). The client signs a single-use nonce of the node (`POST /auth/device-nonce`) with the
 device key:
 
-```
+```text
 login_proof_message = "tavrn device login v1" || 0x00 || str16(device_id) || str16(user_address) || str16(nonce)
 proof               = Ed25519-Sign(device_sk, login_proof_message)
 ```
@@ -576,7 +576,7 @@ keys to read history and back them up (§7).
 
 The envelope field `content` (PROTOCOL.md §7, `encrypted = true`, `format = 1`) is:
 
-```
+```text
 content    = base64url( 0x01 || u64(epoch) || nonce(12) || ciphertext )
 ciphertext = AES-256-GCM(key = content_key(epoch), nonce, aad, plaintext)   # includes the 16-byte tag
 aad        = 0x01 || str16(conversation id) || u64(epoch) || str16(author) || str16(device_id)
@@ -794,7 +794,7 @@ decrypted `mime` is `image/svg+xml` (or whose `name` ends in `.svg`) inline (PRO
 
 The client backs up its content keys per conversation to the home node, encrypted with the backup key:
 
-```
+```text
 blob      = 0x01 || nonce(12) || AES-256-GCM(backup_key, nonce, aad, plaintext)
 aad       = "tavrn backup v1" || 0x00 || conversation id
 plaintext = {"v":1,"conversation":"node.example/01J…","keys":{"41":"<base64url key>","42":"…"}}
@@ -821,7 +821,7 @@ plaintext = {"v":1,"conversation":"node.example/01J…","keys":{"41":"<base64url
 The personal whiteboard scene library (`WHITEBOARD.md` §2.3, §5) uses the backup key like §7, with its own AAD
 that binds every blob to its scene and its role:
 
-```
+```text
 blob = 0x01 || nonce(12) || AES-256-GCM(backup_key, nonce, aad, plaintext)
 aad  = "tavrn whiteboard v1" || 0x00 || scene id || 0x00 || part        # part = "scene" | "thumbnail"
 ```
@@ -1151,13 +1151,13 @@ stays (master secret, recovery key, backup key, epoch keys, device keys, MLS sta
    PROTOCOL.md §5c). The client fetches its own keys document; every listed device must verify under the current
    key, otherwise the document and the local state disagree and the client stops with an error.
 2. The client generates a random Ed25519 key `new_sk` and signs the **continuity statement**
-   ```
+   ```text
    statement = { "old_key": base64url(old_pk), "new_key": base64url(new_pk), "at": "<RFC 3339 now>" }
    message   = "tavrn identity continuity v1" || JCS(statement)          # RFC 8785
    sig_old   = Ed25519-Sign(old_sk, message);  sig_new = Ed25519-Sign(new_sk, message)
    ```
    wraps the new key for the home node
-   ```
+   ```text
    identity_blob = 0x01 || nonce(12) || AES-256-GCM(identity_wrap_key, nonce, aad = UTF-8(user address), new seed(32))
    ```
    and attests every active device's existing key with `new_sk` (§3.1).
