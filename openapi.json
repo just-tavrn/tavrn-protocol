@@ -15346,7 +15346,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Join a voice channel: checks `connect`, the user limit and the node policies and returns a LiveKit token.",
+        "summary": "Join a voice channel: checks `connect` (or a moderator's move into this channel), the user limit and the node\npolicies and returns a LiveKit token.",
         "operationId": "join",
         "parameters": [
           {
@@ -15562,7 +15562,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Move a member to another voice channel (`move_members` in both channels; the member needs `connect` in\nthe target). The node disconnects the member here and sends `voice.move` to the member's devices, whose\nclient then joins the target channel (a new token and frame key: every channel has its own MLS group).",
+        "summary": "Move a member to another voice channel (`move_members` in both channels). The member needs no permission in\nthe target: the move grants their next join there and, while that participation lasts, a view of the channel\n(VOICE.md §7 \"Moved participations\"); only the target's age gate holds. The node disconnects the member here and\nsends `voice.move` to the member's devices, whose client then joins the target channel (a new token and frame\nkey: every channel has its own MLS group).",
         "operationId": "move_member",
         "parameters": [
           {
@@ -19112,7 +19112,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Mass move: everybody in a voice channel of the room (or only in `from_channel_id`)\nto `to_channel_id`, needs `move_members` in the target and in every source channel. The target's user\nlimit holds: members beyond it stay and are reported as `channel_full` (a partial result, still `200`).\nOne audit entry `voice.move_all`.",
+        "summary": "Mass move: everybody in a voice channel of the room (or only in `from_channel_id`)\nto `to_channel_id`, needs `move_members` in the target and in every source channel. The moved members need no\npermission in the target (like `…/move`); the target's age gate and user limit hold: members beyond the limit\nstay and are reported as `channel_full` (a partial result, still `200`).\nOne audit entry `voice.move_all`.",
         "operationId": "move_all",
         "parameters": [
           {
@@ -31724,7 +31724,7 @@
         "properties": {
           "reason": {
             "type": "string",
-            "description": "`channel_full` (the target's user limit), `target_forbidden` (no `connect` in the target),\n`outranked` (owner, node admin or an equal or higher role) or `move_forbidden` (no `move_members`\nin the participant's channel)."
+            "description": "`channel_full` (the target's user limit), `target_forbidden` (below the target's age gate),\n`outranked` (owner, node admin or an equal or higher role) or `move_forbidden` (no `move_members`\nin the participant's channel)."
           },
           "user": {
             "type": "string",
@@ -37700,6 +37700,10 @@
           "joined_at": {
             "type": "string",
             "description": "When LiveKit reported the participant (RFC 3339)."
+          },
+          "moved": {
+            "type": "boolean",
+            "description": "A moderator moved the user here (`VOICE.md` §7): they may be here without `view_channel` or `connect` for as\nlong as this participation lasts. Clients may show \"moved here\". Always `false` in calls; absent from older\nnodes (= `false`)."
           },
           "muted": {
             "type": "boolean",
