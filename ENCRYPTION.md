@@ -652,8 +652,8 @@ keys that new members cannot read.
   another conversation, epoch or author.
 - Post-compromise security through MLS: after a compromised device is removed or updated, new epochs are
   safe. Forward secrecy is per epoch with respect to the MLS state; because clients keep content keys for
-  history (and back them up), a compromised device or backup key exposes the history it holds (the same
-  trade-off as Matrix/Megolm with key backup, design note 5.3).
+  history (and back them up), a compromised device or backup key exposes the history it holds (the usual
+  trade-off of group encryption schemes that keep message keys in a key backup, design note 5.3).
 - New members cannot read messages from before their join, unless the channel's history policy lets members
   share older keys with them (§7b); removed members cannot read messages after their removal.
 - The node sees metadata: conversation, author, device, timestamps, epoch, ciphertext sizes, `mentions`
@@ -833,9 +833,10 @@ deletes the scenes with the backups. Ephemeral whiteboard events themselves are 
 
 ## 7b. History for new members
 
-Per-epoch content keys (§5.1) let members hand older keys to a member who joined later, the same mechanism as
-Matrix MSC3061 ("room keys for past messages"). The node stays zero-knowledge: it only stores and routes
-encrypted shares and enforces who may send what to whom.
+Per-epoch content keys (§5.1) let members hand older keys to a member who joined later: existing members encrypt
+the keys of past epochs to the new member's devices, the approach to "room keys for past messages" known from
+other messaging protocols. The node stays zero-knowledge: it only stores and routes encrypted shares and enforces
+who may send what to whom.
 
 **Policy.** Room channels carry `history_for_new_members` (PROTOCOL.md §6, "History for new members"):
 
