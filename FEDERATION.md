@@ -1029,7 +1029,9 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
   `id`, `created_at`, reactions, pins (node-assigned metadata).
 - Verifying is optional for clients: the device key comes from the author's attested devices fetched from the
   author's home node and checked against the pinned identity key. Valid → normal; missing → "unverified" marker;
-  invalid → the content is hidden behind "This message could not be verified".
+  invalid → the content is hidden behind "This message could not be verified". Unsigned messages of bots and
+  webhooks (`APPLICATIONS.md`: the node authenticated the application's token and marks the author as a bot) carry
+  no "unverified" marker: the bot badge takes its place; a bot signature that cannot be checked is still marked.
 - The first message of a thread created together with it (a forum post, `PROTOCOL.md` §7e) is signed with the
   thread id the client chose for the thread (`id` of the creation request), so one rule covers every message.
   First messages of threads created without a client-chosen id (older clients and posts) carry no signature and
