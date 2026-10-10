@@ -997,7 +997,7 @@ Every message consists of an envelope (readable by the node) and content (opaque
   "edited_at": null,
   "encrypted": true,
   "format": 1,
-  "reply_to": null,
+  "reply_to_id": null,
   "thread_id": null,
   "mentions": ["bob@other.example"],
   "mentions_everyone": false,

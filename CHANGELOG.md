@@ -5,6 +5,17 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **A leaf never changes its identity** (`ENCRYPTION.md` §4.3, §4.4). The delivery service and clients refuse a
+  member commit whose update-path leaf carries another identity than the committer's, and the delivery service
+  refuses a commit after which two leaves share a signature key.
+- **External joins replace every old leaf of the device** (`ENCRYPTION.md` §4.5 rule 2): the commit must remove
+  every leaf with the joiner's identity or key. Rule 4 lets any member remove a leaf whose key is not the attested
+  key of the device it names.
+- **Claim budget per target user** (`ENCRYPTION.md` §3.2): home nodes limit KeyPackage claims per target user across
+  all requesters, local and S2S.
+- **Clarifications** (`ENCRYPTION.md` §7b, §9; `PROTOCOL.md` §7): the 64 KiB share limit is measured on the
+  base64url string; the identity reset accepts any reauth token of the session and records `key_reset_at` with the
+  key change; the envelope example names the field `reply_to_id`.
 - **CORS mirrors the requested headers** (`FEDERATION.md` §8 "CORS and CSP"). Nodes allow at least the listed
   request headers and the `Tavrn-*` headers of the upload routes; the reference node mirrors whatever headers a
   preflight names, allows every method and exposes `Content-Range` and `Content-Disposition` besides `ETag`,
