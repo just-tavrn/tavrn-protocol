@@ -25,7 +25,7 @@ logo could suggest an official offering.
 
 - **Distributing modified versions under the name.** If you distribute a modified version of the node, the
   web client or the apps (binaries, images, packages, a public download), give it a different name and remove
-  or replace the logo and icons (`img/`, `web/public/`). The same applies to versions that have been rebuilt
+  or replace the logo and icons (they live in the web client and app repositories). The same applies to versions that have been rebuilt
   in substance even if you run them only yourself, for example with a different protocol, without the
   end-to-end encryption, or with a different federation, because people who connect to them would expect
   tavrn behaviour.
@@ -51,6 +51,7 @@ logo could suggest an official offering.
 ## Questions and reports
 
 Ask the maintainers if you are unsure; we are happy to allow reasonable uses and will answer in writing.
-Report uses that look official but are not to the project's security contact (`SECURITY.md`). This policy
+Report uses that look official but are not to the project's security contact (see the
+[security policy](https://github.com/just-tavrn/.github/blob/main/SECURITY.md)). This policy
 may be refined once a legal entity holds the marks; the permissions above will not become narrower for
 existing uses.
