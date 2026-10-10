@@ -1,5 +1,8 @@
 # tavrn federation (`federation.v1`, draft v1)
 
+This document specifies how tavrn nodes find, authenticate and trust each other, and how a user of one node signs
+in, joins rooms, writes DMs and keeps friends on another.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). This document is normative for nodes and clients that announce the capability
 `federation.v1`. It refines the design notes 4.1a, 4.2, 4.2b, 9b, 9c and 9d and **replaces**
 `PROTOCOL.md` §9 (the route names there are superseded by the ones below). Encryption rules stay in

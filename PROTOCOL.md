@@ -1,5 +1,8 @@
 # tavrn protocol (draft v1)
 
+This document is the core of the tavrn protocol: identities and addresses, discovery, capabilities, API
+conventions, tokens and authentication, realtime events, the message envelope and the overview of permissions.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). This document is the normative description of what nodes and clients may expect from
 each other. The OpenAPI specification (`openapi.json`, generated from the server) describes the routes in
 detail; this document covers the concepts and rules that span individual routes.

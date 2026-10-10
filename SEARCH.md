@@ -1,5 +1,8 @@
 # tavrn message search (`search.v1`, draft v1)
 
+This document specifies message search in tavrn, with the node's full-text index for unencrypted conversations and
+the local encrypted index each client keeps for everything else.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`).
 Normative for nodes; the client part (§3) describes the reference implementation (`@tavrn/e2ee`, `tavrn-web`) and the
 guarantees other clients must keep. Routes and error codes: `PROTOCOL.md` §7d. Background: design note 4.4.

@@ -1,5 +1,8 @@
 # tavrn voice, video and screen sharing (`voice`, draft v1)
 
+This document specifies voice and video channels, screen sharing, the soundboard and calls in DMs, from the node's
+policies and the join flow to the encrypted media and connectivity.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). Normative for nodes and clients. Capabilities: `voice` (this document), `screenshare` (the
 node allows screen sharing), `soundboard` (clips, §8). Media runs through [LiveKit](https://livekit.io), an open
 source SFU the node starts as a child process (design note 3.4, §8); clients use a LiveKit SDK. Encryption of the

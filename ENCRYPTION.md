@@ -1,5 +1,8 @@
 # tavrn end-to-end encryption (`e2ee.mls1`, draft v1)
 
+This document specifies the end-to-end encryption of tavrn, from account keys and devices through MLS groups and
+the content formats to backups, history for new members, secret storage and identity resets.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). This document is normative for nodes and clients that announce the capability
 `e2ee.mls1`. It refines the design notes on encryption (section 5) and `PROTOCOL.md` sections 7 and 8. The reference
 implementation is the crate `tavrn-crypto` (repository `tavrn-crypto`, also published to JavaScript as `@tavrn/crypto`);

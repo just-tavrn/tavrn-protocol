@@ -1,5 +1,8 @@
 # tavrn whiteboard (`whiteboard`, draft v1)
 
+This document specifies the shared whiteboard of tavrn, a drawing board that every participant renders locally while
+only encrypted changes travel between them.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). Normative for nodes and clients (design note 4.10). A whiteboard is a shared drawing
 board in any conversation (voice or text channel, DM, group DM). It is not streamed as video: every
 participant renders it locally and only changes travel, as **ephemeral events** encrypted like messages

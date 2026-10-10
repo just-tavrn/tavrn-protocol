@@ -1,5 +1,8 @@
 # tavrn applications, bots, commands, webhooks and SSO (`apps.v1`, `commands.v1`, `webhooks.v1`, `sso.oidc`, draft v1)
 
+This document specifies applications and their bot accounts, slash commands, webhooks and event subscriptions, rich
+presence and single sign-on with OpenID Connect.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). This document is normative for nodes and clients that announce the capabilities `apps.v1`,
 `commands.v1`, `webhooks.v1` or `sso.oidc` (§10). It refines the design notes 4.2 (single sign-on),
 4.6 (moderation), 4.7 (API, bots, applications), 4.9 (activity), 4.11 (slash commands) and 9b–9d, and extends

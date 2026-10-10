@@ -1,5 +1,8 @@
 # Legal compliance: notices, legal pages, data rights
 
+This document describes the legal tools a tavrn node offers its operator, from takedown notices and legal pages to
+terms acceptance and the users' data rights.
+
 Status: implemented (design note 4.14 items 1–3). Everything here is optional for operators: a node without notices,
 documents or deletions behaves as before.
 

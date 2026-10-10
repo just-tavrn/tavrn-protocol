@@ -1,7 +1,10 @@
 # Files channels
 
-Status: implemented 2026-10-06 (design note 4.13 item 9); end-to-end encryption (§8, capability `files.e2ee`)
-2026-10-09. Node-local feature: files channels are not federated beyond the normal room access (remote members use
+A files channel gives a room a shared folder tree, stored by the node or in an external store and end-to-end
+encrypted by default.
+
+Status: implemented (design note 4.13 item 9), including end-to-end encryption (§8, capability `files.e2ee`).
+Node-local feature: files channels are not federated beyond the normal room access (remote members use
 the room's node like for every other channel).
 
 ## 1. Model

@@ -1,5 +1,8 @@
 # Moderation: reports, auto-moderation, ownership transfer
 
+This document specifies reports with evidence, auto-moderation of unencrypted conversations, the protected entries of
+the welcome channel, room ownership transfer and age gates.
+
 Status: implemented (design note 4.6). Capabilities: `reports.v1` (§1) and `automod.v1` (§2), announced by every node
 that implements them; clients show the "Report" entries and the "Auto-moderation" room settings only for nodes that
 announce them. Everything here is node-local (other nodes never see a report or a rule) except where it says so.

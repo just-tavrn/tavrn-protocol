@@ -1,6 +1,9 @@
 # Entitlements, admin API tokens and attachment retention
 
-Status: implemented 2026-10-06 (design note 4.13 items 1 and 2). Node-local: nothing in this document crosses
+Entitlements raise a node's fixed limits per user or per room, admin API tokens let an operator's systems manage them,
+and attachment retention deletes old files.
+
+Status: implemented (design note 4.13 items 1 and 2). Node-local: nothing in this document crosses
 node boundaries, and no other node has to understand it. Clients only read the effective values.
 
 Entitlements are a small, generic layer on top of a node's fixed limits. They let an operator run plans or
