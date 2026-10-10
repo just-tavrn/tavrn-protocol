@@ -33,9 +33,9 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 24 | `manage_nicknames` | Change other people's nicknames |
 | 25 | `pin_messages` | Pin messages |
 | 26 | `use_camera` | Share the camera |
-| 27 | `use_whiteboard` | Open a whiteboard in the channel (voice channels also need `connect`); viewing a board only needs read access (phase 4E) |
-| 28 | `manage_whiteboard` | Close any whiteboard and change who may edit someone else's board (phase 4E) |
-| 29 | `manage_webhooks` | Manage the channel's webhooks (reserved in phase 4E, routes in phase 5, `APPLICATIONS.md` §6) |
+| 27 | `use_whiteboard` | Open a whiteboard in the channel (voice channels also need `connect`); viewing a board only needs read access |
+| 28 | `manage_whiteboard` | Close any whiteboard and change who may edit someone else's board |
+| 29 | `manage_webhooks` | Manage the channel's webhooks (`APPLICATIONS.md` §6) |
 | 30 | `priority_speaker` | May activate priority speaking in voice channels (others are ducked while they hold the key, design note 4.13) |
 | 31 | `use_external_emojis` | Use custom emojis of other rooms and personal emojis in this room (default for `@everyone`, design note 4.13) |
 | 32 | `use_external_sounds` | Play soundboard clips of other rooms and personal clips in this room (default for `@everyone`, design note 4.13) |
@@ -175,8 +175,7 @@ Nodes remove bits outside `CHANNEL_SCOPED` from the `allow` and `deny` masks of 
 
 ## Evaluation
 
-The evaluation is layered (since 2026-10-09; it replaced the earlier "synced with its category" rule, see
-"Changes" below): role base → category overrides → channel overrides.
+The evaluation is layered (it replaced the earlier "synced with its category" rule, see "Changes" below): role base → category overrides → channel overrides.
 
 1. `base = everyone | OR(member's roles)`. Owner, node admin or `administrator` → all permissions, done.
 2. **Category layer**: if the channel belongs to a category, the category's overrides apply to `base`.

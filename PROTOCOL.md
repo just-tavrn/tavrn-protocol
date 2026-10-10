@@ -168,7 +168,7 @@ localized (`Accept-Language`). Clients should map known codes to their own trans
 ### 4.1 Commands (client registry, design note 4.11)
 
 Slash commands are a client feature on top of the normal API. Clients keep a **registry** of command definitions
-in the shape of `APPLICATIONS.md` §5.1/§5.4, so that phase 5 application commands and built-ins share one format:
+in the shape of `APPLICATIONS.md` §5.1/§5.4, so that application commands and built-ins share one format:
 
 ```json
 { "id": "", "name": "timeout", "description": "Time out a member",
@@ -188,13 +188,13 @@ in the shape of `APPLICATIONS.md` §5.1/§5.4, so that phase 5 application comma
   `/slowmode`, `/topic`, `/nick`, `/me` (content type `action`, §7), `/shrug`, `/whiteboard`, `/poll` (reserved
   until phase 5), `/help`. Destructive ones (kick, ban, purge) ask for confirmation.
 
-**Announce flow for applications (phase 5, `commands.v1`, normative in `APPLICATIONS.md` §5).** An application
+**Announce flow for applications (`commands.v1`, normative in `APPLICATIONS.md` §5).** An application
 announces its commands to its home node (`PUT /applications/{id}/commands`, or `/applications/me/commands` with an
 app token); nodes optionally require admin approval of each definition hash; room managers enable, restrict or
 disable commands per room and channel; clients fetch the invocable ones with `GET
 /conversations/{conversation_id}/commands`, merge them after their built-ins (name clashes qualified by the
 application name, selection bound to the command id) and invoke them with `POST
-/conversations/{conversation_id}/interactions`. The reference client (implemented in phase 5 step 3) announces
+/conversations/{conversation_id}/interactions`. The reference client announces
 `commands.v1` in its WebSocket `hello`, shows the BOT badge and the application's name on application commands,
 offers `options` as a pick list (and `true`/`false` for booleans), sends `user` arguments as addresses and
 `channel`/`role` arguments as ids, encrypts the arguments in encrypted conversations (`command.args`, §7) and shows
@@ -636,7 +636,7 @@ the room as `GET /rooms/{id}` lists it to each member:
   (`channel.create` before `voice.move`, its events, `GET /rooms/{id}`), afterwards it is hidden again
   (`channel.delete { hidden: true }`) unless their permissions show it.
 
-Event types besides the room/message events of phase 1:
+Event types besides the room and message events:
 
 | Type | Audience | `data` |
 |---|---|---|
@@ -778,8 +778,8 @@ is not detected generically: clients additionally compare the MLS roster with th
 
 Presence is kept by **every node the user has a session on**, never forwarded between nodes: the client
 pushes its state to its home node and, through its federated sessions, to every node hosting its rooms and
-conversations. A node therefore never learns the presence of a user without a session there (decided
-2026-10-05; FEDERATION.md §13.2).
+conversations. A node therefore never learns the presence of a user without a session there (FEDERATION.md
+§13.2).
 
 - A user is online on a node while at least one WebSocket of theirs is open there. The **chosen status**
   (`online`, `dnd`, `invisible`) and the **custom status** `{ text ≤ 128, emoji?, expires_at? }` belong to the

@@ -64,7 +64,7 @@ sso_grants(user_id, kind, room_id, role_id, grp, granted_at)             -- what
 ```
 
 `users.kind` takes `user`, `bot` or `webhook` (§6.1); `users.owner_id` references the owner for bots and the
-creator for webhook users. The columns `kind` and `owner_id` exist since phase 1.
+creator for webhook users. The columns `kind` and `owner_id` predate applications.
 
 ### 1.2 Who may create applications
 
@@ -272,7 +272,7 @@ ALWAYS    = view_channel | change_nickname
 | `moderation` | `manage_messages`, `kick_members`, `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_nicknames`, `mute_members`, `move_members`, `manage_threads` | kicks, bans, timeouts, purge (with preview), audit log, voice mute/move/disconnect |
 | `rooms:manage` | `manage_room`, `manage_channels`, `manage_roles`, `create_invites`, `manage_emojis`, `manage_files`, `manage_applications` | room, category, channel, role, override, emoji, soundboard and invite management (installing applications and the room's command settings stay closed to app tokens, §4.2) |
 | `voice` | `connect`, `speak`, `stream`, `use_camera`, `use_soundboard`, `use_external_sounds`, `priority_speaker` | `voice/join`, voice state, soundboard; event `voice.state`, `voice.move` |
-| `whiteboard` | `use_whiteboard`, `manage_whiteboard` (bits added in phase 4E) | `ephemeral` types `whiteboard.*`; event `whiteboard.session` |
+| `whiteboard` | `use_whiteboard`, `manage_whiteboard` | `ephemeral` types `whiteboard.*`; event `whiteboard.session` |
 | `commands` | – | `PUT /applications/me/commands`, interaction callbacks and follow-ups; event `command.invoke` |
 | `webhooks:manage` | `manage_webhooks` (new bit, §10.2) | webhook routes of §6.1 |
 | `presence` | – | `PUT /users/me/presence`, `PUT/DELETE /users/me/activity` for the bot; the local activity bridge of §7.3 |
@@ -342,8 +342,8 @@ a bot are audited with the application id.
   federated session and applies §2.4–§2.7 unchanged; the route table of §2.5 applies on top of `LOCAL_ONLY`.
 - A remote bot is in a room of T only through an installation on T (§4.2). Its federated session renews with fresh
   federation tokens as for users (7-day cap).
-- **Split of the existing switch**: today `TAVRN_FEDERATION_REMOTE_BOTS=false` also stops H from issuing federation
-  tokens to its *own* bots (`FEDERATION.md` §13.1). From phase 5 that is `TAVRN_APPS_FEDERATE`;
+- **Split of the existing switch**: `TAVRN_FEDERATION_REMOTE_BOTS=false` used to stop H from issuing federation
+  tokens to its *own* bots as well (`FEDERATION.md` §13.1). That is now `TAVRN_APPS_FEDERATE`;
   `TAVRN_FEDERATION_REMOTE_BOTS` only decides whether bots of other nodes are accepted.
 
 ## 3. Bot devices and end-to-end encryption
@@ -426,7 +426,7 @@ channel objects carry `no_bots_effective`.
 - Channels show the flag as an icon in the channel list and in the settings. Webhooks are not affected (§6.1): they
   cannot read.
 
-**Bots in encrypted channels** (design note 4.7, decided 2026-10-06). A room setting `bots_in_encrypted_channels` =
+**Bots in encrypted channels** (design note 4.7). A room setting `bots_in_encrypted_channels` =
 `per_channel` | `allowed` and a channel setting `bots_allowed` (boolean, default `false`) extend the effective flag:
 
 - **Effective flag** of a channel = `room.no_bots ∨ category.no_bots ∨ channel.no_bots ∨ (channel encrypted ∧
@@ -990,7 +990,7 @@ The activity of `PROTOCOL.md` §6a gains optional fields (compatible additions):
 validates the format only (`400 presence.activity_invalid`); clients show "via \<application name>" and, when they
 already know the bot user of `application.ref`, its avatar. No other images, buttons or party joins in v1.
 
-### 7.3 Local activity bridge (interface fixed now, implemented with the desktop apps in phase 6)
+### 7.3 Local activity bridge
 
 Applications never set a **user's** activity through the node: there is no route for it, and no token grants it.
 Instead a local program (a game or its launcher) talks to the user's desktop client, which asks the user and then
@@ -1267,7 +1267,7 @@ types and embed fields are compatible additions; receivers ignore unknown ones, 
 token creation (§2.4). A client without `commands.v1` shows built-in commands only; a client without `apps.v1`
 still shows bots with the badge rule of §1.5, which depends only on `kind`.
 
-### 10.2 Additions to other documents (to be folded in during phase 5)
+### 10.2 Additions to other documents
 
 - **PROTOCOL.md**: §1 `kind` takes `webhook`; `User` objects of bots carry `owner` and `application_id`; §3 the
   four capabilities; §5 token table: `app` lifetime "≤ `TAVRN_APP_TOKEN_MAX_DAYS`, revocable", new `hook` typ; §5a
@@ -1277,7 +1277,7 @@ still shows bots with the badge rule of §1.5, which depends only on `kind`.
   §7 envelope fields `author_kind`, `interaction`, `webhook`, `device_id` nullable for webhook messages, `embeds` in
   `text` content, reserved content type `command.args`; §8a bots in DMs only.
 - **permissions.md**: new bit `manage_webhooks` (management class, never on `@everyone`, design note 4.11) at the next
-  free position after the phase 4E bits; the evaluation gains the bot inputs (`kind`, effective `no_bots`, scope
+  free position after the whiteboard bits; the evaluation gains the bot inputs (`kind`, effective `no_bots`, scope
   mask) with test vectors in `testvectors/permissions.json`.
 - **ENCRYPTION.md**: §2.3 the keys document carries `kind`; §3/§8 bot devices (token-bound, no secret storage);
   §4.5 rule 2/3 bots are not entitled in "no bots" channels; §4.6 the bot ghost rule of §3.5; §9 the owner-driven
@@ -1288,7 +1288,7 @@ still shows bots with the badge rule of §1.5, which depends only on `kind`.
   `TAVRN_FEDERATION_REMOTE_BOTS` narrowed.
 - **Node configuration** (design note 8): the switches of §9.6 and §8.1.
 
-## 11. Phase 5 implementation order
+## 11. Implementation order
 
 Every step is test-first (design note 9a); every route gets a permission test with a caller lacking the permission, a
 bot token lacking the scope and a remote user, and every limit an exceeding test. Rust integration tests use the
@@ -1344,7 +1344,7 @@ the test harness; Playwright runs the web client against real nodes (phone, tabl
   no auto-link by email, `sync` revoking only SSO grants, bans winning over the map; Playwright: SSO button, login
   through the fake provider, first-login recovery key setup, linking from the settings.
 - [x] **7. Rich presence**: activity fields, bot presence with the `presence` scope, the bridge interface as a typed
-  module and a mock bridge for tests (implementation in the phase 6 desktop app). Tests: activity validation, scope
+  module and a mock bridge for tests (the desktop app implements the bridge later). Tests: activity validation, scope
   refusal, consent decision storage in the mock bridge.
 
 Each step ends with the full check suite green, the OpenAPI regenerated, `PROTOCOL.md`/`FEDERATION.md`/`ENCRYPTION.md`/
@@ -1357,7 +1357,7 @@ files and migrations to the node (repository `tavrn-node`), `sealed.rs` to `tavr
 `@tavrn/sdk`, `@tavrn/e2ee` and `@tavrn/bot` (repository `tavrn-js`) or the web client (`tavrn-web`), and
 `*.spec.ts` to the end-to-end suite of `tavrn-web`.
 
-### Step 5a: shared encryption module (2026-10-05)
+### Step 5a: shared encryption module
 
 - The client side of the encryption moved out of the web client's `crypto` module into the package `@tavrn/e2ee`
   (repository `tavrn-js`, MPL-2.0, TypeScript source like `@tavrn/sdk`): the MLS session manager (`MlsManager`, unchanged
@@ -1379,7 +1379,7 @@ files and migrations to the node (repository `tavrn-node`), `sealed.rs` to `tavr
   inside `@tavrn/sdk` would make the two packages depend on each other; decide in step 5b between a package that
   depends on both (e.g. `@tavrn/bot`, re-exported by the SDK docs) and accepting the workspace cycle.
 
-### 12.6 Step 6: SSO via OpenID Connect (2026-10-05)
+### 12.6 Step 6: SSO via OpenID Connect
 
 - **No `openidconnect` crate** (deviation from §8.7): the node implements the small code flow itself on reqwest
   (`oidc/`) and verifies ID tokens with jsonwebtoken 10 (`rust_crypto`, JWK parsing plus the RustCrypto
@@ -1428,7 +1428,7 @@ files and migrations to the node (repository `tavrn-node`), `sealed.rs` to `tavr
   member list, an SSO-only node with break-glass sign-in).
 - **Open**: OIDC back-channel logout (§8.6 MAY), `app_creation` grants (after step 1). The admin UI for the group
   map came with step 2 (admin page, tab "SSO", shown while the node announces `sso.oidc`).
-### Step 1: applications, tokens, scopes, "no bots" (2026-10-05)
+### Step 1: applications, tokens, scopes, "no bots"
 
 Implemented: `applications.rs` (token claims and verification, `APP_ROUTES`, event filter, WebSocket
 registry, cascades), `store/applications.rs`, `routes/applications.rs`, migration
@@ -1496,7 +1496,7 @@ settings tab and "no bots" toggles. Where the reference node deviates from or re
   once installations exist, step 2), the admin routes and blocklist management of §4.4 (the blocklist is
   already checked for app tokens and federated logins), `kind = "webhook"` users (step 4).
 
-### Step 2: add link and per-room applications (2026-10-06)
+### Step 2: add link and per-room applications
 
 Implemented: `installations.rs` (public document, the add flow, uninstalls, the install index, `app.*`
 inbox handlers, blocks), `store/installations.rs`, `routes/installations.rs`, migration
@@ -1563,7 +1563,7 @@ refines §1.8 and §4:
   seven days and one day before a secret expires, to the owner and the bot, once per threshold and secret
   (`application_tokens.expiry_notified_days`); the e-mail of §2.2 followed later (localized like the other mails of the
   node). The draft named 14 and 3 days;
-  the phase 5 task set 7 and 1, and §2.2 now says so.
+  the implementation uses 7 and 1, and §2.2 now says so.
 - **Tests.** `app_install_flow.rs` (12 tests: granted ⊆ installer ∩ requested with the role position,
   administrator and non-subset refused, private application, `manage_roles` missing, name collisions, owner and bot
   bans, node ban, disabled and blocked applications, room limit, "no bots", uninstall/kick/ban with WS events and
@@ -1577,12 +1577,12 @@ refines §1.8 and §4:
   home node shown) and `admin-apps.spec.ts` (disable, block, unblock, delete; SSO group map).
 - **Open:** command counts and `commands` in the document (step 3); the token expiry e-mail; a room picker in the SSO
   group map tab (rooms and roles are entered as ids).
-- **Update (2026-10-06, bots and E2EE wave):** installing, uninstalling and the room picker of the consent screen now
+- **Update (bots and E2EE):** installing, uninstalling and the room picker of the consent screen now
   use `manage_applications` (bit 35) instead of `manage_room` (`403 app.manage_forbidden`); the installation list is
   readable with either. The "Applications" tab of the room settings needs the new bit. Installations into rooms created
   from now on reach encrypted channels only where the channel allows bots ("Bots in encrypted channels" below).
 
-### Step 7: rich presence (2026-10-06)
+### Step 7: rich presence
 
 - **Node.** `Activity` gains `state` (≤ 128 characters, no control characters), `ends_at` (after `started_at`, at
   most 7 days ahead) and `application` `{ ref, name }` (`<domain>/<ULID>`, name 1–128 characters; the domain is
@@ -1591,7 +1591,7 @@ refines §1.8 and §4:
   `PUT /users/me/presence` and `PUT`/`DELETE /users/me/activity` with the `presence` scope (`403 app.scope_missing`
   without it, already classified in step 1); their activity, like a user's, belongs to an open WebSocket, so a bot
   shows activity only while connected.
-- **Bridge (§7.3).** `activity/bridge.ts` fixes the interface for the phase 6 desktop app: protocol constants
+- **Bridge (§7.3).** `activity/bridge.ts` fixes the interface for the desktop app: protocol constants
   (path, version, ports 46480–46489, close code 4003, one update per 5 s with coalescing), typed messages and a
   parser that never throws, the origin rule (an unlisted origin is closed with 4003 without any answer, so a web page
   cannot probe for applications), the handshake (public document of the application's node, `ref` and bot domain
@@ -1609,7 +1609,7 @@ refines §1.8 and §4:
   storage and revocation, `hide_activity`, message parsing, origin rule, handshake refusals, rate limit, clearing),
   Playwright `activity.spec.ts` ("via" in the member list and profile card, revoking a stored decision).
 
-### Step 4: webhooks in and out (2026-10-06)
+### Step 4: webhooks in and out
 
 Implemented: `webhooks.rs` (secrets, execution, pseudo users, suspension, log redaction),
 `embeds.rs` (the node's half of the embed codec), `hooks.rs` (URL rules, the vetted outbound
@@ -1692,7 +1692,7 @@ application editor. Where the reference node deviates from or refines §6:
   expired, unknown `kid` refetch), the embed codec and the MLS round trip, the web embed card and badge, and
   Playwright `webhooks.spec.ts` and `subscriptions.spec.ts` (phone and desktop).
 
-### Step 3: commands (2026-10-06)
+### Step 3: commands
 
 Implemented: `commands.rs` (definitions, validation, JCS hashes, remote sets, approval, room settings, the
 palette and checks 1–5 and 7 of §5.5), `interactions.rs` (invocation, delivery, the injectable `Clock`,
@@ -1773,12 +1773,12 @@ namespace `api.commands`, the web client's palette merge (`commands/merge.ts`), 
   age checks, an MLS round trip); Playwright `app-commands.spec.ts` (palette, pick list, reply, ephemeral
   reply and "thinking…" in an unencrypted and an encrypted channel with an in-test bot, the room's command settings).
 - **Open.** DM commands of remote bots that are not installed in a room of the DM's node.
-- **Update (2026-10-06, bots and E2EE wave):** the room's command settings (`PUT`/`DELETE`) need `manage_applications`,
+- **Update (bots and E2EE):** the room's command settings (`PUT`/`DELETE`) need `manage_applications`,
   reading them `manage_applications` or `manage_room`; the admin UI for the approval exists ("Command approval" in the
   admin page's Applications tab, with `GET /admin/applications/commands/approval`); `createBot()` command handlers came
   with step 5b; invocations reach a bot connected to another instance of the node (scaling guide of `tavrn-node`).
 
-### Step 5b: SDK bot runtime (2026-10-06)
+### Step 5b: SDK bot runtime
 
 Implemented: the package `@tavrn/bot` (repository `tavrn-js`, Apache-2.0, TypeScript source like `@tavrn/sdk`, Node.js 20+,
 no browser build) with `createBot({ node, token, key | keyFile, stateDir, logger?, joinPolicy? })`, the example bot
@@ -1856,7 +1856,7 @@ rule of §3.5 in `@tavrn/e2ee`. Where the implementation decides what §3 and §
 - **Open.** Attachments in `send()`; DMs started by the bot (`dms` scope) have no helper yet; the interactions URL is
   not served by the runtime (bots use the WebSocket; `verifyHookRequest()` is available for own HTTP servers).
 
-### Sealed webhooks in encrypted channels (2026-10-06)
+### Sealed webhooks in encrypted channels
 
 Implemented §6.1a and `ENCRYPTION.md` §5b: `sealed.rs` (inbox key derivation, the signing input, sealed
 boxes through the `crypto_box` crate with its `seal` feature: three small RustCrypto crates, `crypto_box`,
@@ -1894,12 +1894,12 @@ WEBHOOK badge, and the webhook guide of `tavrn-node` with sealing snippets for N
   `sealed-webhooks.spec.ts` (sender mode sealed with libsodium-wrappers, node mode, a later member reads
   both, a post after his join's commit; phone and desktop) and the updated `webhooks.spec.ts`.
 
-- **Update (2026-10-06, bots and E2EE wave):** history backups are opt-in (`historyBackup: true`; by default the runtime
+- **Update (bots and E2EE):** history backups are opt-in (`historyBackup: true`; by default the runtime
   neither uploads nor restores backups, so a fresh state directory reads only new messages, see the `@tavrn/bot` README). The join
   decision follows the node's `no_bots_effective`, which now includes the room setting `bots_in_encrypted_channels`;
   the runtime joins on the `channel.update` that opens a channel.
 
-### Bots, permissions and E2EE (2026-10-06, design note 4.7 "Decided 2026-10-06")
+### Bots, permissions and E2EE (design note 4.7)
 
 Implemented: the permission bit `manage_applications` (35) in `permissions.rs`, `permissions.ts`,
 the shared vectors and `permissions.md`; `bot_channels.rs` (the room and channel settings, applying changed

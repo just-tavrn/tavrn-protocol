@@ -192,7 +192,7 @@ Body `{ confirm: <username>, delete_messages }`, reauth token required (`403 aut
 immediate (no admin step) and answers `202` with `{ id, state, delete_messages, messages_total, messages_done,
 purge_after, status_token }`; `GET /account-deletions/{id}?token=` shows the progress (same `404` for every miss).
 
-Owner decisions (2026-10-06):
+Decisions:
 
 1. **Default: the account goes, messages stay as "Deleted user".** A new tombstone row (`deleted-<16 hex>@<domain>`,
    display name "Deleted user", disabled) takes over the account's messages, pins, uploads, room emojis and sounds,

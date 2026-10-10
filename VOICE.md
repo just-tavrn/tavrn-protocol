@@ -250,7 +250,7 @@ nodes, always `false` in calls.
 
 ## 5a. Dropped connections and reconnects
 
-Decided 2026-10-05 (design note 4.5 item 7). A participant whose media connection drops is **not removed at once**:
+Design note 4.5 item 7: a participant whose media connection drops is **not removed at once**:
 
 - LiveKit's `participant_left`/`participant_connection_aborted` with a disconnect reason other than
   `CLIENT_INITIATED`, `PARTICIPANT_REMOVED`, `ROOM_DELETED` (removed at once) or `DUPLICATE_IDENTITY` (the same
@@ -301,7 +301,7 @@ mover may move themselves), so do members below the target's age gate (`target_f
 the target's user limit (`channel_full`) — a partial result is still `200`. `400 voice.not_voice_channel`,
 `400 voice.same_channel`. One audit entry `voice.move_all` with the counts.
 
-**Moved participations** (decided 2026-10-11). A member may be moved into a voice channel they may neither view
+**Moved participations.** A member may be moved into a voice channel they may neither view
 nor connect to; the moderator's `move_members` decides, not the member's permissions.
 
 - **Grant.** With every move (`…/move`, `move-all`) the node records a *move grant* for the member and the target
@@ -378,7 +378,7 @@ Clips are room assets like custom emojis; playing them is client-side.
 
 ## 9. What the reference client shows
 
-Part of the web client (phase 4 part B), responsive like the rest of the client:
+Part of the web client, responsive like the rest of the client:
 
 - **Channel list:** voice channels show their participants (avatar, display name, mute/deafen/stream/camera icons,
   server mute in another color) from `GET …/voice` and `voice.state`, also for members who are not in the call; the
@@ -421,7 +421,7 @@ Part of the web client (phase 4 part B), responsive like the rest of the client:
   signal bars; on the stage the tile dims and a camera keeps its last frame. The own voice bar shows "reconnecting"
   with a cancel button.
 
-### 9.1 Implementation notes (web client, phase 4 part B)
+### 9.1 Implementation notes (web client)
 
 - Code: the `voice/` module of `tavrn-web` (session, key provider, audio pipeline, presence and settings stores, UI in `voice/ui/`),
   settings in `pages/settings/VoiceSettingsTab.tsx` and `SoundboardTab.tsx`. `livekit-client`, its E2EE worker, the

@@ -61,9 +61,9 @@ normalized to lowercase; `400 whiteboard.grants_invalid`), never their content.
 
 | Event | Who | Effect |
 |---|---|---|
-| `whiteboard.open` | needs `use_whiteboard` (voice channels also `connect`; DMs and group DMs always; never in the welcome channel; `403 whiteboard.open_forbidden`; phase 4E, before: `send_messages`) | no live session: the sender's device starts one (owner, device, `session` state or locked); the owner's own session: keepalive, moves the session to this device and takes the `session` state if given; someone else's live session: `409 whiteboard.session_exists` (meta: that session) |
+| `whiteboard.open` | needs `use_whiteboard` (voice channels also `connect`; DMs and group DMs always; never in the welcome channel; `403 whiteboard.open_forbidden`) | no live session: the sender's device starts one (owner, device, `session` state or locked); the owner's own session: keepalive, moves the session to this device and takes the `session` state if given; someone else's live session: `409 whiteboard.session_exists` (meta: that session) |
 | `whiteboard.grant` | the owner, or in room channels a member with `manage_whiteboard` (`403 whiteboard.not_owner`) | replaces `open_for_all` and `grants` (`400 whiteboard.state_missing` without `session`) |
-| `whiteboard.close` | the owner, or in room channels a member with `manage_whiteboard` (`403 whiteboard.close_forbidden`; phase 4E, before: `manage_channels`) | ends the session |
+| `whiteboard.close` | the owner, or in room channels a member with `manage_whiteboard` (`403 whiteboard.close_forbidden`) | ends the session |
 
 Without a live session `grant` and `close` answer `404 whiteboard.no_session`. Every other event of the owner
 also keeps the session alive; a session whose owner sent nothing for **90 seconds** ends by itself (swept

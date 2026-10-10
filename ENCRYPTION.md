@@ -398,7 +398,7 @@ deletes the old device once it discards its local data, so its leaves do not lin
   GroupInfos, Welcomes and KeyPackages of any other ciphersuite MUST be rejected.
 - Credential: basic credential, `identity` = UTF-8 device identity (§0.1). Leaf signature key = device key.
 - Group id = UTF-8 bytes of the qualified conversation id. One group per conversation (channel, DM,
-  group DM); voice channels use the group of the channel (phase 4).
+  group DM); voice channels use the group of the channel.
 - All handshake messages (commits) are sent as `PublicMessage`, so the node can validate them (the
   "pure plaintext" wire format policy for handshake messages). MLS application messages are **not used**;
   content is encrypted as in §5.
@@ -665,7 +665,7 @@ keys that new members cannot read.
 
 ## 5a. Voice frame keys
 
-Voice, video and screen shares (phase 4, `VOICE.md`) are encrypted per frame by the clients (WebRTC
+Voice, video and screen shares (`VOICE.md`) are encrypted per frame by the clients (WebRTC
 insertable streams / LiveKit's E2EE); the node and the SFU only forward ciphertext. Every voice channel is a
 conversation with its own MLS group, managed exactly like a text channel's (§4: same delivery service routes,
 same authorization; the group exists before the first voice join, created by the first client that needs it).
@@ -1228,7 +1228,7 @@ Consistent with design note 5.4:
   and what any member can do anyway.
 - **The web client is code served by a node.** A malicious node can serve a modified web client and read
   everything that client decrypts. This is the inherent limit of browser-based E2EE; the native apps
-  (phase 6) and reproducible builds mitigate it.
+  and reproducible builds mitigate it.
 - **Endpoints**: a compromised device reads what its user reads. Losing every way to the master secret
   (trusted devices, recovery key, PRF passkeys) leads to the reset (§9); history is lost, nothing else.
 - **Account takeover**: the secret storage is served only to full sessions (password and second
