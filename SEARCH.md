@@ -1,5 +1,8 @@
 # tavrn message search (`search.v1`, draft v1)
 
+This document specifies message search in tavrn, with the node's full-text index for unencrypted conversations and
+the local encrypted index each client keeps for everything else.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`).
 Normative for nodes; the client part (§3) describes the reference implementation (`@tavrn/e2ee`, `tavrn-web`) and the
 guarantees other clients must keep. Routes and error codes: `PROTOCOL.md` §7d. Background: design note 4.4.
@@ -97,7 +100,8 @@ Browsers keep a bounded index: per conversation the last **90 days**, and at mos
 bounded conversations (oldest messages evicted first, by UTC day). A conversation with **"keep the full history on
 this device"** (a device-local setting, stored sealed in its `meta` record, default off) has neither limit. Turning
 it off applies the window and the cap right away. Accounting is approximate (sealed doc size plus 32 bytes per
-posting entry). Native apps (phase 6) plug a SQLite backend into the same interface and keep everything.
+posting entry). Native apps can plug a SQLite backend into the same interface and keep everything (the desktop app
+still uses the browser backend).
 
 ### 3.4 What goes in
 

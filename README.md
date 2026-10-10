@@ -10,7 +10,7 @@ The reference implementations live in their own repositories:
 | Repository | What it is |
 |---|---|
 | [`tavrn-node`](https://github.com/just-tavrn/tavrn-node) | The node (server, Rust); generates `openapi.json` |
-| [`tavrn-web`](https://github.com/just-tavrn/tavrn-web) | The web client (and later the desktop and mobile apps) |
+| [`tavrn-web`](https://github.com/just-tavrn/tavrn-web) | The web client and the desktop app (Linux and Windows) |
 | [`tavrn-js`](https://github.com/just-tavrn/tavrn-js) | JavaScript packages: `@tavrn/sdk`, `@tavrn/e2ee`, `@tavrn/bot` |
 | [`tavrn-crypto`](https://github.com/just-tavrn/tavrn-crypto) | The encryption core (Rust, also as WebAssembly `@tavrn/crypto`) |
 
@@ -18,18 +18,18 @@ The reference implementations live in their own repositories:
 
 | Document | Contents |
 |---|---|
-| [`PROTOCOL.md`](PROTOCOL.md) | The core: identities and addresses, discovery (`/.well-known/tavrn`), capabilities, API conventions, tokens and authentication, date of birth and age gates (`age.v1`), realtime events, the message envelope, permissions overview |
-| [`FEDERATION.md`](FEDERATION.md) | How nodes find, authenticate and trust each other: node keys, federation tokens, inbox and outbox, remote rooms, friends and DMs across nodes, directory, conformance |
-| [`ENCRYPTION.md`](ENCRYPTION.md) | End-to-end encryption (`e2ee.mls1`): master secret and key file, devices, MLS groups, content and file encryption, backups, history for new members and its restore after a key reset (`history.restore`), secret storage, identity reset |
-| [`VOICE.md`](VOICE.md) | Voice, video and screen sharing (`voice`): limits, join flow, the encrypted media frames, soundboard, connectivity |
-| [`WHITEBOARD.md`](WHITEBOARD.md) | The shared whiteboard (`whiteboard`) built on encrypted ephemeral events |
-| [`APPLICATIONS.md`](APPLICATIONS.md) | Applications and bots (`apps.v1`), slash commands (`commands.v1`), webhooks and event subscriptions (`webhooks.v1`), single sign-on (`sso.oidc`) |
-| [`SEARCH.md`](SEARCH.md) | Message search (`search.v1`): the node index for plaintext and the client-side index for encrypted messages |
-| [`FILES.md`](FILES.md) | Files channels: a shared folder tree per channel (node-local) |
+| [`PROTOCOL.md`](PROTOCOL.md) | The core: identities and addresses, discovery (`/.well-known/tavrn`), capabilities, API conventions, tokens and authentication, date of birth and age gates (`age.v1`), realtime events and who receives them, presence, profiles, notifications and web push, the message envelope, uploads, threads and forums, message retention, DMs, permissions overview |
+| [`FEDERATION.md`](FEDERATION.md) | How nodes find, authenticate and trust each other: node keys, federation tokens, inbox and outbox, remote rooms, friends and DMs across nodes, directory, signing in with an account of another node (also from native apps, `connect.app`), conformance, identity verification |
+| [`ENCRYPTION.md`](ENCRYPTION.md) | End-to-end encryption (`e2ee.mls1`): master secret and key file, devices and their share keys, MLS groups, content and file encryption, backups, history for new members (`history.shares2`) and its restore after a key reset (`history.restore`), secret storage, identity reset and rotation |
+| [`VOICE.md`](VOICE.md) | Voice, video and screen sharing (`voice`, `screenshare`, `soundboard`): limits, join flow, quality presets, presence, moderation and moved participations, the encrypted media frames, soundboard, connectivity, calls in DMs |
+| [`WHITEBOARD.md`](WHITEBOARD.md) | The shared whiteboard built on encrypted ephemeral events |
+| [`APPLICATIONS.md`](APPLICATIONS.md) | Applications and bots (`apps.v1`), slash commands (`commands.v1`), webhooks and event subscriptions (`webhooks.v1`), rich presence, single sign-on (`sso.oidc`) |
+| [`SEARCH.md`](SEARCH.md) | Message search (`search.v1`): the node index for plaintext and the client-side index for encrypted messages and files |
+| [`FILES.md`](FILES.md) | Files channels: a shared folder tree per channel, external storage, end-to-end encryption (`files.e2ee`) and deletion (node-local) |
 | [`ENTITLEMENTS.md`](ENTITLEMENTS.md) | Entitlements (per-user and per-room limits), admin API tokens and attachment retention (node-local) |
-| [`MODERATION.md`](MODERATION.md) | Reports with evidence (`reports.v1`), auto-moderation of unencrypted conversations (`automod.v1`), the protected welcome channel entries, room ownership transfer (node-local) |
+| [`MODERATION.md`](MODERATION.md) | Reports with evidence (`reports.v1`), auto-moderation of unencrypted conversations (`automod.v1`), the protected welcome channel entries, room ownership transfer, age gates (node-local) |
 | [`LEGAL.md`](LEGAL.md) | Notices, legal pages, terms and data rights an operator can publish |
-| [`permissions.md`](permissions.md) | The permission bits (normative positions) and how they are evaluated |
+| [`permissions.md`](permissions.md) | The permission bits (normative positions), the channel-scoped bits and the layered evaluation of roles, category and channel overrides |
 | [`openapi.json`](openapi.json) | Every route in detail (OpenAPI 3.1), generated by the reference node |
 | [`testvectors/`](testvectors) | Reference inputs and outputs every implementation must reproduce |
 | [`CHANGELOG.md`](CHANGELOG.md) | Changes implementations must follow, newest first |
@@ -40,9 +40,22 @@ behaviour that never crosses node boundaries; other nodes do not have to underst
 ## Versioning and capabilities
 
 tavrn does not compare version numbers between nodes and clients. Both sides announce a list of
-**capability** strings (`content.v1`, `e2ee.mls1`, `federation`, `voice`, `apps.v1`, …; client capabilities in
-the WebSocket hello and the `Tavrn-Client` header), and a feature is used only when both sides list it
-(`PROTOCOL.md` §3). Third-party extensions use reverse-domain capabilities such as `org.example.feature`.
+**capability** strings (nodes in `GET /api/v1/node` and the discovery document, clients in the WebSocket hello and
+the `Tavrn-Client` header), and a feature is used only when both sides list it (`PROTOCOL.md` §3, which has the
+table of every capability and when nodes announce it). Third-party extensions use reverse-domain capabilities such
+as `org.example.feature`.
+
+The capabilities defined today, by document:
+
+- `PROTOCOL.md`: `content.v1`, `reactions`, `attachments`, `pins`, `emojis`, `gifs`, `unfurl`, `push.webpush`,
+  `threads`, `forum`, `announcement`, `threads.client_ids`, `age.v1`;
+- `ENCRYPTION.md`: `e2ee.mls1`, `history.shares2`, `history.restore`;
+- `FEDERATION.md`: `federation`, `federation.v1`, `connect.app`, and the client capability `content.signed1`;
+- `VOICE.md`: `voice`, `screenshare`, `soundboard`;
+- `APPLICATIONS.md`: `apps.v1`, `commands.v1` (also announced by clients), `webhooks.v1`, `sso.oidc`;
+- `SEARCH.md`: `search.v1`;
+- `FILES.md`: `files.e2ee`;
+- `MODERATION.md`: `reports.v1`, `automod.v1`.
 
 The compatibility rules of `PROTOCOL.md` §3 bind every change to this repository:
 
@@ -59,7 +72,8 @@ This repository is tagged per protocol version (`vMAJOR.MINOR.PATCH`, the same v
 - **minor**: compatible extensions (new optional fields, routes, event types, capabilities, permission bits);
 - **major**: changes that need a new API version (`/api/v2`).
 
-Implementations pin a tag. The current version is in [`package.json`](package.json).
+Implementations pin a tag. The current version is in [`package.json`](package.json) (0.2.1); changes merged since
+the last tag are listed under "Unreleased" in [`CHANGELOG.md`](CHANGELOG.md) and become the next minor version.
 
 ## Test vectors
 
@@ -71,15 +85,15 @@ report here).
 |---|---|---|
 | `permissions.json` | Permission evaluation (`permissions.md`): owner, roles, category and channel overrides, timeouts, bots and scopes, system channels | list of `{ name, input, expected }`; `expected` is the effective 64-bit mask as a decimal string |
 | `no_bots.json` | The effective "no bots" flag of a channel (`APPLICATIONS.md`, `permissions.md`) | list of `{ name, input, expected }` with a boolean result |
-| `encryption.json` | Formats of `ENCRYPTION.md`: key file, local storage key, device attestation, device login proof, content (also with the signed context) and file encryption, history shares, backups, whiteboard scenes, secret storage, identity rotation, the webhook inbox, the sealed unlock material of app sessions | object per section; binary values base64url without padding |
+| `encryption.json` | Formats of `ENCRYPTION.md` and `FILES.md` §8: key file, local storage key, device attestation, device share key, device login proof, content (also with the signed context) and file encryption, the chunks and entry records of encrypted files channels, history shares (formats 1 and 2), backups, whiteboard scenes, secret storage, identity rotation, the webhook inbox, the sealed unlock material of app sessions | object per section; binary values base64url without padding |
 | `federation.json` | `FEDERATION.md` §10: JSON canonicalization (JCS), plaintext signatures, safety numbers, payloads that must be refused | object per section; binary values base64url without padding |
 
 The reference implementations use them as follows: the node evaluates `permissions.json` and `no_bots.json`
 in its unit tests; the crypto core checks `encryption.json` and `federation.json` in Rust and through its
 WebAssembly build; `@tavrn/sdk` runs `permissions.json`, `no_bots.json` and the JCS cases of
-`federation.json`; `@tavrn/e2ee` runs the identity, webhook inbox, files channel, local storage key, signed context, history share and
-sealed unlock cases of `encryption.json`; the node checks the device login proof. A new implementation should do the same: load the file, run every case, and compare
-exactly.
+`federation.json`; `@tavrn/e2ee` runs the identity, webhook inbox, files channel, local storage key, signed context, device share key,
+history share (both formats) and sealed unlock cases of `encryption.json`; the node checks the device login proof. A
+new implementation should do the same: load the file, run every case, and compare exactly.
 
 ### Using this repository from code
 
@@ -100,7 +114,9 @@ exactly.
 There is no build. The checks need Node.js 20 or newer and no dependencies:
 
 ```sh
-npm test                  # every JSON file parses, openapi.json is OpenAPI 3.1, vector shapes, package exports
+npm test                  # every JSON file parses, openapi.json is OpenAPI 3.1, vector shapes, package exports,
+                          # no hidden <placeholder> in the Markdown prose
+scripts/check-placeholders.mjs [files]  # the placeholder check alone, with file:line:column per finding
 scripts/check-spdx.sh     # SPDX headers of scripts and tests
 scripts/publish-check.sh  # no private files, domains or secrets (needs the private pattern list, docs/GITHUB.md)
 ```

@@ -1,5 +1,8 @@
 # tavrn end-to-end encryption (`e2ee.mls1`, draft v1)
 
+This document specifies the end-to-end encryption of tavrn, from account keys and devices through MLS groups and
+the content formats to backups, history for new members, secret storage and identity resets.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). This document is normative for nodes and clients that announce the capability
 `e2ee.mls1`. It refines the design notes on encryption (section 5) and `PROTOCOL.md` sections 7 and 8. The reference
 implementation is the crate `tavrn-crypto` (repository `tavrn-crypto`, also published to JavaScript as `@tavrn/crypto`);
@@ -32,7 +35,7 @@ a group for a conversation of another node. Implementations MUST reject malforme
 
 ## 1. Overview
 
-```
+```text
 recovery key (32 bytes, only with the user) ─┐   passkey PRF output (per credential) ─┐
                                               ▼                                        ▼
                          secret storage on the home node: master secret wrapped per method (§2.4)
@@ -58,7 +61,7 @@ GroupInfo and routes Welcome messages. It never holds key material that would le
 The master secret is 32 bytes from a cryptographically secure RNG, created by the client at
 registration (or at an identity reset, §9). Derivation:
 
-```
+```text
 PRK          = HKDF-Extract(salt = "tavrn master v1", IKM = master_secret)
 identity_sk  = HKDF-Expand(PRK, info = "tavrn identity key v1", L = 32)   # Ed25519 secret key (seed)
 backup_key   = HKDF-Expand(PRK, info = "tavrn backup key v1",   L = 32)   # AES-256-GCM key
@@ -73,7 +76,7 @@ all epoch keys stay. The *current* identity key is therefore the derived one, or
 Clients additionally derive a **local storage key** per device, under which they encrypt everything
 cryptographic they keep locally (MLS client state, epoch keys, message cache); it never leaves the device:
 
-```
+```text
 local_key    = HKDF-Expand(PRK, info = "tavrn local storage key v1" || 0x00 || str16(device_id), L = 32)
 ```
 
@@ -90,7 +93,7 @@ recovery key (`0x02`, §2.4). Since the secret storage exists, clients use the *
 user-facing backup; exporting the master secret as a key file is an optional expert feature. The
 master secret key file is a text file named `tavrn-key-<username>.txt`:
 
-```
+```text
 # tavrn security key v1 - keep this file secret and safe
 # Account: alice@node.example
 # Whoever has this file can read your encrypted messages.
@@ -179,7 +182,7 @@ node. It is shown to the user once as 24 BIP-39 words (primary form) and as a co
 download is optional. The user MUST confirm having saved it (clients SHOULD ask for some of the words
 again). Encoding (same rules as the key file, §2.2, with version byte `0x02`):
 
-```
+```text
 # tavrn recovery key v1 - keep this key secret and safe
 # Account: alice@node.example
 # Together with your login it unlocks your encrypted messages on new devices.
@@ -192,7 +195,7 @@ re-wraps the **same** master secret and replaces the `recovery` entry; it is not
 
 **Wrapping keys** (HKDF-SHA256, "salt = none" is RFC 5869's default of 32 zero bytes):
 
-```
+```text
 recovery_wrap_key = HKDF(salt = none, IKM = recovery_key, info = "tavrn secret storage recovery v1", L = 32)
 passkey_wrap_key  = HKDF(salt = none, IKM = prf_output,   info = "tavrn secret storage passkey v1",  L = 32)
 ```
@@ -205,7 +208,7 @@ set it serves (PROTOCOL.md §5a), so one ceremony can log in and unlock at the s
 
 **Entry** (61 bytes, uploaded and served as base64url):
 
-```
+```text
 wrapped = 0x01 || nonce(12) || AES-256-GCM(wrap_key, nonce, aad, master_secret(32))
 aad     = "tavrn secret storage v1" || 0x00 || str16(user address) || str16(method label)
 ```
@@ -285,7 +288,7 @@ Every device generates its own Ed25519 key pair; the secret key never leaves the
 is the device's MLS signature key and signs encrypted content (§5). The account binds it with an
 **identity signature**:
 
-```
+```text
 attestation_message = "tavrn device attestation v1" || 0x00
                       || device_public_key(32) || str16(device_id) || str16(user_address)
 identity_signature  = Ed25519-Sign(identity_sk, attestation_message)
@@ -305,7 +308,7 @@ it alone (history shares, §7b). It lives exactly like the device key: stored wi
 kept by an identity reset (§9), never moved to another device; a new device has a new pair. The reference
 implementation derives it from the device secret key (32-byte Ed25519 seed):
 
-```
+```text
 share_secret = HKDF-SHA256(salt = "" (empty), IKM = device secret key, info = "tavrn device share key v1", L = 32)
 share_public = X25519(share_secret, 9)                 # share_secret used as libsodium stores X25519 secret keys
 share_key_signature = Ed25519-Sign(device_sk, "tavrn device share key v1" || 0x00
@@ -376,7 +379,7 @@ A login on a browser or program that still holds a device of the account continu
 a new one (PROTOCOL.md §5b). The client signs a single-use nonce of the node (`POST /auth/device-nonce`) with the
 device key:
 
-```
+```text
 login_proof_message = "tavrn device login v1" || 0x00 || str16(device_id) || str16(user_address) || str16(nonce)
 proof               = Ed25519-Sign(device_sk, login_proof_message)
 ```
@@ -395,7 +398,7 @@ deletes the old device once it discards its local data, so its leaves do not lin
   GroupInfos, Welcomes and KeyPackages of any other ciphersuite MUST be rejected.
 - Credential: basic credential, `identity` = UTF-8 device identity (§0.1). Leaf signature key = device key.
 - Group id = UTF-8 bytes of the qualified conversation id. One group per conversation (channel, DM,
-  group DM); voice channels use the group of the channel (phase 4).
+  group DM); voice channels use the group of the channel.
 - All handshake messages (commits) are sent as `PublicMessage`, so the node can validate them (the
   "pure plaintext" wire format policy for handshake messages). MLS application messages are **not used**;
   content is encrypted as in §5.
@@ -494,7 +497,9 @@ attestations. With `C` = committer identity from the summary:
    (identity reset: §9).
 2. **External join** (`external_join = true`): allowed if the user may be in the conversation (member of
    the DM/group DM, or room member with read access to the channel; node admins who are not room members are
-   not entitled, so they never appear as ghost members). Bots are never entitled in a channel whose effective
+   not entitled, so they never appear as ghost members). A member moved into a voice channel by a moderator has
+   read access to it while the moved participation lasts (`VOICE.md` §7 "Moved participations"), even without
+   `view_channel`; when it ends the node announces their leaves with `mls.remove_needed`. Bots are never entitled in a channel whose effective
    "no bots" flag is set (`APPLICATIONS.md` §3.5): the node refuses their GroupInfo requests and commits with
    `403 mls.forbidden`. It MAY remove only leaves with the identity `C` itself
    (rejoin after state loss).
@@ -574,7 +579,7 @@ keys to read history and back them up (§7).
 
 The envelope field `content` (PROTOCOL.md §7, `encrypted = true`, `format = 1`) is:
 
-```
+```text
 content    = base64url( 0x01 || u64(epoch) || nonce(12) || ciphertext )
 ciphertext = AES-256-GCM(key = content_key(epoch), nonce, aad, plaintext)   # includes the 16-byte tag
 aad        = 0x01 || str16(conversation id) || u64(epoch) || str16(author) || str16(device_id)
@@ -631,7 +636,7 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
 
 The node cannot decrypt. For `encrypted = true` it MUST check that `content` is valid base64url, at least
 `1 + 8 + 12 + 16 + 64` bytes, version `0x01`, that the header epoch equals the envelope `epoch` and is not
-newer than the group's current epoch, that the sending device is attested (§9) and the usual size limits
+newer than the group's current epoch, that the sending device is attested (§3.1) and the usual size limits
 (`tavrn_crypto::content_header`). The plaintext/ciphertext rules of PROTOCOL.md §7 stay unchanged.
 
 The node accepts new content (messages and their edits, thread titles, interaction responses, records of files
@@ -650,8 +655,8 @@ keys that new members cannot read.
   another conversation, epoch or author.
 - Post-compromise security through MLS: after a compromised device is removed or updated, new epochs are
   safe. Forward secrecy is per epoch with respect to the MLS state; because clients keep content keys for
-  history (and back them up), a compromised device or backup key exposes the history it holds (the same
-  trade-off as Matrix/Megolm with key backup, design note 5.3).
+  history (and back them up), a compromised device or backup key exposes the history it holds (the usual
+  trade-off of group encryption schemes that keep message keys in a key backup, design note 5.3).
 - New members cannot read messages from before their join, unless the channel's history policy lets members
   share older keys with them (§7b); removed members cannot read messages after their removal.
 - The node sees metadata: conversation, author, device, timestamps, epoch, ciphertext sizes, `mentions`
@@ -660,7 +665,7 @@ keys that new members cannot read.
 
 ## 5a. Voice frame keys
 
-Voice, video and screen shares (phase 4, `VOICE.md`) are encrypted per frame by the clients (WebRTC
+Voice, video and screen shares (`VOICE.md`) are encrypted per frame by the clients (WebRTC
 insertable streams / LiveKit's E2EE); the node and the SFU only forward ciphertext. Every voice channel is a
 conversation with its own MLS group, managed exactly like a text channel's (§4: same delivery service routes,
 same authorization; the group exists before the first voice join, created by the first client that needs it).
@@ -690,8 +695,8 @@ same authorization; the group exists before the first voice join, created by the
   derived yet are dropped until it has; the overlap is short and needs no further coordination.
 - **Who can listen:** whoever holds the frame key of an epoch, i.e. every device in the channel's MLS group at that
   epoch: the room members with read access to the channel (§4.5), not only those currently in voice. Receiving the
-  media additionally needs a LiveKit token, which the node issues only to members with `connect`
-  (`VOICE.md` §3). Against the node, LiveKit and network observers the media stays confidential and authentic
+  media additionally needs a LiveKit token, which the node issues only to members with `connect` or a moved
+  participation (`VOICE.md` §3, §7). Against the node, LiveKit and network observers the media stays confidential and authentic
   to the group; within the group, frames are not authenticated per sender (shared key, as in LiveKit's E2EE).
 - **What stays visible:** who is in which voice channel and when, mute/deafen/stream/camera flags, track types,
   packet sizes and timing (from which speaking activity can be inferred). LiveKit sees the unencrypted codec
@@ -792,7 +797,7 @@ decrypted `mime` is `image/svg+xml` (or whose `name` ends in `.svg`) inline (PRO
 
 The client backs up its content keys per conversation to the home node, encrypted with the backup key:
 
-```
+```text
 blob      = 0x01 || nonce(12) || AES-256-GCM(backup_key, nonce, aad, plaintext)
 aad       = "tavrn backup v1" || 0x00 || conversation id
 plaintext = {"v":1,"conversation":"node.example/01J…","keys":{"41":"<base64url key>","42":"…"}}
@@ -819,7 +824,7 @@ plaintext = {"v":1,"conversation":"node.example/01J…","keys":{"41":"<base64url
 The personal whiteboard scene library (`WHITEBOARD.md` §2.3, §5) uses the backup key like §7, with its own AAD
 that binds every blob to its scene and its role:
 
-```
+```text
 blob = 0x01 || nonce(12) || AES-256-GCM(backup_key, nonce, aad, plaintext)
 aad  = "tavrn whiteboard v1" || 0x00 || scene id || 0x00 || part        # part = "scene" | "thumbnail"
 ```
@@ -831,15 +836,16 @@ deletes the scenes with the backups. Ephemeral whiteboard events themselves are 
 
 ## 7b. History for new members
 
-Per-epoch content keys (§5.1) let members hand older keys to a member who joined later, the same mechanism as
-Matrix MSC3061 ("room keys for past messages"). The node stays zero-knowledge: it only stores and routes
-encrypted shares and enforces who may send what to whom.
+Per-epoch content keys (§5.1) let members hand older keys to a member who joined later: existing members encrypt
+the keys of past epochs to the new member's devices, the approach to "room keys for past messages" known from
+other messaging protocols. The node stays zero-knowledge: it only stores and routes encrypted shares and enforces
+who may send what to whom.
 
 **Policy.** Room channels carry `history_for_new_members` (PROTOCOL.md §6, "History for new members"):
 
 | Value | New members get |
 |---|---|
-| `since_join` (default) | nothing from before their join |
+| `since_join` (default) | nothing from before their join (every message since, see below) |
 | `days:<n>`, 1 ≤ n ≤ 3650 | the messages of the `n` days before their join |
 | `all` | the whole history |
 
@@ -854,19 +860,28 @@ the history starts at their join whatever the policy says. Two layers apply the 
 2. **Clients.** A sharing client applies the same window before it sends keys, and a recipient can only check a
    key against messages its node serves it (below), so a key outside the window is never accepted.
 
+The window is about the room membership, not about devices: a member's device enters a channel's MLS group only when
+it first opens the channel (or when its client joins the groups of a room proactively, below), and the epochs between
+the room join and that first leaf are part of the member's history under every policy, `since_join` included. Their
+keys reach the device only through a share, so the node marks such members pending and members share those epochs
+like older ones. Clients keep that gap small: when a room is loaded they join the groups of its encrypted channels
+that the user may view (text, announcement, forum and files channels; one after the other, never creating a group),
+not only when a channel is opened.
+
 A hostile member can always copy history it can read; E2EE never protects against members.
 
 **Pending members.** After accepting a commit in which a user gets their first leaf in the group (external join
 of a user without a leaf, or Adds), the node marks the membership `history_pending` for that conversation when
-the channel is encrypted, the policy is not `since_join`, the user has `view_channel` and `read_history`, and there
-are encrypted messages inside the user's window from before the join. It emits `history.pending
+the channel is encrypted, the user has `view_channel` and `read_history`, and there are encrypted messages inside the
+user's window from before this commit: from before the room join as far as the policy reaches, and those posted
+between the room join and the device's first leaf (under `since_join` only the latter). It emits `history.pending
 { conversation_id, user, since }` to the room (`since` = the membership's `joined_at`). A membership is marked at
 most once (another device of the same member joining does not mark it again); the mark is cleared when the
 member acknowledges a share and expires after 30 days.
 
 - `GET /api/v1/conversations/{id}/history-pending` → `{ items: [ { user, since, key_reset_at, min_epoch } ] }` (members
-  only; at most 100, marks of the current memberships of the last 30 days; empty for DMs, plaintext channels and
-  `since_join`; `key_reset_at` and `min_epoch` are null except after a key reset, "History after a key reset" below).
+  only; at most 100, marks of the current memberships of the last 30 days; empty for DMs and plaintext channels;
+  `key_reset_at` and `min_epoch` are null except after a key reset, "History after a key reset" below).
 
 **Shares.** Routes on the node hosting the conversation (members of other nodes use their federated session
 there, as for every conversation route):
@@ -874,8 +889,10 @@ there, as for every conversation route):
 - `POST /api/v1/conversations/{id}/history-keys` `{ to_user, epoch_from, epoch_to, ciphertext, v?, boxes? }` →
   `201 { id }`.
   The sender must be entitled (§4.5) with an attested device (`403 e2ee.device_not_attested`). The conversation
-  must be an encrypted room channel (`400 history.not_encrypted`; DMs and group DMs `403 history.forbidden`) whose
-  policy is not `since_join` (`403 history.forbidden`). `to_user` is an address of another member with
+  must be an encrypted room channel (`400 history.not_encrypted`; DMs and group DMs `403 history.forbidden`), whatever
+  its policy: under `since_join` the recipient's window starts at its join, the node serves it nothing older and its
+  client accepts no key it cannot check against a served message (Receiving step 4). `to_user` is an address of
+  another member with
   `view_channel` and `read_history` (`403 history.forbidden`; oneself `400 history.self`). `0 ≤ epoch_from ≤
   epoch_to ≤` the group's epoch and at most 1000 epochs (`400 history.invalid`); `ciphertext` is content format 1
   (§5.2) under a known epoch (`400 history.invalid`), at most 64 KiB (`413 history.too_large`). `v` is the share
@@ -926,11 +943,12 @@ ephemeral key; `Client.encryptShare`, `sealShareKey`, `Client.openShareBox`, `de
    current roster whose user is online, the own one included, the recipient's excluded) computes its rank in the
    sorted list of device identities. Rank 0 shares at once; rank `k` waits `k × 60 s` and shares only if the member
    is still pending. Nothing is shared before a device of the recipient is in the group.
-2. Epochs: `all` → every epoch the device holds older than the current one; `days:<n>` → from the oldest epoch
-   of the encrypted messages after `joined_at − n days` (`GET …/messages?after=<ULID floor>&limit=20`);
-   `since_join` → none. Chunks of at most 500 epochs and a range of at most 1000 epochs; with nothing to send the
-   device posts one empty share (`epochs: []`, `epoch_from = epoch_to =` current epoch), which still clears the
-   pending mark.
+2. Epochs: `all` → every epoch the device holds older than the current one; `days:<n>` → from the oldest epoch of the
+   encrypted messages after `joined_at − n days` (`GET …/messages?after=<ULID floor>&limit=20&threads=all`: thread
+   messages, such as forum posts, are content of the channel too); `since_join` → the same from `joined_at` (the
+   epochs of the messages posted since the member's join), and none when there are no such messages. Chunks of at most
+   500 epochs and a range of at most 1000 epochs; with nothing to send the device posts one empty share (`epochs: []`,
+   `epoch_from = epoch_to =` current epoch), which still clears the pending mark.
 
 **Receiving (client).** On `history.keys_available` and when opening the channel, the recipient fetches its
 shares and for each:
@@ -960,6 +978,9 @@ payloads or keys. Keys never appear in message objects, the decrypted-message ca
 While its own pending mark is set, a member's client shows "Older messages are being unlocked…" at the top of the
 channel; afterwards the history loads lazily as before.
 
+Earlier nodes marked nobody pending under `since_join` and refused shares there (`403 history.forbidden`): their
+`…/history-pending` is empty in such channels, so current clients send nothing and nothing changes for them.
+
 **Security notes.**
 
 - Forward secrecy towards new members is given up exactly to the extent of the policy; the principle "key lost =
@@ -981,8 +1002,11 @@ channel; afterwards the history loads lazily as before.
 - A member could post a message under a forged key and then "prove" that key with it; the recipient therefore
   prefers messages of other authors for the check. The residual risk equals what any member can do anyway (show
   fake content), and only in epochs where the forger is the sole author.
-- A hostile client sharing without permission is stopped by the node (recipient without `read_history`, policy
-  `since_join`, non-members); size and rate limits bound abuse.
+- A hostile client sharing without permission is stopped by the node (recipient without `read_history`,
+  non-members); size and rate limits bound abuse. Under `since_join` it could hand a member keys of epochs from
+  before the join: the node never serves the member those messages and the member's client drops every key it cannot
+  check against a served message. An epoch that spans the join opens messages from both sides of it, but the node
+  serves only those inside the window.
 - Narrowing the policy does not revoke keys already shared (clients say so in the setting); the change is in
   the audit log.
 
@@ -1008,8 +1032,8 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
      including it are the **pre-reset range**, whatever the channel's kind (messages, the entry records of files
      channels, `FILES.md` §8.7); the automatic window of the member starts after it, never earlier, whatever the
      policy.
-   - Pending marks: when a device of the user joins the group after the reset (policy not `since_join`, `view_channel`
-     and `read_history` as above) and there are encrypted messages since `key_reset_at`, the node marks the member
+   - Pending marks: when a device of the user joins the group after the reset (`view_channel` and `read_history` as
+     above, whatever the policy) and there are encrypted messages since `key_reset_at`, the node marks the member
      pending once per reset, also if the user still had (now unattested) leaves in the group. `history.pending` and
      the items of `…/history-pending` then carry `since = key_reset_at`, `key_reset_at` and `min_epoch` (reset epoch
      + 1, null without a pre-reset range); for other members `key_reset_at` and `min_epoch` are null.
@@ -1061,7 +1085,7 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
    **Approval is the key share itself.** Right after approving, the approver's client sends restore shares (format 2
    under the rule of "Sharing" step 0) from its device for every encrypted channel of `channels` that it can read and in which a device of the requester is in the
    group: every epoch it holds from the oldest epoch of the channel's encrypted content after `window_start` (messages:
-   `GET …/messages?after=<ULID floor>&limit=20`; files channels: `GET …/records?since=<window start>&limit=1`, `FILES.md`
+   `GET …/messages?after=<ULID floor>&limit=20&threads=all`; files channels: `GET …/records?since=<window start>&limit=1`, `FILES.md`
    §8.7; everything for null) up to the epoch before the current one, chunked as in "Sharing" step 2. Before approving it shows the request, the requester, its join date, the channels and epoch ranges
    that will be shared and whether its device holds all of them (`partial`), and recommends verifying the person's
    identity on another channel (a call, in person): an approval gives whoever controls the account now everything the
@@ -1069,7 +1093,7 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
 4. **Clients.** A sharing client applies the reset window itself, also with nodes that do not announce
    `history.restore`: a recipient whose keys document (§2.3) shows an `identity_reset_at` later than the pending item's
    `since` is treated as if `key_reset_at` were that time, and without `min_epoch` the client shares nothing up to the
-   epoch of the newest encrypted content before the reset (`GET …/messages?before=<ULID floor>&limit=1`; nothing at
+   epoch of the newest encrypted content before the reset (`GET …/messages?before=<ULID floor>&limit=1&threads=all`; nothing at
    all when it cannot tell). Such a member
    gets automatic shares only from the reset on. The requester's client shows its state (`…/mine`) with the request form
    in a room whose encrypted history it lost (in the channel view and in the file browser of files channels),
@@ -1130,13 +1154,13 @@ stays (master secret, recovery key, backup key, epoch keys, device keys, MLS sta
    PROTOCOL.md §5c). The client fetches its own keys document; every listed device must verify under the current
    key, otherwise the document and the local state disagree and the client stops with an error.
 2. The client generates a random Ed25519 key `new_sk` and signs the **continuity statement**
-   ```
+   ```text
    statement = { "old_key": base64url(old_pk), "new_key": base64url(new_pk), "at": "<RFC 3339 now>" }
    message   = "tavrn identity continuity v1" || JCS(statement)          # RFC 8785
    sig_old   = Ed25519-Sign(old_sk, message);  sig_new = Ed25519-Sign(new_sk, message)
    ```
    wraps the new key for the home node
-   ```
+   ```text
    identity_blob = 0x01 || nonce(12) || AES-256-GCM(identity_wrap_key, nonce, aad = UTF-8(user address), new seed(32))
    ```
    and attests every active device's existing key with `new_sk` (§3.1).
@@ -1176,6 +1200,9 @@ rotation keeps.
 
 - `e2ee.mls1` (PROTOCOL.md §3) means this document: ciphersuite `0x0001`, content format 1.
 - `history.shares2`: the node accepts and serves history shares of format 2 (§7b) and device share keys (§3.1).
+- `history.restore`: after a key reset the node lets history from before the reset be shared only by request and
+  approval (§7b "History after a key reset", permission bit 37 `restore_history`).
+- `files.e2ee`: files channels may be end-to-end encrypted (§5c, `FILES.md` §8).
 - Version bytes: key file `0x01`, recovery key `0x02`, wrapped master secret `0x01`, identity blob `0x01`,
   content `0x01`, backup `0x01`. Unknown versions MUST be rejected; new versions are introduced together with a new
   capability or envelope `format`.
@@ -1204,7 +1231,7 @@ Consistent with design note 5.4:
   and what any member can do anyway.
 - **The web client is code served by a node.** A malicious node can serve a modified web client and read
   everything that client decrypts. This is the inherent limit of browser-based E2EE; the native apps
-  (phase 6) and reproducible builds mitigate it.
+  and reproducible builds mitigate it.
 - **Endpoints**: a compromised device reads what its user reads. Losing every way to the master secret
   (trusted devices, recovery key, PRF passkeys) leads to the reset (§9); history is lost, nothing else.
 - **Account takeover**: the secret storage is served only to full sessions (password and second

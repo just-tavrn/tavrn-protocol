@@ -1,5 +1,8 @@
 # tavrn whiteboard (`whiteboard`, draft v1)
 
+This document specifies the shared whiteboard of tavrn, a drawing board that every participant renders locally while
+only encrypted changes travel between them.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). Normative for nodes and clients (design note 4.10). A whiteboard is a shared drawing
 board in any conversation (voice or text channel, DM, group DM). It is not streamed as video: every
 participant renders it locally and only changes travel, as **ephemeral events** encrypted like messages
@@ -8,7 +11,7 @@ participant renders it locally and only changes travel, as **ephemeral events** 
 
 ## 1. Overview
 
-```
+```text
 owner device ──POST /conversations/{id}/ephemeral──▶ node ──WS `ephemeral`──▶ every member with read access
                                                        │                       (except the sending device)
                                      whiteboard.open / grant / close: the node keeps a tiny session
@@ -33,7 +36,7 @@ Body `{ type, content, session? }` → `200 { session }`.
 - `type`: `cursor` or `whiteboard.<name>` with `<name>` of `[a-z_]`, 1–32 characters
   (`400 ephemeral.type_invalid`).
 - `content`: in encrypted conversations the base64url content format of `ENCRYPTION.md` §5.2, checked like a
-  message (§5.3: header, epoch known to the node, sending device attested: `400 ephemeral.ciphertext_invalid`,
+  message (`ENCRYPTION.md` §5.3: header, epoch known to the node, sending device attested: `400 ephemeral.ciphertext_invalid`,
   `400 ephemeral.epoch_unknown`, `403 e2ee.device_not_attested`); in plaintext conversations a JSON object;
   anything else `400 ephemeral.encryption_mismatch`. At most 64 KiB (the ciphertext string or the serialized
   object): `413 ephemeral.too_large`.
@@ -58,9 +61,9 @@ normalized to lowercase; `400 whiteboard.grants_invalid`), never their content.
 
 | Event | Who | Effect |
 |---|---|---|
-| `whiteboard.open` | needs `use_whiteboard` (voice channels also `connect`; DMs and group DMs always; never in the welcome channel; `403 whiteboard.open_forbidden`; phase 4E, before: `send_messages`) | no live session: the sender's device starts one (owner, device, `session` state or locked); the owner's own session: keepalive, moves the session to this device and takes the `session` state if given; someone else's live session: `409 whiteboard.session_exists` (meta: that session) |
+| `whiteboard.open` | needs `use_whiteboard` (voice channels also `connect`; DMs and group DMs always; never in the welcome channel; `403 whiteboard.open_forbidden`) | no live session: the sender's device starts one (owner, device, `session` state or locked); the owner's own session: keepalive, moves the session to this device and takes the `session` state if given; someone else's live session: `409 whiteboard.session_exists` (meta: that session) |
 | `whiteboard.grant` | the owner, or in room channels a member with `manage_whiteboard` (`403 whiteboard.not_owner`) | replaces `open_for_all` and `grants` (`400 whiteboard.state_missing` without `session`) |
-| `whiteboard.close` | the owner, or in room channels a member with `manage_whiteboard` (`403 whiteboard.close_forbidden`; phase 4E, before: `manage_channels`) | ends the session |
+| `whiteboard.close` | the owner, or in room channels a member with `manage_whiteboard` (`403 whiteboard.close_forbidden`) | ends the session |
 
 Without a live session `grant` and `close` answer `404 whiteboard.no_session`. Every other event of the owner
 also keeps the session alive; a session whose owner sent nothing for **90 seconds** ends by itself (swept

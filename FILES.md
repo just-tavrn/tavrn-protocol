@@ -1,7 +1,10 @@
 # Files channels
 
-Status: implemented 2026-10-06 (design note 4.13 item 9); end-to-end encryption (§8, capability `files.e2ee`)
-2026-10-09. Node-local feature: files channels are not federated beyond the normal room access (remote members use
+A files channel gives a room a shared folder tree, stored by the node or in an external store and end-to-end
+encrypted by default.
+
+Status: implemented (design note 4.13 item 9), including end-to-end encryption (§8, capability `files.e2ee`).
+Node-local feature: files channels are not federated beyond the normal room access (remote members use
 the room's node like for every other channel).
 
 ## 1. Model
@@ -13,7 +16,7 @@ A channel of kind `files` is a file browser instead of a chat. It has no message
   MLS group like a text channel; names, types, folder names and contents are encrypted by the clients, the node
   stores ciphertext and the few plaintext fields of §8.2.
 - **Not end-to-end encrypted**: no MLS group. Clients show a permanent banner "Files in this channel are not
-  end-to-end encrypted" (and, for an external store, "stored on external storage: <kind>"), analogous to
+  end-to-end encrypted" (and, for an external store, "stored on external storage: \<kind>"), analogous to
   PROTOCOL.md §8. On the node the files use the storage encryption at rest of design note 4.12 (per-file key
   wrapped with `keys/storage.key`): the node can read them, the disk or backup alone cannot.
 
@@ -71,7 +74,7 @@ Encrypted channels change some routes (§8.5). Error codes besides the above: `f
 encrypted channels `files.record_invalid`, `files.id_invalid`, `files.id_taken`, `files.encrypted`,
 `files.search_unavailable`, `files.no_thumbnail`, `files.thumbnail_too_large`, `files.not_encrypted`.
 
-Bots have no access (the routes are not in `APP_ROUTES`, APPLICATIONS.md §2.3).
+Bots have no access (the routes are not in `APP_ROUTES`, APPLICATIONS.md §2.5).
 
 Realtime: `files.update { room_id, channel_id, parent_id }` to the room members who can view the channel after every change of a folder's
 content (create, upload, rename, move: old and new parent, delete); `files.backend { room_id, channel_id,
@@ -188,7 +191,7 @@ metadata of messages (`ENCRYPTION.md` §5.4).
 Every file gets a random 32-byte `file_key`. A file's content (part `content`) and its client-made thumbnail (part
 `thumbnail`, optional) are encrypted separately in chunks of 1 MiB:
 
-```
+```text
 part_key  = HKDF-SHA256(IKM = file_key, salt = 32 zero bytes, info = "tavrn file chunk v1" || 0x00 || part, L = 32)
 chunks    = max(1, ceil(n / 2^20))                  # n = plaintext bytes of the part; an empty part is one empty chunk
 chunk_i   = plaintext[i · 2^20 .. min((i + 1) · 2^20, n))
@@ -276,15 +279,17 @@ shares of `ENCRYPTION.md` §7b decide which older entries a later member can ope
 channel shares **everything or nothing** from before a member's join: its policy is `all` (the **default** for files
 channels, set at creation) or `since_join`; `days:<n>` is refused with `400 channel.history_policy_invalid`. With
 `all`, the sharing devices hand a new member every epoch key they still hold (so every file whose record they can
-read), as far back as possible.
+read), as far back as possible; with `since_join`, the keys of the epochs of the records written since the member's
+join (before its device first entered the channel's group).
 
 - The node serves a record only inside the requester's window (`ENCRYPTION.md` §7b, measured on `record_at`): entries
   whose record is older come with `record`, `record_epoch`, `record_author` and `record_device_id` set to `null` in
   folder listings, `GET mine` and `GET {id}`, and `GET records` leaves them out. Their ciphertext stays downloadable (it is useless without the
   record), and the owner can still delete them (§8.8).
-- A new member is marked `history_pending` when there are entry records in its window from before its join (in
-  addition to the messages rule of §7b). Recipients check a shared key against a record of that epoch from
-  `GET records?epoch=<n>` (preferring records whose author is not the sharer) instead of a message.
+- A new member is marked `history_pending` when there are entry records in its window from before its device's first
+  leaf in the group (in addition to the messages rule of `ENCRYPTION.md` §7b; under `since_join` the records since its join).
+  Recipients check a shared key against a record of that epoch from `GET records?epoch=<n>` (preferring records whose
+  author is not the sharer) instead of a message.
 - Renaming an entry writes a new record under the current epoch, so its file key becomes readable for every current
   member (as it already is for those who could read the old record).
 
@@ -322,7 +327,7 @@ room's) files channels:
   so they are always deleted. The audit log of the deletion records `keep_external` and the number of kept objects.
 
 Clients ask for a typed confirmation (the channel's or room's name) and say what happens: the counts (files,
-folders, bytes from `GET usage`), where the files are ("stored on this node" or "stored on <kind> at <host>") and the
-consequence ("All files are deleted permanently"; external: "The objects under <prefix> are deleted from the
+folders, bytes from `GET usage`), where the files are ("stored on this node" or "stored on \<kind> at \<host>") and the
+consequence ("All files are deleted permanently"; external: "The objects under \<prefix> are deleted from the
 external store", with the "Keep the objects on the external store" option only for unencrypted external channels).
 The room deletion dialog lists its files channels with the same information.

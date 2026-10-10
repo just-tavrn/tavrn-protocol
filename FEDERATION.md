@@ -1,5 +1,8 @@
 # tavrn federation (`federation.v1`, draft v1)
 
+This document specifies how tavrn nodes find, authenticate and trust each other, and how a user of one node signs
+in, joins rooms, writes DMs and keeps friends on another.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). This document is normative for nodes and clients that announce the capability
 `federation.v1`. It refines the design notes 4.1a, 4.2, 4.2b, 9b, 9c and 9d and **replaces**
 `PROTOCOL.md` §9 (the route names there are superseded by the ones below). Encryption rules stay in
@@ -332,9 +335,9 @@ H serves `GET /api/v1/users/{username}/profile` (public, exists) with the additi
 `profile_version` (integer, incremented by H on every change of the public profile: display name, images,
 bio, links, DM setting) and `avatar_sha256` (base64url, null without avatar), and the avatar bytes at the new
 public route `GET /api/v1/users/{username}/avatar` (`image/png|jpeg|webp|gif`, at most 1 MiB, `404` without
-avatar; the still image since phase 4C).
+avatar; for an animated avatar its still image).
 
-Since phase 4C (design note 4.9, PROTOCOL.md §6b) the profile also names every image variant by path on H and
+The profile also names (design note 4.9, PROTOCOL.md §6b) every image variant by path on H and
 hash: `avatar_still` + `avatar_sha256`, `avatar` + `avatar_animated_sha256` when `avatar_animated`,
 `header_still` + `header_sha256`, `header` + `header_animated_sha256` when `header_animated`, plus `bio`,
 `links` and the effective `dm_policy`. T accepts image paths only of the exact form `/api/v1/media/<ULID>`
@@ -636,7 +639,7 @@ does not matter; invites are independent.
   it knows, and creates the conversation, then queues `conversation.invite` to every remote member's home node.
 - The recipient's home node checks the recipient's blocks and the recipient's `dm_policy` under its own
   bound before showing the invitation; otherwise it drops it silently (`202`). So both nodes' policies apply.
-  **Message requests (phase 4C, design note 4.9):** the hosting node makes non-friends `requested` members and
+  **Message requests (design note 4.9):** the hosting node makes non-friends `requested` members and
   says so in the invitation (`requested: true`) together with the rooms **of the hosting node** the two share
   (`shared_rooms: [{ node, id, name }]`, at most 10; a node vouches only for its own rooms, entries naming
   another node are dropped). The recipient's home node decides: friends (by its own records) → a normal
@@ -719,7 +722,7 @@ unreachable for 30 days are removed. At most 10 000 entries; beyond that the lea
   `remote_rooms`; users of other nodes reach them through invite links.
 - Rooms appear only when their owner (or a holder of `manage_room`) marked them **discoverable**
   (`PATCH /api/v1/rooms/{room_id} { discoverable: true }`, only for `join_mode = public`, audited). The
-  existing `GET /api/v1/rooms/discover` returns only discoverable rooms from phase 3 on.
+  `GET /api/v1/rooms/discover` returns only discoverable rooms.
 - **Signed listings**: `listing` is a JWT (`typ = "listing"`, `iss` = hosting node, `sub` = room id,
   `aud = "tavrn-directory"`, `exp` = `iat + 48 h`, claims `name`, `description`, `icon_sha256`,
   `member_count`) created by the hosting node. Relaying nodes pass it verbatim; a node accepts a peer's room
@@ -880,9 +883,11 @@ After that the web client is simply a client of several nodes: one session per d
 sessions), each refreshed independently, one WebSocket per active node.
 
 **CORS and CSP.** All routes under `/api/v1` and `/.well-known/tavrn` MUST answer CORS requests from any origin:
-`Access-Control-Allow-Origin: *`, never `Access-Control-Allow-Credentials`, allowed headers `Authorization`,
-`Content-Type`, `Idempotency-Key`, `If-Match`, `Tavrn-Client`, `Accept-Language`, exposed headers `ETag`,
-`Retry-After`, `Location`, preflight cache 600 s. Authentication is bearer tokens only (no cookies), so open CORS
+`Access-Control-Allow-Origin: *`, never `Access-Control-Allow-Credentials`, allowed headers at least
+`Authorization`, `Content-Type`, `Idempotency-Key`, `If-Match`, `Tavrn-Client`, `Accept-Language` and the `Tavrn-*`
+headers of the upload routes (the reference node mirrors whatever headers a preflight names, so a new header never
+breaks a client of another origin, the desktop app included), every method, exposed headers `ETag`, `Retry-After`,
+`Location`, `Content-Range`, `Content-Disposition`, preflight cache 600 s. Authentication is bearer tokens only (no cookies), so open CORS
 gives other origins nothing they could not do with a token. The WebSocket does not check `Origin` (the token is
 sent in `hello`). The web client's CSP keeps `connect-src 'self' https: wss:` (already set), which allows every
 node; development builds that talk to `http://` dev peers need `http: ws:` there. `/connect` keeps
@@ -975,7 +980,7 @@ Stored per peer in `known_nodes.conformance` (JSON):
 For two users with addresses `a`, `b` (`a ≠ b`) and identity public keys `ka`, `kb`, sort the pairs by address
 (byte-wise UTF-8) into `(a1, k1), (a2, k2)`:
 
-```
+```text
 digest        = SHA-256( "tavrn safety number v1" || 0x00 || str16(a1) || k1(32) || str16(a2) || k2(32) )
 safety_number = decimal( big-endian unsigned integer(digest) ) mod 10^60, left-padded with "0" to 60 digits
 ```
@@ -983,7 +988,7 @@ safety_number = decimal( big-endian unsigned integer(digest) ) mod 10^60, left-p
 Displayed as 12 groups of 5 digits (3 lines of 4 groups); both users see the same number. QR payload (UTF-8,
 byte mode):
 
-```
+```text
 tavrn:verify?v=1&a=<a1>&ka=<base64url k1>&b=<a2>&kb=<base64url k2>
 ```
 
@@ -1009,7 +1014,7 @@ Messages with `encrypted = false` are authenticated only by the session, so the 
 (design note 9d). The envelope (PROTOCOL.md §7) gets the field `signature` (base64url, 80 bytes), null for
 encrypted messages and for unsigned plaintext messages:
 
-```
+```text
 signed    = "tavrn plaintext signature v1" || 0x00
             || str16(conversation id)                   # qualified: <node domain>/<conversation ULID>
             || str16(author) || str16(device_id)
@@ -1029,17 +1034,18 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
   `id`, `created_at`, reactions, pins (node-assigned metadata).
 - Verifying is optional for clients: the device key comes from the author's attested devices fetched from the
   author's home node and checked against the pinned identity key. Valid → normal; missing → "unverified" marker;
-  invalid → the content is hidden behind "This message could not be verified".
+  invalid → the content is hidden behind "This message could not be verified". Unsigned messages of bots and
+  webhooks (`APPLICATIONS.md`: the node authenticated the application's token and marks the author as a bot) carry
+  no "unverified" marker: the bot badge takes its place; a bot signature that cannot be checked is still marked.
 - The first message of a thread created together with it (a forum post, `PROTOCOL.md` §7e) is signed with the
   thread id the client chose for the thread (`id` of the creation request), so one rule covers every message.
   First messages of threads created without a client-chosen id (older clients and posts) carry no signature and
   are shown unverified, not invalid.
 - Signing becomes mandatory with the capability `content.signed1`: a client announcing it MUST sign every
   plaintext message, and a node MAY then refuse unsigned plaintext messages from that device
-  (`400 message.signature_missing`). Phase 3 decides from which release the reference client announces it;
-  until then clients sign best-effort.
+  (`400 message.signature_missing`). The reference client does not announce it yet and signs best-effort.
 
-### 10.4 Implementation notes (phase 3, step 8)
+### 10.4 Implementation notes
 
 - **Crate**: `tavrn_crypto::verify` (`safety_number`, `group_safety_number`, `verify_payload`,
   `parse_verify_payload`, `verify_payload_matches`) and `tavrn_crypto::plaintext` (`PlaintextFields`,
@@ -1123,7 +1129,7 @@ results. Never logged: tokens, request bodies, payload contents (room names, mem
 | `TAVRN_FEDERATION_ALLOW_PRIVATE` | `false` | allow peers on private/loopback addresses (dev, tests, intranets) |
 | `TAVRN_FEDERATION_SRV_FALLBACK` | `true` | when a peer's identity domain serves no well-known (`404` or no HTTPS server), look up `_tavrn._tcp.<domain>` SRV before the direct `https://<domain>/api/v1` (§1.3 decision table); never after another status |
 | `TAVRN_FEDERATION_DEV_PEERS` | empty | `--dev` only: `domain=http://host:port` mapping for local multi-node setups |
-| `TAVRN_FEDERATION_REMOTE_BOTS` | `true` | accept bots of other nodes (only that since phase 5; whether this node's bots may federate is `TAVRN_APPS_FEDERATE`) |
+| `TAVRN_FEDERATION_REMOTE_BOTS` | `true` | accept bots of other nodes (only that; whether this node's bots may federate is `TAVRN_APPS_FEDERATE`) |
 | `TAVRN_APPS_FEDERATE` | `true` | this node's bots may obtain federation tokens (`APPLICATIONS.md` §2.8) |
 | `TAVRN_FEDERATION_RATE_LOGINS` / `_INBOX` / `_API` / `_CLAIMS` | `60` / `300` / `3000` / `120` | per remote domain per minute |
 | `TAVRN_FEDERATION_MAX_REMOTE_USERS` / `_PER_DOMAIN` | `10000` / `1000` | remote user quotas |
@@ -1148,7 +1154,7 @@ results. Never logged: tokens, request bodies, payload contents (room names, mem
 - Safety number, plaintext signature, listing and token formats carry version strings (`v1`, `typ`); a change
   requires a new label.
 
-## 13. Phase 3 implementation order
+## 13. Implementation order
 
 Every step is test-first (design note 9a). Federation integration tests start two in-process `TestNode`s that
 listen on real loopback ports (`a.test`, `b.test`, `TAVRN_FEDERATION_ALLOW_PRIVATE=true`,
@@ -1223,7 +1229,7 @@ otherwise.
 - **Local-only routes** for remote users also include `PATCH /users/me` (the profile is a mirror) and
   `DELETE /users/me/devices/{id}` (devices belong to the home node); the check runs in the authentication
   extractors against a route table (`federation::guard::LOCAL_ONLY`). Bots of this node get federation
-  tokens only while `TAVRN_APPS_FEDERATE` is on (`federation.bots_refused`; until phase 5 this was
+  tokens only while `TAVRN_APPS_FEDERATE` is on (`federation.bots_refused`; before applications this was
   `TAVRN_FEDERATION_REMOTE_BOTS`, which now only decides whether bots of other nodes are accepted).
 - **Inbox**: handlers run before the `202` (short database updates; idempotent through the dedupe).
   Malformed envelopes and payloads answer `400 federation.envelope_invalid`; a `to` that has the wrong
@@ -1305,7 +1311,7 @@ otherwise.
   members without an open WebSocket on the node (counted in memory), coalesced in memory per member and
   conversation for 60 seconds. The `push_relay` setting is not implemented yet.
   Received hints are stored in `push_hints` (newest 500 per user, 7 days), forwarded as WS `notify` and, while
-  the user has no connection on H, as a web push (PROTOCOL.md §6d, phase 5).
+  the user has no connection on H, as a web push (PROTOCOL.md §6d).
 - **ban.notify**: received hints are forwarded as WS `ban.notify { room, scope }`. Sending is an operator
   setting of the whole node (`TAVRN_FEDERATION_NOTIFY_BANS`, default off) instead of a room setting
   `notify_bans` (see the leftovers below).
@@ -1477,7 +1483,7 @@ otherwise.
   `replay_ok` (`jti`s are never spent), `plaintext_ok` (plaintext objects are taken in encrypted channels),
   `no_rate_limit` (no per-domain and per-IP limits on federated logins).
 
-**Phase 3 leftovers (2026-10-05):**
+**Leftovers of the implementation order:**
 
 - **Self-listing**: with `TAVRN_DIRECTORY_LISTING=true` a node lists itself in its own `GET /directory/nodes`
   (sorted in by domain, paged and searched like every entry) and answers `GET /directory/nodes/{own domain}`
@@ -1519,7 +1525,7 @@ otherwise.
   the discovery document once from **every** address the peer's domain resolves to (at most 8, each vetted
   like any request; one HTTP client pinned to that address per fetch) and compares the key sets
   (`kid` → `x`) of every valid answer: any difference, also an additional key on one address, is a hard
-  failure ("<ip> and <ip> serve different keys (kid …)"). Addresses that do not answer or answer with an
+  failure ("\<ip> and \<ip> serve different keys (kid …)"). Addresses that do not answer or answer with an
   invalid document are left to `wk.fetch`. A development peer mapped to an IP literal has one address.
 - **`ban.notify` sending** (§5.2): with `TAVRN_FEDERATION_NOTIFY_BANS=true` a room ban (of an address or a
   domain) sends one `ban.notify { room: { node, id, name }, scope: "room" }` per removed remote member (and
@@ -1540,7 +1546,7 @@ otherwise.
   fails with `connect.code_invalid` unless the verifier matches, the request's `Origin` header equals the
   bound origin (browsers always send it on these requests), the user is enabled and the confirming device
   still has a live session. Success is the session response of a **new device** of the home node
-  (`device_name`, default "Browser (<origin host>)"), audited as `user.connect`; the visiting client then
+  (`device_name`, default "Browser (\<origin host>)"), audited as `user.connect`; the visiting client then
   requests federation tokens like any home client. A malformed challenge is `400 connect.challenge_invalid`.
   Limits: codes per device with the federation token limit (30/min), exchanges per client IP with the login
   limit. `http://` origins only with `--dev`.
@@ -1558,7 +1564,7 @@ otherwise.
   `api`, `ws` and `web` URLs without credentials; since delegation (design note 4.2c) they may be on any host, the
   document being the identity domain's own statement. `http`/`ws` URLs only when the client itself was loaded
   over plain HTTP (development).
-- **CORS** is exactly §8 (plus the upload headers `Tavrn-File-Name` and `Tavrn-Emoji-Name`); the CSP of
+- **CORS** is exactly §8 (the preflight's request headers are mirrored); the CSP of
   `--dev` nodes adds `http: ws:` to `connect-src` for development peers.
 - **Conversation index**: one row per user with the JSON array and a `BIGINT` version (migration `0012`).
   `If-Match` accepts `"7"` and `7`; `*` or no header write unconditionally; `"0"` creates the index and
@@ -1636,7 +1642,7 @@ otherwise.
 - **Device changes**: the reference node does not forward `devices.changed` to clients over WebSocket (the
   client drops its cached list if a node does); the cache TTL, the refetch for unknown devices and
   `mls.remove_needed` cover new and removed devices.
-- **Presence across nodes (phase 4C, decided 2026-10-05)**: there is no S2S presence type. The client pushes
+- **Presence across nodes**: there is no S2S presence type. The client pushes
   its presence (chosen status, custom status, the device's idle flag and activity) to **every node it has a
   session on** — its home node and every node with a federated session — right after the session is opened,
   on every change and after reconnecting; each node computes the effective status from the user's WebSockets
@@ -1645,9 +1651,9 @@ otherwise.
   learns anything about the user's presence, and friends of other nodes see a friend's presence only where both
   have sessions (a shared room's node, or one's home node). The web client keeps presences by address and
   merges what its nodes report.
-- **Profiles (phase 4C)**: the web client asks the node that served a user object for the profile (its mirror,
+- **Profiles**: the web client asks the node that served a user object for the profile (its mirror,
   §2.7) and loads images only from there; the full profile page takes the node in `?via=<domain>`.
-- **Message requests of other nodes (phase 4C)**: the web client lists invitations with
+- **Message requests of other nodes**: the web client lists invitations with
   `conversation.requested` under "Message requests" (not in the invite list), opens them with a federated
   session on the hosting node, accepts or declines there and dismisses the invitation on the home node; "decline
   and block" blocks on the home node with the note.

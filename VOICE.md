@@ -1,5 +1,8 @@
 # tavrn voice, video and screen sharing (`voice`, draft v1)
 
+This document specifies voice and video channels, screen sharing, the soundboard and calls in DMs, from the node's
+policies and the join flow to the encrypted media and connectivity.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). Normative for nodes and clients. Capabilities: `voice` (this document), `screenshare` (the
 node allows screen sharing), `soundboard` (clips, §8). Media runs through [LiveKit](https://livekit.io), an open
 source SFU the node starts as a child process (design note 3.4, §8); clients use a LiveKit SDK. Encryption of the
@@ -7,7 +10,7 @@ media: `ENCRYPTION.md` §5a. Error format, ids and addresses: `PROTOCOL.md`.
 
 ## 1. Overview
 
-```
+```text
 client ──REST──▶ node: POST …/voice/join          → LiveKit token + limits + participants + MLS epoch
 client ──WSS───▶ node /rtc ──(token checked)──▶ LiveKit 127.0.0.1:7880   (signaling, proxied)
 client ══UDP═══▶ LiveKit TAVRN_RTC_UDP_PORT_RANGE                      (media, end-to-end encrypted)
@@ -83,7 +86,7 @@ operators lower it to save traffic.
 - `token` is valid for 10 minutes to *start* a connection; once connected, LiveKit refreshes it itself. Get a
   new one with another `join` for every new connection (reconnects within the SDK use LiveKit's refreshed token).
 - `epoch` is the current epoch of the channel's MLS group, or `null` if the group does not exist yet: then the
-  client creates it first (`ENCRYPTION.md` §4.2) and derives the frame key afterwards (§6).
+  client creates it first (`ENCRYPTION.md` §4.2) and derives the frame key afterwards (§6 below).
 - `participants` are the devices LiveKit reports as connected (§5), without the joining device.
 - `reconnect_grace_secs` is how long the node keeps a dropped participant as `reconnecting` (§5a); clients
   rejoin automatically within this time.
@@ -101,10 +104,11 @@ The node checks, in this order: voice enabled (`503 voice.disabled`), room exist
 is a room member (`403 room.not_member`; node admins who are not members cannot join voice), channel exists in the
 room (`404 channel.not_found`) and is a voice channel (`400 voice.not_voice_channel`), rate limit
 (`429`, 60 joins and state changes per user and minute), not banned (`403 room.banned`), `connect` in the channel
-(`403 voice.connect_forbidden`; members in timeout keep only `view_channel` and get this too), capacity
+or a moderator's move into it (§7 "Moved participations") (`403 voice.connect_forbidden`; members in timeout keep
+only `view_channel` and get this too, also after a move), capacity
 (`409 voice.channel_full`, `meta.user_limit`): connected, reconnecting and reserved participants of other users ≥ the
-channel's `user_limit` (members with `move_members` may exceed it) or ≥ `voice_max_participants` (nobody may exceed
-that).
+channel's `user_limit` (members with `move_members` and moved members may exceed it) or ≥ `voice_max_participants`
+(nobody may exceed that).
 
 A successful join *reserves* a slot for the device for 60 seconds (counted for the limit, invisible to others) until
 LiveKit reports the participant. **One voice session per user:** a join of another device of the same user replaces
@@ -125,9 +129,11 @@ the user's earlier device in every voice channel of the node; the node disconnec
 | `sub` (identity), TTL | `<user address>/<device id>`, 10 minutes |
 
 **Signaling (`/rtc`).** `GET /rtc`, `/rtc/v1` (WebSocket) and `/rtc/validate`, `/rtc/v1/validate` (HTTP) on the
-node's domain are forwarded to LiveKit only with a valid token (query `access_token` as the LiveKit SDKs send it, or
-`Authorization: Bearer`). The node verifies the signature with its LiveKit secret, the issuer, `exp`/`nbf`, that the
-token joins a voice channel room, and that its holder is still a member with `connect` and not banned (for a call,
+node's domain are forwarded to LiveKit only with a valid token (query `access_token` as the browser SDK sends it, or
+`Authorization: Bearer` as native SDKs do; either way the node hands the checked token on to LiveKit as a bearer
+header). The node verifies the signature with its LiveKit secret, the issuer, `exp`/`nbf`, that the
+token joins a voice channel room, and that its holder is still a member with `connect` (or a moved participation
+there, §7) and not banned (for a call,
 §11: an accepted member of the conversation while its call runs; a connection-test token, §10.4: only its own test
 room). Errors:
 `401 voice.token_invalid`, `403 voice.connect_forbidden` (e.g. kicked after the token was issued), `404` for other
@@ -198,15 +204,23 @@ Calls in DMs (§11) are speech: their limits carry `min(64, node maximum)`.
   "identity": "alice@node.example/01J…",
   "muted": false, "deafened": false, "streaming": false, "camera": false,
   "server_muted": false, "joined_at": "2026-10-05T12:00:00.000Z",
-  "connection": "connected"
+  "connection": "connected", "moved": false
 }
 ```
 
 `connection` is `connected` or `reconnecting` (§5a); clients treat unknown values as `connected` (`poor` is
-reserved: participants of a call take the connection quality from LiveKit).
+reserved: participants of a call take the connection quality from LiveKit). `moved` is `true` while the participant
+is here through a moderator's move (§7 "Moved participations"; clients may show "moved here"); absent from older
+nodes, always `false` in calls.
 
 - **Initial state:** `GET /api/v1/rooms/{room_id}/voice` → `{ "items": [VoiceChannelState, …] }`: every voice channel
   of the room with at least one participant that the requester can view (members only).
+- **Initial state of all rooms:** `GET /api/v1/users/me/voice` →
+  `{ "rooms": [ { "room_id": "01J…", "channels": [VoiceChannelState, …] }, … ] }`: the same for every room of this
+  node the requester is a member of, in one request; rooms without such a channel are left out (empty `rooms` when
+  voice is disabled). Clients call it once after `ready` and after every resync to show voice activity in their room
+  list (who is in voice where, who streams) without loading each room; `voice.state` keeps it current. Members of
+  rooms on other nodes ask each of those nodes with their session there. App tokens need the scope `voice`.
 - **Changes:** WebSocket event `voice.state` to all room members who can view the channel, `data` = `VoiceChannelState`
   `{ room_id, channel_id, epoch, participants: [VoiceParticipant, …] }`, always the *complete* list of the channel
   (replace, do not merge; an empty list means the channel is empty).
@@ -232,11 +246,12 @@ reserved: participants of a call take the connection quality from LiveKit).
   `room.delete` for deletions). So does losing `view_channel` or `connect` in the channel through a role, override,
   membership or age change: the node checks the participants of a room after every event that changes who may view
   what, and all rooms with participants at least once a minute (changes without an event), and removes those who
-  lost access (`voice.state`).
+  lost access (`voice.state`). A moved participation (§7) needs neither: only room membership, no timeout or ban,
+  the channel's age gate and the channel's existence.
 
 ## 5a. Dropped connections and reconnects
 
-Decided 2026-10-05 (design note 4.5 item 7). A participant whose media connection drops is **not removed at once**:
+Design note 4.5 item 7: a participant whose media connection drops is **not removed at once**:
 
 - LiveKit's `participant_left`/`participant_connection_aborted` with a disconnect reason other than
   `CLIENT_INITIATED`, `PARTICIPANT_REMOVED`, `ROOM_DELETED` (removed at once) or `DUPLICATE_IDENTITY` (the same
@@ -275,7 +290,7 @@ room member (`404 member.not_found` otherwise). The usual hierarchy rules apply 
 |---|---|---|---|
 | `POST …/mute` `{ "muted": true \| false }` → `200 VoiceChannelState` | `mute_members` (19) in this channel, `403 voice.mute_forbidden` | Server mute in the **whole room**, stored (survives reconnects and restarts): `muted` and `server_muted` become `true`, the microphone grant is revoked in LiveKit immediately and missing from new tokens; `false` lifts it (the self mute stays the user's) | `voice.mute` / `voice.unmute` |
 | `POST …/disconnect` → `204` | `move_members` (20), `403 voice.move_forbidden` | All devices of the member leave this channel (LiveKit `RemoveParticipant`); `404 voice.not_connected` if none was there. The member may rejoin. | `voice.disconnect` |
-| `POST …/move` `{ "channel_id" }` → `204` | `move_members` in both channels | Disconnects the member here and sends `voice.move` `{ room_id, from_channel_id, channel_id, user_id }` to the member's connections; the client then joins `channel_id` normally (new token, new MLS group and frame key). The member needs `connect` in the target (`403 voice.target_forbidden`); `400 voice.not_voice_channel`, `400 voice.same_channel`, `404 voice.not_connected` | `voice.move` |
+| `POST …/move` `{ "channel_id" }` → `204` | `move_members` in both channels | Disconnects the member here and sends `voice.move` `{ room_id, from_channel_id, channel_id, user_id }` to the member's connections; the client then joins `channel_id` normally (new token, new MLS group and frame key). The member needs no permission in the target, not even `view_channel` ("Moved participations" below); only the target's age gate holds (`403 voice.target_forbidden` for a member below it); `400 voice.not_voice_channel`, `400 voice.same_channel`, `404 voice.not_connected` | `voice.move` |
 
 **Mass move** (design note 4.11): `POST /api/v1/rooms/{room_id}/voice/move-all`
 `{ "to_channel_id", "from_channel_id"? }` → `200 { moved: [address], skipped: [{ user, reason }] }`. Without
@@ -283,9 +298,32 @@ room member (`404 member.not_found` otherwise). The usual hierarchy rules apply 
 `move_members` in the target (`403 voice.move_forbidden`) and in `from_channel_id`; participants of other channels
 where the mover lacks it stay (`move_forbidden`). Each moved member is handled like `…/move` (disconnect plus
 `voice.move`); members the mover may not moderate stay (`outranked`: owner, node admins, equal or higher roles; the
-mover may move themselves), so do members without `connect` in the target (`target_forbidden`) and everybody beyond
+mover may move themselves), so do members below the target's age gate (`target_forbidden`) and everybody beyond
 the target's user limit (`channel_full`) — a partial result is still `200`. `400 voice.not_voice_channel`,
 `400 voice.same_channel`. One audit entry `voice.move_all` with the counts.
+
+**Moved participations.** A member may be moved into a voice channel they may neither view
+nor connect to; the moderator's `move_members` decides, not the member's permissions.
+
+- **Grant.** With every move (`…/move`, `move-all`) the node records a *move grant* for the member and the target
+  channel: valid for 60 seconds, one per user (a new move replaces it). The member's next `join` of that channel is
+  entitled by it instead of `connect` and may exceed the channel's `user_limit` (as the mover may);
+  `voice_max_participants`, bans and timeouts still refuse it. A join of another channel drops the grant.
+- **Moved participation.** The first join consumes the grant; the participation that follows is *moved*
+  (`VoiceParticipant.moved: true`) for as long as the member has a participant in the channel: a rejoin within the
+  reconnect grace period (§5a) keeps it, leaving, being disconnected or removed, the end of the grace period or a
+  join elsewhere ends it. Afterwards a join needs `connect` again: the member cannot come back by themselves.
+- **Temporary view.** From the move until the grant expires unused or the participation ends, the member holds
+  `view_channel`, `read_history` and `connect` in that channel whatever the overrides say (`permissions.md` "Moved
+  participations"); all other bits (`speak`, `stream`, `send_messages`, …) follow their roles and overrides as
+  usual, a timeout strips all but reading, and the channel's age gate still applies. So the member's connections get
+  `channel.create` for the channel (with its category's `category.create` if needed) before `voice.move`, see the
+  channel's `voice.state` and events, `GET /rooms/{id}` lists it, its MLS group is open to their devices
+  (`ENCRYPTION.md` §4.5), and its messages are readable (writing still needs `send_messages`); this is intended.
+  When it ends, the connections get `channel.delete` with `hidden: true` (`PROTOCOL.md` §6) and, if the member may
+  not view the channel by their permissions, the node announces their leaves with `mls.remove_needed`.
+- **Access checks.** The access watcher (§5) and the `/rtc` proxy accept a moved participant while they are a room
+  member, not timed out or banned, and the channel exists.
 
 There is no separate "deafen others" permission in v1 (`permissions.md` has none); moving with LiveKit's
 `MoveParticipant` is not used because the target channel has another MLS group and therefore another frame key, so a
@@ -341,11 +379,16 @@ Clips are room assets like custom emojis; playing them is client-side.
 
 ## 9. What the reference client shows
 
-Part of the web client (phase 4 part B), responsive like the rest of the client:
+Part of the web client, responsive like the rest of the client:
 
 - **Channel list:** voice channels show their participants (avatar, display name, mute/deafen/stream/camera icons,
   server mute in another color) from `GET …/voice` and `voice.state`, also for members who are not in the call; the
   user limit as `3/5`; joining by clicking the channel.
+- **Room list and friends:** from `GET /users/me/voice` and `voice.state` (so only channels the user can view), a room
+  icon carries a speaker badge while somebody is in voice there and a monitor badge while somebody streams; a hover
+  card (also on keyboard focus; on touch the head of the room's long-press menu) lists who is in which voice channel.
+  A friend in a voice channel the user can view is shown with that room and channel in the friends list, with a
+  "Join" entry in the friend's menu; nothing is shown for channels or rooms the user cannot view.
 - **Voice view:** one tile per participant (avatar, or the camera video when on), a **speaking indicator** (ring
   around the tile while LiveKit reports speech), mute/deafen icons and the display name; screen shares as large tiles
   that can be focused (enlarged) and opened in their own window (picture-in-picture or popout); simulcast picks the
@@ -379,7 +422,7 @@ Part of the web client (phase 4 part B), responsive like the rest of the client:
   signal bars; on the stage the tile dims and a camera keeps its last frame. The own voice bar shows "reconnecting"
   with a cancel button.
 
-### 9.1 Implementation notes (web client, phase 4 part B)
+### 9.1 Implementation notes (web client)
 
 - Code: the `voice/` module of `tavrn-web` (session, key provider, audio pipeline, presence and settings stores, UI in `voice/ui/`),
   settings in `pages/settings/VoiceSettingsTab.tsx` and `SoundboardTab.tsx`. `livekit-client`, its E2EE worker, the
@@ -451,8 +494,8 @@ Part of the web client (phase 4 part B), responsive like the rest of the client:
   `"voice_problem": "<text>"` while a voice setup problem needs the operator (no announced hostname resolves, §10.2);
   `GET /readyz` → `{ "ready", "database", "livekit", "cache" }` (`livekit` = LiveKit answers locally, `null` without
   voice; `cache` = the shared Valkey answers and its event bus is subscribed, `null` without `TAVRN_CACHE_URL`).
-- Participant state is kept in memory (one node process; with several instances behind a load balancer, phase 5,
-  it moves to the shared cache). Dropped participants stay `reconnecting` for `TAVRN_VOICE_RECONNECT_GRACE_SECS` (§5a);
+- Participant state is kept in memory by one instance: the node process, or with several instances behind a load
+  balancer the leader, to which the other instances relay through the shared cache (`TAVRN_CACHE_URL`). Dropped participants stay `reconnecting` for `TAVRN_VOICE_RECONNECT_GRACE_SECS` (§5a);
   a sweeper removes expired ones.
 
 ### 10.1 Connectivity settings

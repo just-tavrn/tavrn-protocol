@@ -26,16 +26,16 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 17 | `speak` | Speak |
 | 18 | `stream` | Share screen or window |
 | 19 | `mute_members` | Mute others |
-| 20 | `move_members` | Move others between voice channels |
+| 20 | `move_members` | Move others between voice channels, also into channels they may not view or connect to (they see the channel while connected) |
 | 21 | `use_soundboard` | Use the soundboard |
 | 22 | `manage_emojis` | Manage custom emojis and sounds |
 | 23 | `change_nickname` | Change own nickname |
 | 24 | `manage_nicknames` | Change other people's nicknames |
 | 25 | `pin_messages` | Pin messages |
 | 26 | `use_camera` | Share the camera |
-| 27 | `use_whiteboard` | Open a whiteboard in the channel (voice channels also need `connect`); viewing a board only needs read access (phase 4E) |
-| 28 | `manage_whiteboard` | Close any whiteboard and change who may edit someone else's board (phase 4E) |
-| 29 | `manage_webhooks` | Manage the channel's webhooks (reserved in phase 4E, routes in phase 5, `APPLICATIONS.md` §6) |
+| 27 | `use_whiteboard` | Open a whiteboard in the channel (voice channels also need `connect`); viewing a board only needs read access |
+| 28 | `manage_whiteboard` | Close any whiteboard and change who may edit someone else's board |
+| 29 | `manage_webhooks` | Manage the channel's webhooks (`APPLICATIONS.md` §6) |
 | 30 | `priority_speaker` | May activate priority speaking in voice channels (others are ducked while they hold the key, design note 4.13) |
 | 31 | `use_external_emojis` | Use custom emojis of other rooms and personal emojis in this room (default for `@everyone`, design note 4.13) |
 | 32 | `use_external_sounds` | Play soundboard clips of other rooms and personal clips in this room (default for `@everyone`, design note 4.13) |
@@ -175,8 +175,7 @@ Nodes remove bits outside `CHANNEL_SCOPED` from the `allow` and `deny` masks of 
 
 ## Evaluation
 
-The evaluation is layered (since 2026-10-09; it replaced the earlier "synced with its category" rule, see
-"Changes" below): role base → category overrides → channel overrides.
+The evaluation is layered (it replaced the earlier "synced with its category" rule, see "Changes" below): role base → category overrides → channel overrides.
 
 1. `base = everyone | OR(member's roles)`. Owner, node admin or `administrator` → all permissions, done.
 2. **Category layer**: if the channel belongs to a category, the category's overrides apply to `base`.
@@ -194,6 +193,11 @@ The evaluation is layered (since 2026-10-09; it replaced the earlier "synced wit
 Age gates (`PROTOCOL.md` §5e) come before this evaluation: in a channel whose effective `age_gate` is
 `adults_only`, a member below it (a minor or a user of unknown age) has 0, owners and node admins included. The gate
 is not an input of `testvectors/permissions.json`; implementations apply it around the evaluation.
+
+**Moved participations** (`VOICE.md` §7): in the voice channel into which a moderator moved a member, from the move
+until the moved participation ends, `view_channel`, `read_history` and `connect` are added after step 3 (before
+step 4), whatever the overrides deny. Steps 4 and 5, the bot cap and the age gate apply as usual, so a timeout
+still leaves only reading. Like the age gate this is node state, not an input of the test vectors.
 
 Example: the `@everyone` role lacks `view_channel`, the category has no override for it ("–"), and the channel
 allows `view_channel` for `@everyone`: every member sees that channel. A category is a container, not a permission
@@ -242,6 +246,10 @@ closes. Reference: `no_bots_effective` / `noBotsEffective`, vectors in `testvect
 `no_bots` and `scopes` in `testvectors/permissions.json`.
 
 ## Changes
+
+- **2026-10-11, moved participations**: a member moved into a voice channel by a moderator with `move_members`
+  holds `view_channel`, `read_history` and `connect` there while the moved participation lasts ("Evaluation"
+  above, `VOICE.md` §7); before, a move needed `connect` of the member in the target.
 
 - **2026-10-09, layered overrides**: the evaluation applies the category's overrides and then the
   channel's own on top (above) instead of either the category's (a channel "synced with its category") or the

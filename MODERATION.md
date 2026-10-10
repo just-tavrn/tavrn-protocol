@@ -1,5 +1,8 @@
 # Moderation: reports, auto-moderation, ownership transfer
 
+This document specifies reports with evidence, auto-moderation of unencrypted conversations, the protected entries of
+the welcome channel, room ownership transfer and age gates.
+
 Status: implemented (design note 4.6). Capabilities: `reports.v1` (§1) and `automod.v1` (§2), announced by every node
 that implements them; clients show the "Report" entries and the "Auto-moderation" room settings only for nodes that
 announce them. Everything here is node-local (other nodes never see a report or a rule) except where it says so.
@@ -11,8 +14,8 @@ the protection of the welcome channel's entries (§3) and the transfer of a room
 ## 1. Reports (`reports.v1`)
 
 A report tells the people who moderate a place that something there breaks its rules. Any authenticated user can
-report: local users and users of other nodes with a federated session on the node (`FEDERATION.md` §8), never bots
-(`403 report.bot_forbidden`, app tokens never reach the routes, `APPLICATIONS.md` §2.3). Reports are never
+report: local users and users of other nodes with a federated session on the node (`FEDERATION.md` §2.5), never bots
+(`403 report.bot_forbidden`, app tokens never reach the routes, `APPLICATIONS.md` §2.5). Reports are never
 anonymous: moderators see who reported. The reported user is never told that, or by whom, they were reported.
 
 ### 1.1 Targets and routing
@@ -139,7 +142,7 @@ on another node is `409 report.target_remote`.
 
 - `report.create` `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`
   goes to the online users who may see the report, except the reporter (no detail, no evidence). Clients refresh their
-  inbox badge and may show "New report in <room>" through their normal notification path (the user's notification
+  inbox badge and may show "New report in \<room>" through their normal notification path (the user's notification
   settings apply). Those without an open connection get a web push of type `report` with the report's kind and room
   only (`PROTOCOL.md` §6d), unless they turned the notification setting `reports` off (`PROTOCOL.md` §6c, default
   on); at most one per room and moderator every 30 seconds.

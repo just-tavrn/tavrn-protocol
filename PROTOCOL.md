@@ -1,5 +1,8 @@
 # tavrn protocol (draft v1)
 
+This document is the core of the tavrn protocol: identities and addresses, discovery, capabilities, API
+conventions, tokens and authentication, realtime events, the message envelope and the overview of permissions.
+
 License: CC-BY-4.0 (this text; schemas, test vectors and permission tables Apache-2.0, see `LICENSE.md`). This document is the normative description of what nodes and clients may expect from
 each other. The OpenAPI specification (`openapi.json`, generated from the server) describes the routes in
 detail; this document covers the concepts and rules that span individual routes.
@@ -105,27 +108,36 @@ Nodes and clients announce a list of capability strings. A feature is used only 
 The client sends its list in the WebSocket hello and in the header
 `Tavrn-Client: <name>/<version> (<cap>, <cap>, …)`; the node stores it per device.
 
-Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, `forum`, `announcement`,
-`threads`, `reactions`, `attachments`, `pins`, `emojis`, `gifs`, `federation`, `push.webpush`, `soundboard`,
-`content.signed1`, `apps.v1`, `commands.v1`, `webhooks.v1` (`APPLICATIONS.md` §10.1; every node announces `apps.v1`
-since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set), `reports.v1` and `automod.v1`
-(reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
-sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
-them), `age.v1` (date of birth, private age status and age gates, §5e, announced by every node that implements it), `history.restore` (history restore after a key reset by request and approval, `ENCRYPTION.md` §7b, announced
-by every node that implements it), `history.shares2` (history shares sealed to each recipient device and device share
-keys, `ENCRYPTION.md` §3.1 and §7b "Format v2", announced by every node that implements them), `files.e2ee` (end-to-end encrypted files channels, `FILES.md` §8, announced by every node that implements
-them).
+Capabilities reserved in v1, and when nodes that implement them announce them:
+
+| Capability | Meaning | Nodes announce it |
+|---|---|---|
+| `content.v1` | the message content format (§7) | always |
+| `e2ee.mls1` | end-to-end encryption (`ENCRYPTION.md`) | always |
+| `reactions`, `attachments`, `pins`, `emojis` | reactions, attachments, pins and custom emojis (§7, §7b "Custom emojis, spoilers") | always |
+| `gifs` | GIF messages from the node's configured provider (§7) | while `TAVRN_GIF_PROVIDER` names a provider |
+| `unfurl` | link previews for the node's own users (§7b "Link previews and embeds") | while `TAVRN_UNFURL` is on |
+| `federation`, `federation.v1` | federation; `federation.v1` names exactly `FEDERATION.md` (§12 there) | while `TAVRN_FEDERATION_ENABLED` is on |
+| `connect.app` | app sessions of the connect flow for native apps (`FEDERATION.md` §8 step 3) | always, also without federation |
+| `apps.v1`, `commands.v1` | applications, bots and slash commands (`APPLICATIONS.md` §10.1); clients announce `commands.v1` in their WebSocket `hello` | always |
+| `webhooks.v1` | incoming webhooks, event subscriptions, hook tokens and embeds (`APPLICATIONS.md` §6) | while `TAVRN_WEBHOOKS_ENABLED` is on |
+| `sso.oidc` | single sign-on (§5a.6, `APPLICATIONS.md` §8) | while `TAVRN_OIDC_ISSUER` is set |
+| `search.v1` | node-side message search (§7d, `SEARCH.md`) | while `TAVRN_SEARCH_ENABLED` is on |
+| `push.webpush` | web push to browsers (§6d) | while `TAVRN_PUSH` is on |
+| `reports.v1`, `automod.v1` | reports and auto-moderation (`MODERATION.md`) | always |
+| `threads`, `forum`, `announcement` | threads, forum posts and announcement channels (§7e) | always |
+| `threads.client_ids` | the client-chosen thread id of §7e | always |
+| `voice`, `soundboard` | voice channels and calls (`VOICE.md`), room clips (`VOICE.md` §8) | while `TAVRN_VOICE_ENABLED` is on |
+| `screenshare` | screen sharing is allowed (`VOICE.md`) | while `TAVRN_VOICE_ENABLED` and `TAVRN_SCREENSHARE_ENABLED` are on |
+| `history.restore` | history restore after a key reset by request and approval (`ENCRYPTION.md` §7b "History after a key reset") | always |
+| `history.shares2` | history shares sealed to each recipient device, device share keys (`ENCRYPTION.md` §3.1, §7b "Format v2") | always |
+| `files.e2ee` | end-to-end encrypted files channels (`FILES.md` §8) | always |
+| `age.v1` | date of birth, private age status and age gates (§5e) | always |
+| `content.signed1` | the client signs its plaintext messages (below) | never: a client capability |
+
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
-
-`threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
-node that implements §7e; `threads.client_ids` by every node that takes the client-chosen thread id of §7e (clients
-send `id` only to those: an older node would ignore it, and the first message's signature would not match).
-
-`voice` (voice channels, `VOICE.md`), `screenshare` (screen sharing allowed) and `soundboard` (room clips) are
-announced by nodes while `TAVRN_VOICE_ENABLED` (and for `screenshare` also `TAVRN_SCREENSHARE_ENABLED`) is on.
-`unfurl` (link previews for the node's own users, §7b) is announced while `TAVRN_UNFURL` is on. `webhooks.v1`
-(incoming webhooks, event subscriptions, hook tokens and embeds, `APPLICATIONS.md` §6) is announced while
-`TAVRN_WEBHOOKS_ENABLED` is on. `push.webpush` (web push to browsers, §6d) is announced while `TAVRN_PUSH` is on.
+Clients send the thread `id` of §7e only to nodes that announce `threads.client_ids`: an older node would ignore it,
+and the first message's signature would not match.
 
 `content.signed1` is a client capability (FEDERATION.md §10.3): a client announcing it signs every plaintext
 message it sends with its device key, and a node MAY then refuse unsigned plaintext messages of that device
@@ -144,7 +156,8 @@ Compatibility rules:
 - Authentication: `Authorization: Bearer <token>`. No cookies. CORS is open for all origins.
 - Pagination: `?limit=50&before=<id>` or `?after=<id>`; the response contains `items` and `next`.
 - Idempotency: an `Idempotency-Key` header on `POST` is stored for 24 hours.
-- Rate limits respond with `429` and `Retry-After`.
+- Rate limits respond with `429` and `Retry-After`. Besides the limits of individual routes a node may cap the API
+  requests of each user per minute (the reference node: `TAVRN_RATE_USER_PER_MINUTE`, default 1200, `0` = off).
 - **Errors** are always RFC 9457 Problem Details, `Content-Type: application/problem+json`:
 
 ```json
@@ -165,7 +178,7 @@ localized (`Accept-Language`). Clients should map known codes to their own trans
 ### 4.1 Commands (client registry, design note 4.11)
 
 Slash commands are a client feature on top of the normal API. Clients keep a **registry** of command definitions
-in the shape of `APPLICATIONS.md` §5.1/§5.4, so that phase 5 application commands and built-ins share one format:
+in the shape of `APPLICATIONS.md` §5.1/§5.4, so that application commands and built-ins share one format:
 
 ```json
 { "id": "", "name": "timeout", "description": "Time out a member",
@@ -182,16 +195,16 @@ in the shape of `APPLICATIONS.md` §5.1/§5.4, so that phase 5 application comma
 - `source`: `builtin` (executed by the client through the normal routes: kick, ban, timeout, voice mute and move,
   purge with its preview and confirmation, slowmode, topic, nickname, …) or `app`.
 - Built-ins of the reference client: `/kick`, `/ban`, `/timeout`, `/mute`, `/unmute`, `/move`, `/purge`,
-  `/slowmode`, `/topic`, `/nick`, `/me` (content type `action`, §7), `/shrug`, `/whiteboard`, `/poll` (reserved
-  until phase 5), `/help`. Destructive ones (kick, ban, purge) ask for confirmation.
+  `/slowmode`, `/topic`, `/nick`, `/me` (content type `action`, §7), `/shrug`, `/whiteboard`, `/help` (`/poll`
+  is reserved). Destructive ones (kick, ban, purge) ask for confirmation.
 
-**Announce flow for applications (phase 5, `commands.v1`, normative in `APPLICATIONS.md` §5).** An application
+**Announce flow for applications (`commands.v1`, normative in `APPLICATIONS.md` §5).** An application
 announces its commands to its home node (`PUT /applications/{id}/commands`, or `/applications/me/commands` with an
 app token); nodes optionally require admin approval of each definition hash; room managers enable, restrict or
 disable commands per room and channel; clients fetch the invocable ones with `GET
 /conversations/{conversation_id}/commands`, merge them after their built-ins (name clashes qualified by the
 application name, selection bound to the command id) and invoke them with `POST
-/conversations/{conversation_id}/interactions`. The reference client (implemented in phase 5 step 3) announces
+/conversations/{conversation_id}/interactions`. The reference client announces
 `commands.v1` in its WebSocket `hello`, shows the BOT badge and the application's name on application commands,
 offers `options` as a pick list (and `true`/`false` for booleans), sends `user` arguments as addresses and
 `channel`/`role` arguments as ids, encrypts the arguments in encrypted conversations (`command.args`, §7) and shows
@@ -244,7 +257,7 @@ logins are authenticated by the identity provider (§5a.6); both are exempt. Pas
 
 ### 5a.1 States
 
-```
+```text
                  password ok, no factor                    first factor confirmed
  POST /auth/login ─────────────────────► enrollment_required ───────────────────────┐
  POST /auth/register ──────────────────►  (pre-auth, stage enroll)                  ▼
@@ -628,8 +641,12 @@ the room as `GET /rooms/{id}` lists it to each member:
   true }` for a category no longer listed to them). `hidden: true` means "no longer visible to you", not deleted:
   clients remove the channel without announcing a deletion. These events have their own `id` and are not
   replayed. `GET /rooms/{id}` lists only the overrides of the listed channels and categories.
+- A moderator's move into a voice channel is the only way to gain a view without permissions (`VOICE.md` §7
+  "Moved participations"): from the move until the moved participation ends the member views that channel
+  (`channel.create` before `voice.move`, its events, `GET /rooms/{id}`), afterwards it is hidden again
+  (`channel.delete { hidden: true }`) unless their permissions show it.
 
-Event types besides the room/message events of phase 1:
+Event types besides the room and message events:
 
 | Type | Audience | `data` |
 |---|---|---|
@@ -667,8 +684,8 @@ Event types besides the room/message events of phase 1:
 | `ephemeral` | conversation audience with read access², except the sending device | `{ conversation_id, type, from: { user, device_id }, content }`: an ephemeral event (below), never stored or replayed |
 | `whiteboard.session` | conversation audience with read access² | `{ conversation_id, session }`: the whiteboard session changed (`session` null when it ended; `WHITEBOARD.md` §2.2) |
 | `application.install` | the bot (on its home node) | `{ room_id, room_name, node, installed_by }`: the bot was installed in a room of `node` (`APPLICATIONS.md` §4.2) |
-| `application.uninstall` | the bot (on its home node) | `{ room_id, node, reason }`: the bot left a room (`removed`, `kicked`, `banned`, `left`, `no_bots`, `owner_banned`, `blocked`, `deleted`; §4.3) |
-| `application.token_expiring` | the application's owner and its bot | `{ application_id, token_id, expires_at, days }`: an app token expires in 7 or 1 days (§2.2) |
+| `application.uninstall` | the bot (on its home node) | `{ room_id, node, reason }`: the bot left a room (`removed`, `kicked`, `banned`, `left`, `no_bots`, `owner_banned`, `blocked`, `deleted`; `APPLICATIONS.md` §4.3) |
+| `application.token_expiring` | the application's owner and its bot | `{ application_id, token_id, expires_at, days }`: an app token expires in 7 or 1 days (`APPLICATIONS.md` §2.2) |
 | `commands.update` | room members (and bots with the `commands` scope) | `{ room_id }`: the application commands of the room changed (definitions, approval, room settings, installations); clients refetch their palettes (`APPLICATIONS.md` §5.1, §5.3) |
 | `command.invoke` | exactly one connection of the bot whose token has the `commands` scope (round robin over its devices) | the interaction data of `APPLICATIONS.md` §5.6 (`interaction_id`, `command`, `conversation_id`, `user`, `device_id`, `permissions`, `args` or `args_ciphertext` + `epoch`, `locale`, `expires_at`) |
 | `interaction.reply` | the invoker: their other connections for the first response, all of them for follow-ups | `EphemeralReply` `{ interaction_id, conversation_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`: an ephemeral reply, shown only to the invoker and never stored (`APPLICATIONS.md` §5.7) |
@@ -737,14 +754,16 @@ Channels carry `history_for_new_members`: `since_join` (default), `days:<n>` (1 
 `PATCH /rooms/{room_id}/channels/{channel_id}` (`manage_channels`, audit action `channel.history_policy`
 with `{ from, to }`, `400 channel.history_policy_invalid`), announced with `channel.update`. In `GET …/messages`
 the node cuts **encrypted** messages older than the requester's window: the room membership's `joined_at`
-(`since_join`, or always without permission bit 34 `read_history`), `joined_at` minus `n` days (`days:<n>`),
-nothing (`all`). Plaintext messages are never cut; owners and administrators follow the same rule; node admins who
-are not members, and DMs, are not cut; group DM members start at their own join. A re-join starts a new window.
-`GET …/messages?epoch=<n>` lists only encrypted messages of that epoch (within the window), for key checks. The
-history key routes `POST|GET /conversations/{id}/history-keys`, `DELETE /conversations/{id}/history-keys/{share_id}`
-and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b. Files channels differ: their
-policy is `all` (their default) or `since_join`, never `days:<n>`, and entry records take the place of messages
-(`FILES.md` §8.7).
+(`since_join`, or always without permission bit 34 `read_history`), `joined_at` minus `n` days (`days:<n>`), nothing
+(`all`). The window belongs to the room membership: messages posted after the join but before the member's device
+first entered the channel's MLS group are part of it under every policy, and their keys reach the member through
+history key shares (`since_join` included). Plaintext messages are never cut; owners and administrators follow the
+same rule; node admins who are not members, and DMs, are not cut; group DM members start at their own join. A re-join
+starts a new window. `GET …/messages?epoch=<n>` lists only encrypted messages of that epoch (within the window), for
+key checks. The history key routes `POST|GET /conversations/{id}/history-keys`, `DELETE
+/conversations/{id}/history-keys/{share_id}` and `GET /conversations/{id}/history-pending` are described in
+`ENCRYPTION.md` §7b. Files channels differ: their policy is `all` (their default) or `since_join`, never `days:<n>`,
+and entry records take the place of messages (`FILES.md` §8.7).
 
 **History after a key reset (capability `history.restore`, normative: `ENCRYPTION.md` §7b "History after a key
 reset").** An identity reset sets `key_reset_at` on the member's room memberships: the message cut and the automatic
@@ -769,8 +788,8 @@ is not detected generically: clients additionally compare the MLS roster with th
 
 Presence is kept by **every node the user has a session on**, never forwarded between nodes: the client
 pushes its state to its home node and, through its federated sessions, to every node hosting its rooms and
-conversations. A node therefore never learns the presence of a user without a session there (decided
-2026-10-05; FEDERATION.md §13.2).
+conversations. A node therefore never learns the presence of a user without a session there (FEDERATION.md
+§13.2).
 
 - A user is online on a node while at least one WebSocket of theirs is open there. The **chosen status**
   (`online`, `dnd`, `invisible`) and the **custom status** `{ text ≤ 128, emoji?, expires_at? }` belong to the
@@ -778,7 +797,7 @@ conversations. A node therefore never learns the presence of a user without a se
   details?, state?, started_at, ends_at?, application? }` belong to the device. `state` (≤ 128) is a second line,
   `ends_at` (RFC 3339, after `started_at`, at most 7 days ahead) a countdown, `application` `{ ref, name }` the
   application that reported it through the local activity bridge (`APPLICATIONS.md` §7.2–§7.3; clients show
-  "via <name>"); the node checks the format only. Bots set their own presence and activity with the `presence`
+  "via \<name>"); the node checks the format only. Bots set their own presence and activity with the `presence`
   scope (`APPLICATIONS.md` §7.1). Effective status: `offline` without a connection, else `dnd` or
   `invisible` as chosen, else `idle` when every connected device is idle, else `online`. Clients report `idle`
   after 10 minutes without input (only while the chosen status is `online`) and `online` when input returns.
@@ -1012,7 +1031,7 @@ Every message consists of an envelope (readable by the node) and content (opaque
   every other message.
 - `interaction` (set by the node on a message an application posted as the answer to a command, `APPLICATIONS.md`
   §5.7): `{ id, command, application, user }` with the interaction id, the command's name, the application reference
-  and the invoker's address. Clients show "<user> used /<command>" above the message. The field is absent on every
+  and the invoker's address. Clients show "\<user> used /\<command>" above the message. The field is absent on every
   other message.
 - `device_id` is the sending (or last editing) device, null for system and webhook messages; `epoch` is set for
   encrypted messages only. For

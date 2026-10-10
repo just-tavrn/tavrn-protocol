@@ -7,7 +7,7 @@ attributable.
 | What | Files | License |
 |---|---|---|
 | Schemas, test vectors and permission tables (machine-readable) | `openapi.json`, `testvectors/*.json`, the permission bit tables in `permissions.md` (the tables and the numeric values in them) | [Apache-2.0](LICENSE-APACHE), see also [NOTICE](NOTICE) |
-| Specification prose | `PROTOCOL.md`, `ENCRYPTION.md`, `FEDERATION.md`, `VOICE.md`, `WHITEBOARD.md`, `FILES.md`, `APPLICATIONS.md`, `ENTITLEMENTS.md`, `SEARCH.md`, `LEGAL.md`, `README.md`, `docs/` and the explanatory text of `permissions.md` | [CC-BY-4.0](LICENSE-CC-BY-4.0) |
+| Specification prose | `PROTOCOL.md`, `ENCRYPTION.md`, `FEDERATION.md`, `VOICE.md`, `WHITEBOARD.md`, `FILES.md`, `APPLICATIONS.md`, `ENTITLEMENTS.md`, `SEARCH.md`, `LEGAL.md`, `MODERATION.md`, `CHANGELOG.md`, `README.md`, `docs/` and the explanatory text of `permissions.md` | [CC-BY-4.0](LICENSE-CC-BY-4.0) |
 | Repository tooling | `package.json`, `scripts/`, `test/`, `.github/` | [Apache-2.0](LICENSE-APACHE) |
 
 SPDX expression for the repository (and the npm package `@tavrn/protocol`) as a whole: `Apache-2.0 AND CC-BY-4.0`.

@@ -5,6 +5,38 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **CORS mirrors the requested headers** (`FEDERATION.md` §8 "CORS and CSP"). Nodes allow at least the listed
+  request headers and the `Tavrn-*` headers of the upload routes; the reference node mirrors whatever headers a
+  preflight names, allows every method and exposes `Content-Range` and `Content-Disposition` besides `ETag`,
+  `Retry-After` and `Location`. Before, a fixed header list broke every new upload header for clients of other
+  origins, the desktop app included.
+- **Unsigned messages of bots and webhooks** (`FEDERATION.md` §10.3). Clients show no "unverified" marker on
+  unsigned messages of bots and webhooks: the node authenticated the application's token and the bot badge takes the
+  marker's place. A bot signature that cannot be checked is still marked.
+- **Voice presence of all rooms at once** (`VOICE.md` §5, §9). New route `GET /api/v1/users/me/voice` →
+  `{ rooms: [ { room_id, channels: [VoiceChannelState] } ] }`: the initial voice state of every room of the node the
+  requester is a member of, limited to channels with participants the requester can view (like
+  `GET /rooms/{id}/voice`); app tokens need the scope `voice`. Clients call it after `ready` and after a resync.
+- **Moving members into channels they may not view or connect to** (`VOICE.md` §7 "Moved participations",
+  `permissions.md`, `PROTOCOL.md` §6, `ENCRYPTION.md` §4.5). `…/voice/members/{address}/move` and
+  `/voice/move-all` need only the mover's permissions; `voice.target_forbidden` now means "below the target's age
+  gate" (before: no `connect` in the target). Each move leaves a single-use grant (60 seconds) that entitles the
+  member's next join of the target without `connect` and beyond its `user_limit`; the participation that follows is
+  marked `moved: true` in `VoiceParticipant` (new field) and lasts until the member leaves or is removed (a rejoin
+  within the reconnect grace period keeps it). Meanwhile the member views the channel (`channel.create` before
+  `voice.move`, its events, `GET /rooms/{id}`, its MLS group, reading its messages) and the access watcher and the
+  `/rtc` proxy accept them without `view_channel` or `connect`; when it ends they get `channel.delete
+  { hidden: true }` and their leaves are announced with `mls.remove_needed`. No self-rejoin without `connect`.
+- **History since the join under `since_join`** (`ENCRYPTION.md` §7b, `PROTOCOL.md` §6, `FILES.md` §8.7). The history
+  window belongs to the room membership: messages (and entry records of files channels) posted after a member's room
+  join but before its device first entered the channel's MLS group are part of the member's history under every
+  policy. Nodes therefore mark such members `history_pending` also under `since_join` (encrypted content in the window
+  from before the device's first leaf; `view_channel` and `read_history` as before), list them in `…/history-pending`
+  and accept `POST …/history-keys` under `since_join` (no more `403 history.forbidden` for the policy; the recipient's
+  window still bounds what its node serves and its client accepts). Sharing clients send the epochs of the encrypted
+  messages since the recipient's join; every window lookup of a sharing client includes thread messages (`GET
+  …/messages?…&threads=all`), so forum posts count. Clients join the groups of a room's encrypted channels the user
+  may view when the room is loaded, one after the other, so the gap stays small.
 - **History shares v2 and signed titles and answers** (`ENCRYPTION.md`, capability `history.shares2`). Every device
   has an X25519 share key, signed by its device key, published with the device key (`PUT
   /users/me/devices/{id}/key` gets `share_public_key` and `share_key_signature`) or once with the new `PUT
@@ -48,3 +80,93 @@ Changes of the protocol that implementations must follow, newest first. Versions
   others are refused with `400 permissions.not_channel_scoped`, and nodes strip them from existing overrides at start
   (audit action `role.override_restricted`). New and changed cases in `testvectors/permissions.json` ("Layered: …");
   the vectors no longer carry `sync_with_category`. Bit 37 `restore_history` is room-level, not channel-scoped.
+- **History restore after a key reset** (`ENCRYPTION.md` §7b "History after a key reset", capability
+  `history.restore`, `permissions.md`, `MODERATION.md` §3). An identity reset keeps the memberships, so the history
+  window let other members' clients share the old epoch keys automatically with whoever took over the account. Now
+  the reset sets `key_reset_at` on the user's memberships, the node records the group epoch at the reset per
+  encrypted channel, the member's window and the automatic shares start after it, and history from before the reset
+  comes back only through a request (`POST /rooms/{room_id}/history-requests`, `GET …/history-requests`, `…/mine`,
+  `…/{request_id}`) that a member with the new permission bit 37 `restore_history` approves or denies (`…/approve`,
+  `…/deny`), audited and written into the welcome channel. Room setting `history_restore` (`request` by default, or
+  `off`). Files channels are included (their entry records follow the same range). New cases in
+  `testvectors/permissions.json`: owner and administrator include bit 37.
+- **End-to-end encrypted files channels** (`FILES.md` §8, §9, capability `files.e2ee`, `ENCRYPTION.md` §5c,
+  `SEARCH.md` §3.6). New files channels are encrypted with the channel's MLS group by default, fixed at creation
+  (`400 channel.encryption_fixed`): chunked AES-256-GCM per file with per-part keys and counter nonces (streaming and
+  ranges keep working), encrypted entry records in content format 1 that carry the file key, name and type, the few
+  plaintext fields the node keeps, `GET …/files/mine` for deleting without keys, `GET …/files/records` for history key
+  checks and the clients' search sync, client-made encrypted thumbnails, and the history window for records. Files
+  channels take `history_for_new_members` `all` (their default) or `since_join`, never `days:<n>`. §9 describes the
+  deletion of files channels and rooms (internal files at once, external objects through a retried queue,
+  `keep_external` for unencrypted external channels). New reference values in `testvectors/encryption.json`:
+  `file_chunks`, `file_record`.
+- **Date of birth, age status and age gates** (`PROTOCOL.md` §5e, capability `age.v1`, `FEDERATION.md` §2.2,
+  `MODERATION.md` §4a). `POST /auth/register` requires `date_of_birth` and refuses users below the node's minimum age
+  (`TAVRN_MINIMUM_AGE`, default 16; `403 age.below_minimum`); accounts without one complete it with `PUT
+  /users/me/date-of-birth` and get `403 age.status_required` until then; node admins correct it with `PUT
+  /admin/users/{user_id}/date-of-birth`. The age status (`adult`, `minor`, `unknown`) is private to the user. Rooms
+  and channels carry `age_gate` (`none` or `adults_only`); the hosting node keeps users below a gate out of discover
+  lists, joins and gated channels (`403 age.restricted`), for users of other nodes by the signed `age_over_18` claim
+  of their federation token, the only age information that leaves the home node.
+- **Client-chosen thread ids** (`PROTOCOL.md` §7e, capability `threads.client_ids`, `FEDERATION.md` §10.3). `POST
+  …/threads` takes `id`, a canonical ULID of about now (`400 thread.id_invalid`, `409 thread.id_taken`), so clients
+  sign the first message of a forum post with its thread id. First messages of threads created without it stay
+  unsigned and are shown unverified, not invalid.
+- **Channel events reach only the members who can view the channel** (`PROTOCOL.md` §6). The events of a room
+  channel (messages, reactions, pins, typing, threads, voice, files, MLS) reach only the room members who can view
+  the channel at delivery time (`view_channel` after roles and overrides, and the age gate); the room's metadata
+  events still reach every member. The same check gates web push (§6d) and the `notify` hints to other nodes
+  (`FEDERATION.md` §5.2).
+- **Threads in interactions and webhooks** (`APPLICATIONS.md` §5.5–§5.7, §6.1, §6.1a). The invocation request and the
+  interaction payload carry `thread_id`; replies and follow-ups go into that thread unless they name another thread
+  of the conversation, and ephemeral replies name it. Refused follow-ups do not count towards the ten. Webhook
+  payloads (plain and sealed) name a thread of the channel with `thread_id`; forum channels require it (`400
+  message.thread_required`).
+- **Message retention, mail language and report pushes** (`PROTOCOL.md` §7f, §6, §6c, §6d, `MODERATION.md` §1.5,
+  §2.3, `LEGAL.md` §1.2, `APPLICATIONS.md` §2.2). Nodes may delete messages older than `TAVRN_RETENTION_DAYS`; rooms
+  may set a shorter `message_retention_days`; pinned messages and the welcome channel are exempt; `GET /node` names
+  the node's value. `PATCH /users/me { locale }` sets the language of the node's mails (the token expiry e-mail is
+  sent now). Web push of type `report` (kind and room only, coalesced per room) with the notification setting
+  `reports`. Push stays home-node only, so remote rooms in mode "all" do not push for ordinary messages. The node's
+  auto-moderation lists are read again hourly and on `SIGHUP`; an invalid file keeps the old lists.
+- **Push endpoints and the WebAuthn relying party** (`PROTOCOL.md` §6d, §5a.4). Another account's live push endpoint
+  is refused with `409 push.endpoint_taken` (the same account still moves an endpoint between its devices, a stale
+  subscription is taken over). Nodes publish their relying party id as `webauthn.rp_id` in `GET /api/v1/node` and
+  `/.well-known/tavrn`, and clients that build a WebAuthn assertion themselves pass it.
+- **Sealed unlock material for native apps** (`FEDERATION.md` §8 step 3 "Sealed unlock material", `ENCRYPTION.md`
+  §2.4). An app session may carry an ephemeral X25519 public key in the URL fragment (`#k=`); after a passkey sign-in
+  the connect page seals the PRF output and the credential id to it (the sealed box of the webhook inbox) and sends
+  the box with the confirmation (`sealed_unlock`); the node keeps it opaque and hands it out once with the code. The
+  session `purpose` `unlock` covers an app that is signed in but locked, and `method=passkey|sso|register` starts one
+  sign-in method at once. The confirmation page says when a passkey also unlocks the encrypted messages. New
+  reference values in `testvectors/encryption.json`: `sealed_unlock`.
+- **Voice quality presets and music mode** (`VOICE.md` §2, §3, §4a, §11). Clients offer quality presets for the
+  channel bitrate (from 8 kbps "Saver" to 192 kbps "Music"); music mode (192 kbps and above) captures without echo
+  cancellation, noise suppression and auto gain and publishes stereo only for a real two-channel capture. The join
+  limits announce `audio_fec`, `TAVRN_VOICE_MAX_BITRATE_KBPS` defaults to 192, calls in DMs stay at speech bitrate,
+  and the cap applies only to a bitrate that is being set.
+- **App sessions of the connect flow** (`FEDERATION.md` §8 step 3, capability `connect.app`). A native app has no
+  `https://` origin to return to: it creates an app session (`POST /api/v1/auth/connect/session`), opens the home
+  node's `/connect` page with the session id, polls `GET /api/v1/auth/connect/session/{session_id}` for the one-time
+  code and exchanges it with its PKCE verifier (`POST /api/v1/auth/connect/token`), so passkeys, the login captcha and
+  single sign-on work for native apps too.
+
+## 0.2.1
+
+- `openapi.json` is valid JSON again: the 0.2.0 tag carries an `info.version` line with a stray trailing comma. The
+  0.2.0 tag stays; 0.2.1 replaces it as the version implementations pin.
+
+## 0.2.0
+
+- **Threads, forum and announcement channels** (`PROTOCOL.md` §7e, capabilities `threads`, `forum`, `announcement`).
+- **Reports with evidence and auto-moderation** (`MODERATION.md`, capabilities `reports.v1`, `automod.v1`).
+- **Web push** (`PROTOCOL.md` §6d, capability `push.webpush`).
+- `openapi.json` carries the protocol version in `info.version`.
+
+## 0.1.1
+
+- The descriptions in `openapi.json` are in English.
+
+## 0.1.0
+
+- The first tagged version of the specification, the OpenAPI description, the permission table and the test vectors.

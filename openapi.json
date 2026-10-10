@@ -8097,7 +8097,7 @@
         "tags": [
           "history"
         ],
-        "summary": "Share keys of past epochs with a new member. Allowed only in encrypted room channels whose policy\ngrants history, from an attested device of a member to a member with `read_history`.",
+        "summary": "Share keys of past epochs with a member who joined later. Allowed in encrypted room channels under every policy\n(under `since_join` for the epochs since the recipient's join: its window bounds what it is served and accepts),\nfrom an attested device of a member to a member with `read_history`.",
         "operationId": "create_share",
         "parameters": [
           {
@@ -8250,7 +8250,7 @@
         "tags": [
           "history"
         ],
-        "summary": "Members of the channel who still wait for history keys (at most 100, the last 30 days). Empty for DMs,\ngroup DMs, plaintext channels and channels whose policy is `since_join`.",
+        "summary": "Members of the channel who still wait for history keys (at most 100, the last 30 days): also under `since_join`,\nfor the messages posted between a member's join and its device's first leaf. Empty for DMs, group DMs and\nplaintext channels.",
         "operationId": "list_pending",
         "parameters": [
           {
@@ -15346,7 +15346,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Join a voice channel: checks `connect`, the user limit and the node policies and returns a LiveKit token.",
+        "summary": "Join a voice channel: checks `connect` (or a moderator's move into this channel), the user limit and the node\npolicies and returns a LiveKit token.",
         "operationId": "join",
         "parameters": [
           {
@@ -15562,7 +15562,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Move a member to another voice channel (`move_members` in both channels; the member needs `connect` in\nthe target). The node disconnects the member here and sends `voice.move` to the member's devices, whose\nclient then joins the target channel (a new token and frame key: every channel has its own MLS group).",
+        "summary": "Move a member to another voice channel (`move_members` in both channels). The member needs no permission in\nthe target: the move grants their next join there and, while that participation lasts, a view of the channel\n(VOICE.md §7 \"Moved participations\"); only the target's age gate holds. The node disconnects the member here and\nsends `voice.move` to the member's devices, whose client then joins the target channel (a new token and frame\nkey: every channel has its own MLS group).",
         "operationId": "move_member",
         "parameters": [
           {
@@ -19112,7 +19112,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Mass move: everybody in a voice channel of the room (or only in `from_channel_id`)\nto `to_channel_id`, needs `move_members` in the target and in every source channel. The target's user\nlimit holds: members beyond it stay and are reported as `channel_full` (a partial result, still `200`).\nOne audit entry `voice.move_all`.",
+        "summary": "Mass move: everybody in a voice channel of the room (or only in `from_channel_id`)\nto `to_channel_id`, needs `move_members` in the target and in every source channel. The moved members need no\npermission in the target (like `…/move`); the target's age gate and user limit hold: members beyond the limit\nstay and are reported as `channel_full` (a partial result, still `200`).\nOne audit entry `voice.move_all`.",
         "operationId": "move_all",
         "parameters": [
           {
@@ -23672,6 +23672,33 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/voice": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Who is in which voice channel of every room the requester is a member of.",
+        "description": "The initial state of a room list in one request instead of one per room (changes arrive as `voice.state`): like\n`GET /rooms/{room_id}/voice` for every room of this node the requester is a member of, only channels with\nparticipants the requester can view, rooms without such a channel left out. Rooms of other nodes are asked there.",
+        "operationId": "my_states",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyVoiceStates"
                 }
               }
             }
@@ -31724,7 +31751,7 @@
         "properties": {
           "reason": {
             "type": "string",
-            "description": "`channel_full` (the target's user limit), `target_forbidden` (no `connect` in the target),\n`outranked` (owner, node admin or an equal or higher role) or `move_forbidden` (no `move_members`\nin the participant's channel)."
+            "description": "`channel_full` (the target's user limit), `target_forbidden` (below the target's age gate),\n`outranked` (owner, node admin or an equal or higher role) or `move_forbidden` (no `move_members`\nin the participant's channel)."
           },
           "user": {
             "type": "string",
@@ -31845,6 +31872,40 @@
           "status": {
             "type": "string",
             "description": "The chosen status: online | dnd | invisible"
+          }
+        }
+      },
+      "MyVoiceRoom": {
+        "type": "object",
+        "required": [
+          "room_id",
+          "channels"
+        ],
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoiceChannelState"
+            },
+            "description": "Voice channels of the room with at least one participant that the requester can view."
+          },
+          "room_id": {
+            "type": "string"
+          }
+        }
+      },
+      "MyVoiceStates": {
+        "type": "object",
+        "required": [
+          "rooms"
+        ],
+        "properties": {
+          "rooms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyVoiceRoom"
+            },
+            "description": "Rooms of this node the requester is a member of with at least one such channel."
           }
         }
       },
@@ -37700,6 +37761,10 @@
           "joined_at": {
             "type": "string",
             "description": "When LiveKit reported the participant (RFC 3339)."
+          },
+          "moved": {
+            "type": "boolean",
+            "description": "A moderator moved the user here (`VOICE.md` §7): they may be here without `view_channel` or `connect` for as\nlong as this participation lasts. Clients may show \"moved here\". Always `false` in calls; absent from older\nnodes (= `false`)."
           },
           "muted": {
             "type": "boolean",
