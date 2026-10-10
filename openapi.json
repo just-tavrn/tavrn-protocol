@@ -8097,7 +8097,7 @@
         "tags": [
           "history"
         ],
-        "summary": "Share keys of past epochs with a new member. Allowed only in encrypted room channels whose policy\ngrants history, from an attested device of a member to a member with `read_history`.",
+        "summary": "Share keys of past epochs with a member who joined later. Allowed in encrypted room channels under every policy\n(under `since_join` for the epochs since the recipient's join: its window bounds what it is served and accepts),\nfrom an attested device of a member to a member with `read_history`.",
         "operationId": "create_share",
         "parameters": [
           {
@@ -8250,7 +8250,7 @@
         "tags": [
           "history"
         ],
-        "summary": "Members of the channel who still wait for history keys (at most 100, the last 30 days). Empty for DMs,\ngroup DMs, plaintext channels and channels whose policy is `since_join`.",
+        "summary": "Members of the channel who still wait for history keys (at most 100, the last 30 days): also under `since_join`,\nfor the messages posted between a member's join and its device's first leaf. Empty for DMs, group DMs and\nplaintext channels.",
         "operationId": "list_pending",
         "parameters": [
           {

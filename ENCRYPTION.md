@@ -841,7 +841,7 @@ encrypted shares and enforces who may send what to whom.
 
 | Value | New members get |
 |---|---|
-| `since_join` (default) | nothing from before their join |
+| `since_join` (default) | nothing from before their join (every message since, see below) |
 | `days:<n>`, 1 ≤ n ≤ 3650 | the messages of the `n` days before their join |
 | `all` | the whole history |
 
@@ -856,19 +856,28 @@ the history starts at their join whatever the policy says. Two layers apply the 
 2. **Clients.** A sharing client applies the same window before it sends keys, and a recipient can only check a
    key against messages its node serves it (below), so a key outside the window is never accepted.
 
+The window is about the room membership, not about devices: a member's device enters a channel's MLS group only when
+it first opens the channel (or when its client joins the groups of a room proactively, below), and the epochs between
+the room join and that first leaf are part of the member's history under every policy, `since_join` included. Their
+keys reach the device only through a share, so the node marks such members pending and members share those epochs
+like older ones. Clients keep that gap small: when a room is loaded they join the groups of its encrypted channels
+that the user may view (text, announcement, forum and files channels; one after the other, never creating a group),
+not only when a channel is opened.
+
 A hostile member can always copy history it can read; E2EE never protects against members.
 
 **Pending members.** After accepting a commit in which a user gets their first leaf in the group (external join
 of a user without a leaf, or Adds), the node marks the membership `history_pending` for that conversation when
-the channel is encrypted, the policy is not `since_join`, the user has `view_channel` and `read_history`, and there
-are encrypted messages inside the user's window from before the join. It emits `history.pending
+the channel is encrypted, the user has `view_channel` and `read_history`, and there are encrypted messages inside the
+user's window from before this commit: from before the room join as far as the policy reaches, and those posted
+between the room join and the device's first leaf (under `since_join` only the latter). It emits `history.pending
 { conversation_id, user, since }` to the room (`since` = the membership's `joined_at`). A membership is marked at
 most once (another device of the same member joining does not mark it again); the mark is cleared when the
 member acknowledges a share and expires after 30 days.
 
 - `GET /api/v1/conversations/{id}/history-pending` → `{ items: [ { user, since, key_reset_at, min_epoch } ] }` (members
-  only; at most 100, marks of the current memberships of the last 30 days; empty for DMs, plaintext channels and
-  `since_join`; `key_reset_at` and `min_epoch` are null except after a key reset, "History after a key reset" below).
+  only; at most 100, marks of the current memberships of the last 30 days; empty for DMs and plaintext channels;
+  `key_reset_at` and `min_epoch` are null except after a key reset, "History after a key reset" below).
 
 **Shares.** Routes on the node hosting the conversation (members of other nodes use their federated session
 there, as for every conversation route):
@@ -876,8 +885,10 @@ there, as for every conversation route):
 - `POST /api/v1/conversations/{id}/history-keys` `{ to_user, epoch_from, epoch_to, ciphertext, v?, boxes? }` →
   `201 { id }`.
   The sender must be entitled (§4.5) with an attested device (`403 e2ee.device_not_attested`). The conversation
-  must be an encrypted room channel (`400 history.not_encrypted`; DMs and group DMs `403 history.forbidden`) whose
-  policy is not `since_join` (`403 history.forbidden`). `to_user` is an address of another member with
+  must be an encrypted room channel (`400 history.not_encrypted`; DMs and group DMs `403 history.forbidden`), whatever
+  its policy: under `since_join` the recipient's window starts at its join, the node serves it nothing older and its
+  client accepts no key it cannot check against a served message (Receiving step 4). `to_user` is an address of
+  another member with
   `view_channel` and `read_history` (`403 history.forbidden`; oneself `400 history.self`). `0 ≤ epoch_from ≤
   epoch_to ≤` the group's epoch and at most 1000 epochs (`400 history.invalid`); `ciphertext` is content format 1
   (§5.2) under a known epoch (`400 history.invalid`), at most 64 KiB (`413 history.too_large`). `v` is the share
@@ -928,11 +939,12 @@ ephemeral key; `Client.encryptShare`, `sealShareKey`, `Client.openShareBox`, `de
    current roster whose user is online, the own one included, the recipient's excluded) computes its rank in the
    sorted list of device identities. Rank 0 shares at once; rank `k` waits `k × 60 s` and shares only if the member
    is still pending. Nothing is shared before a device of the recipient is in the group.
-2. Epochs: `all` → every epoch the device holds older than the current one; `days:<n>` → from the oldest epoch
-   of the encrypted messages after `joined_at − n days` (`GET …/messages?after=<ULID floor>&limit=20`);
-   `since_join` → none. Chunks of at most 500 epochs and a range of at most 1000 epochs; with nothing to send the
-   device posts one empty share (`epochs: []`, `epoch_from = epoch_to =` current epoch), which still clears the
-   pending mark.
+2. Epochs: `all` → every epoch the device holds older than the current one; `days:<n>` → from the oldest epoch of the
+   encrypted messages after `joined_at − n days` (`GET …/messages?after=<ULID floor>&limit=20&threads=all`: thread
+   messages, such as forum posts, are content of the channel too); `since_join` → the same from `joined_at` (the
+   epochs of the messages posted since the member's join), and none when there are no such messages. Chunks of at most
+   500 epochs and a range of at most 1000 epochs; with nothing to send the device posts one empty share (`epochs: []`,
+   `epoch_from = epoch_to =` current epoch), which still clears the pending mark.
 
 **Receiving (client).** On `history.keys_available` and when opening the channel, the recipient fetches its
 shares and for each:
@@ -962,6 +974,9 @@ payloads or keys. Keys never appear in message objects, the decrypted-message ca
 While its own pending mark is set, a member's client shows "Older messages are being unlocked…" at the top of the
 channel; afterwards the history loads lazily as before.
 
+Earlier nodes marked nobody pending under `since_join` and refused shares there (`403 history.forbidden`): their
+`…/history-pending` is empty in such channels, so current clients send nothing and nothing changes for them.
+
 **Security notes.**
 
 - Forward secrecy towards new members is given up exactly to the extent of the policy; the principle "key lost =
@@ -983,8 +998,11 @@ channel; afterwards the history loads lazily as before.
 - A member could post a message under a forged key and then "prove" that key with it; the recipient therefore
   prefers messages of other authors for the check. The residual risk equals what any member can do anyway (show
   fake content), and only in epochs where the forger is the sole author.
-- A hostile client sharing without permission is stopped by the node (recipient without `read_history`, policy
-  `since_join`, non-members); size and rate limits bound abuse.
+- A hostile client sharing without permission is stopped by the node (recipient without `read_history`,
+  non-members); size and rate limits bound abuse. Under `since_join` it could hand a member keys of epochs from
+  before the join: the node never serves the member those messages and the member's client drops every key it cannot
+  check against a served message. An epoch that spans the join opens messages from both sides of it, but the node
+  serves only those inside the window.
 - Narrowing the policy does not revoke keys already shared (clients say so in the setting); the change is in
   the audit log.
 
@@ -1010,8 +1028,8 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
      including it are the **pre-reset range**, whatever the channel's kind (messages, the entry records of files
      channels, `FILES.md` §8.7); the automatic window of the member starts after it, never earlier, whatever the
      policy.
-   - Pending marks: when a device of the user joins the group after the reset (policy not `since_join`, `view_channel`
-     and `read_history` as above) and there are encrypted messages since `key_reset_at`, the node marks the member
+   - Pending marks: when a device of the user joins the group after the reset (`view_channel` and `read_history` as
+     above, whatever the policy) and there are encrypted messages since `key_reset_at`, the node marks the member
      pending once per reset, also if the user still had (now unattested) leaves in the group. `history.pending` and
      the items of `…/history-pending` then carry `since = key_reset_at`, `key_reset_at` and `min_epoch` (reset epoch
      + 1, null without a pre-reset range); for other members `key_reset_at` and `min_epoch` are null.
@@ -1063,7 +1081,7 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
    **Approval is the key share itself.** Right after approving, the approver's client sends restore shares (format 2
    under the rule of "Sharing" step 0) from its device for every encrypted channel of `channels` that it can read and in which a device of the requester is in the
    group: every epoch it holds from the oldest epoch of the channel's encrypted content after `window_start` (messages:
-   `GET …/messages?after=<ULID floor>&limit=20`; files channels: `GET …/records?since=<window start>&limit=1`, `FILES.md`
+   `GET …/messages?after=<ULID floor>&limit=20&threads=all`; files channels: `GET …/records?since=<window start>&limit=1`, `FILES.md`
    §8.7; everything for null) up to the epoch before the current one, chunked as in "Sharing" step 2. Before approving it shows the request, the requester, its join date, the channels and epoch ranges
    that will be shared and whether its device holds all of them (`partial`), and recommends verifying the person's
    identity on another channel (a call, in person): an approval gives whoever controls the account now everything the
@@ -1071,7 +1089,7 @@ explicit, logged decision of a member with permission bit 37 `restore_history` (
 4. **Clients.** A sharing client applies the reset window itself, also with nodes that do not announce
    `history.restore`: a recipient whose keys document (§2.3) shows an `identity_reset_at` later than the pending item's
    `since` is treated as if `key_reset_at` were that time, and without `min_epoch` the client shares nothing up to the
-   epoch of the newest encrypted content before the reset (`GET …/messages?before=<ULID floor>&limit=1`; nothing at
+   epoch of the newest encrypted content before the reset (`GET …/messages?before=<ULID floor>&limit=1&threads=all`; nothing at
    all when it cannot tell). Such a member
    gets automatic shares only from the reset on. The requester's client shows its state (`…/mine`) with the request form
    in a room whose encrypted history it lost (in the channel view and in the file browser of files channels),
