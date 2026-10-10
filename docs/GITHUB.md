@@ -26,7 +26,8 @@ private; nothing runs on GitHub until `CI_ENABLED` is set.
 
 ## Settings to switch on by hand
 
-- **Discussions** (Settings → General → Features): the issue template's "Ask a question" link points there.
+- **Discussions** stay off here: the issue template's "Ask a question" link points to the Discussions of the
+  umbrella repository `just-tavrn/tavrn` (category **Protocol**).
 - **Private vulnerability reporting** (Settings → Code security): the issue template's security link points to
   `security/advisories/new`.
 - **Secret scanning and push protection** (Settings → Code security; free for public repositories).
