@@ -23684,6 +23684,33 @@
         ]
       }
     },
+    "/api/v1/users/me/voice": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Who is in which voice channel of every room the requester is a member of.",
+        "description": "The initial state of a room list in one request instead of one per room (changes arrive as `voice.state`): like\n`GET /rooms/{room_id}/voice` for every room of this node the requester is a member of, only channels with\nparticipants the requester can view, rooms without such a channel left out. Rooms of other nodes are asked there.",
+        "operationId": "my_states",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyVoiceStates"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/whiteboards": {
       "get": {
         "tags": [
@@ -31845,6 +31872,40 @@
           "status": {
             "type": "string",
             "description": "The chosen status: online | dnd | invisible"
+          }
+        }
+      },
+      "MyVoiceRoom": {
+        "type": "object",
+        "required": [
+          "room_id",
+          "channels"
+        ],
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoiceChannelState"
+            },
+            "description": "Voice channels of the room with at least one participant that the requester can view."
+          },
+          "room_id": {
+            "type": "string"
+          }
+        }
+      },
+      "MyVoiceStates": {
+        "type": "object",
+        "required": [
+          "rooms"
+        ],
+        "properties": {
+          "rooms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyVoiceRoom"
+            },
+            "description": "Rooms of this node the requester is a member of with at least one such channel."
           }
         }
       },
