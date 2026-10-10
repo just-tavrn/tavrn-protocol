@@ -2,8 +2,12 @@
 #
 # Release of a protocol version: a tag vX.Y.Z (equal to the version in package.json) creates the GitHub
 # release and, once publishing is switched on, publishes @tavrn/protocol to npm with provenance.
-# Gated by CI_ENABLED; the npm step additionally by NPM_PUBLISH_ENABLED and the secret NPM_TOKEN
-# (docs/GITHUB.md). During the private phase consumers pin the tag as a git submodule instead.
+# Gated by CI_ENABLED; the npm job additionally by NPM_PUBLISH_ENABLED and the secret NPM_TOKEN of the
+# environment `release` (docs/GITHUB.md). During the private phase consumers pin the tag as a git submodule instead.
+#
+# Three jobs, so that no code of the build ever runs next to a publishing credential: `build` tests and packs the
+# tarball without any secret, `release` attaches it to the GitHub release, and `publish` (environment `release`:
+# tags v*, the owner's approval) publishes exactly that tarball; it checks out nothing and installs nothing.
 name: Release
 
 on:
@@ -14,13 +18,10 @@ permissions:
   contents: read
 
 jobs:
-  release:
-    name: Release ${{ github.ref_name }}
+  build:
+    name: Build ${{ github.ref_name }}
     if: ${{ vars.CI_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,7 +29,6 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
       - name: Tag matches package.json
         env:
           TAG: ${{ github.ref_name }}
@@ -40,15 +40,55 @@ jobs:
           fi
       - run: npm test
       - run: scripts/check-spdx.sh
+      - name: Pack the npm tarball
+        run: |
+          mkdir -p release
+          npm pack --pack-destination release
+          ls -l release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npm-package
+          path: release/
+          retention-days: 7
+
+  release:
+    name: GitHub release ${{ github.ref_name }}
+    needs: build
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-package
+          path: release
       - name: GitHub release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: |
-          npm pack
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes ./*.tgz
-      - name: Publish to npm
-        if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
+        run: gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes --verify-tag release/*.tgz
+
+  publish:
+    name: Publish to npm
+    needs: release
+    if: ${{ vars.CI_ENABLED == 'true' && vars.NPM_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # No checkout, no install, no cache: npm publishes the tarball the build job packed.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-package
+          path: release
+      - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: npm publish release/*.tgz --provenance --access public
