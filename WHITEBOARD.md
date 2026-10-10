@@ -36,7 +36,7 @@ Body `{ type, content, session? }` → `200 { session }`.
 - `type`: `cursor` or `whiteboard.<name>` with `<name>` of `[a-z_]`, 1–32 characters
   (`400 ephemeral.type_invalid`).
 - `content`: in encrypted conversations the base64url content format of `ENCRYPTION.md` §5.2, checked like a
-  message (§5.3: header, epoch known to the node, sending device attested: `400 ephemeral.ciphertext_invalid`,
+  message (`ENCRYPTION.md` §5.3: header, epoch known to the node, sending device attested: `400 ephemeral.ciphertext_invalid`,
   `400 ephemeral.epoch_unknown`, `403 e2ee.device_not_attested`); in plaintext conversations a JSON object;
   anything else `400 ephemeral.encryption_mismatch`. At most 64 KiB (the ciphertext string or the serialized
   object): `413 ephemeral.too_large`.

@@ -636,7 +636,7 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
 
 The node cannot decrypt. For `encrypted = true` it MUST check that `content` is valid base64url, at least
 `1 + 8 + 12 + 16 + 64` bytes, version `0x01`, that the header epoch equals the envelope `epoch` and is not
-newer than the group's current epoch, that the sending device is attested (§9) and the usual size limits
+newer than the group's current epoch, that the sending device is attested (§3.1) and the usual size limits
 (`tavrn_crypto::content_header`). The plaintext/ciphertext rules of PROTOCOL.md §7 stay unchanged.
 
 The node accepts new content (messages and their edits, thread titles, interaction responses, records of files

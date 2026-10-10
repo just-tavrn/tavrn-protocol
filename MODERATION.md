@@ -14,8 +14,8 @@ the protection of the welcome channel's entries (§3) and the transfer of a room
 ## 1. Reports (`reports.v1`)
 
 A report tells the people who moderate a place that something there breaks its rules. Any authenticated user can
-report: local users and users of other nodes with a federated session on the node (`FEDERATION.md` §8), never bots
-(`403 report.bot_forbidden`, app tokens never reach the routes, `APPLICATIONS.md` §2.3). Reports are never
+report: local users and users of other nodes with a federated session on the node (`FEDERATION.md` §2.5), never bots
+(`403 report.bot_forbidden`, app tokens never reach the routes, `APPLICATIONS.md` §2.5). Reports are never
 anonymous: moderators see who reported. The reported user is never told that, or by whom, they were reported.
 
 ### 1.1 Targets and routing

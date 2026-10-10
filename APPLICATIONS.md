@@ -236,7 +236,7 @@ per threshold and secret too, in the owner's language, naming the application an
 
 ### 2.3 Verification
 
-The authentication extractor accepts `typ = "session"` and `typ = "app"` (and `preauth` only where §5a allows). For
+The authentication extractor accepts `typ = "session"` and `typ = "app"` (and `preauth` only where `PROTOCOL.md` §5a allows). For
 an app token, in this order:
 
 1. header, `kid`, strict Ed25519 signature, `typ`, `iss = aud = own domain`, `exp`
@@ -975,7 +975,7 @@ the same sanitizer as message Markdown and show links with their full host.
 
 A bot is online while at least one of its WebSockets is open on a node (`PROTOCOL.md` §6a). With the `presence`
 scope it sets its status and custom status (`PUT /users/me/presence`) and its activity (`PUT /users/me/activity`,
-per device) like a user, e.g. `{ "type": "watching", "name": "3 servers" }`. Visibility rules are those of §6a.
+per device) like a user, e.g. `{ "type": "watching", "name": "3 servers" }`. Visibility rules are those of `PROTOCOL.md` §6a.
 
 ### 7.2 Activity object
 
@@ -1069,8 +1069,8 @@ client                               node                                       
 - `POST /auth/oidc/token` `{ code, code_verifier }` → the session response (`status: "ok"`) for `login`,
   `{ "linked": true }` for `link`, `{ "reauth_token", "expires_in": 300 }` for `reauth`. Codes are single use,
   60 s, bound to the challenge (`400 sso.code_invalid`).
-- Signing in on another node's web client uses the connect flow (`FEDERATION.md` §8.3) on the home node; mobile and
-  desktop apps (phase 6) use the system browser with the same routes.
+- Signing in on another node's web client uses the connect flow (`FEDERATION.md` §8, step 3) on the home node; native
+  apps use its app sessions (`connect.app`) with the same routes.
 
 ### 8.3 Provisioning and account linking
 
@@ -1836,7 +1836,7 @@ rule of §3.5 in `@tavrn/e2ee`. Where the implementation decides what §3 and §
 - **"No bots" ghost rule (§3.5, ENCRYPTION.md §4.6, leftover of step 1).** `MlsManager.ghostCheck(q, members,
   { noBots })` reports leaves of users whose `kind` (from their home node's keys document; kinds other than `user`
   count, older nodes without `kind` count as users) is not `user` with the new reason `bot`; `LeafCleaner` removes
-  them like departed members when the user may manage the conversation (rule 3 of §4.7, the node allows it because
+  them like departed members when the user may manage the conversation (rule 3 of `ENCRYPTION.md` §4.7, the node allows it because
   the bot is not entitled). The web client passes the channel's `no_bots_effective` (text, voice) and the ghost
   warning explains the case.
 - **Development node hook.** `POST /api/v1/dev/notify-expiring-tokens { now? }` (only with `--dev`, not in the API

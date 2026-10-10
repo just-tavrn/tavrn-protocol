@@ -86,7 +86,7 @@ operators lower it to save traffic.
 - `token` is valid for 10 minutes to *start* a connection; once connected, LiveKit refreshes it itself. Get a
   new one with another `join` for every new connection (reconnects within the SDK use LiveKit's refreshed token).
 - `epoch` is the current epoch of the channel's MLS group, or `null` if the group does not exist yet: then the
-  client creates it first (`ENCRYPTION.md` §4.2) and derives the frame key afterwards (§6).
+  client creates it first (`ENCRYPTION.md` §4.2) and derives the frame key afterwards (§6 below).
 - `participants` are the devices LiveKit reports as connected (§5), without the joining device.
 - `reconnect_grace_secs` is how long the node keeps a dropped participant as `reconnecting` (§5a); clients
   rejoin automatically within this time.

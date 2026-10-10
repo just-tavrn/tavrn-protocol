@@ -74,7 +74,7 @@ Encrypted channels change some routes (§8.5). Error codes besides the above: `f
 encrypted channels `files.record_invalid`, `files.id_invalid`, `files.id_taken`, `files.encrypted`,
 `files.search_unavailable`, `files.no_thumbnail`, `files.thumbnail_too_large`, `files.not_encrypted`.
 
-Bots have no access (the routes are not in `APP_ROUTES`, APPLICATIONS.md §2.3).
+Bots have no access (the routes are not in `APP_ROUTES`, APPLICATIONS.md §2.5).
 
 Realtime: `files.update { room_id, channel_id, parent_id }` to the room members who can view the channel after every change of a folder's
 content (create, upload, rename, move: old and new parent, delete); `files.backend { room_id, channel_id,
@@ -287,7 +287,7 @@ join (before its device first entered the channel's group).
   folder listings, `GET mine` and `GET {id}`, and `GET records` leaves them out. Their ciphertext stays downloadable (it is useless without the
   record), and the owner can still delete them (§8.8).
 - A new member is marked `history_pending` when there are entry records in its window from before its device's first
-  leaf in the group (in addition to the messages rule of §7b; under `since_join` the records since its join).
+  leaf in the group (in addition to the messages rule of `ENCRYPTION.md` §7b; under `since_join` the records since its join).
   Recipients check a shared key against a record of that epoch from `GET records?epoch=<n>` (preferring records whose
   author is not the sharer) instead of a message.
 - Renaming an entry writes a new record under the current epoch, so its file key becomes readable for every current
