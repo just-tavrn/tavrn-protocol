@@ -1519,7 +1519,7 @@ otherwise.
   the discovery document once from **every** address the peer's domain resolves to (at most 8, each vetted
   like any request; one HTTP client pinned to that address per fetch) and compares the key sets
   (`kid` → `x`) of every valid answer: any difference, also an additional key on one address, is a hard
-  failure ("<ip> and <ip> serve different keys (kid …)"). Addresses that do not answer or answer with an
+  failure ("\<ip> and \<ip> serve different keys (kid …)"). Addresses that do not answer or answer with an
   invalid document are left to `wk.fetch`. A development peer mapped to an IP literal has one address.
 - **`ban.notify` sending** (§5.2): with `TAVRN_FEDERATION_NOTIFY_BANS=true` a room ban (of an address or a
   domain) sends one `ban.notify { room: { node, id, name }, scope: "room" }` per removed remote member (and
@@ -1540,7 +1540,7 @@ otherwise.
   fails with `connect.code_invalid` unless the verifier matches, the request's `Origin` header equals the
   bound origin (browsers always send it on these requests), the user is enabled and the confirming device
   still has a live session. Success is the session response of a **new device** of the home node
-  (`device_name`, default "Browser (<origin host>)"), audited as `user.connect`; the visiting client then
+  (`device_name`, default "Browser (\<origin host>)"), audited as `user.connect`; the visiting client then
   requests federation tokens like any home client. A malformed challenge is `400 connect.challenge_invalid`.
   Limits: codes per device with the federation token limit (30/min), exchanges per client IP with the login
   limit. `http://` origins only with `--dev`.
