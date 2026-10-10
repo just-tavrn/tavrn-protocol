@@ -108,27 +108,36 @@ Nodes and clients announce a list of capability strings. A feature is used only 
 The client sends its list in the WebSocket hello and in the header
 `Tavrn-Client: <name>/<version> (<cap>, <cap>, …)`; the node stores it per device.
 
-Reserved capabilities in v1: `content.v1`, `e2ee.mls1`, `voice`, `screenshare`, `forum`, `announcement`,
-`threads`, `reactions`, `attachments`, `pins`, `emojis`, `gifs`, `federation`, `push.webpush`, `soundboard`,
-`content.signed1`, `apps.v1`, `commands.v1`, `webhooks.v1` (`APPLICATIONS.md` §10.1; every node announces `apps.v1`
-since phase 5 step 2 and `commands.v1` since step 3; clients announce `commands.v1` in their WebSocket `hello`), `sso.oidc` (single sign-on, §5a.6, announced while `TAVRN_OIDC_ISSUER` is set), `reports.v1` and `automod.v1`
-(reports and auto-moderation, `MODERATION.md`, announced by every node that implements them), `connect.app` (app
-sessions of the connect flow for native apps, `FEDERATION.md` §8 step 3, announced by every node that implements
-them), `age.v1` (date of birth, private age status and age gates, §5e, announced by every node that implements it), `history.restore` (history restore after a key reset by request and approval, `ENCRYPTION.md` §7b, announced
-by every node that implements it), `history.shares2` (history shares sealed to each recipient device and device share
-keys, `ENCRYPTION.md` §3.1 and §7b "Format v2", announced by every node that implements them), `files.e2ee` (end-to-end encrypted files channels, `FILES.md` §8, announced by every node that implements
-them).
+Capabilities reserved in v1, and when nodes that implement them announce them:
+
+| Capability | Meaning | Nodes announce it |
+|---|---|---|
+| `content.v1` | the message content format (§7) | always |
+| `e2ee.mls1` | end-to-end encryption (`ENCRYPTION.md`) | always |
+| `reactions`, `attachments`, `pins`, `emojis` | reactions, attachments, pins and custom emojis (§7, §7b "Custom emojis, spoilers") | always |
+| `gifs` | GIF messages from the node's configured provider (§7) | while `TAVRN_GIF_PROVIDER` names a provider |
+| `unfurl` | link previews for the node's own users (§7b "Link previews and embeds") | while `TAVRN_UNFURL` is on |
+| `federation`, `federation.v1` | federation; `federation.v1` names exactly `FEDERATION.md` (§12 there) | while `TAVRN_FEDERATION_ENABLED` is on |
+| `connect.app` | app sessions of the connect flow for native apps (`FEDERATION.md` §8 step 3) | always, also without federation |
+| `apps.v1`, `commands.v1` | applications, bots and slash commands (`APPLICATIONS.md` §10.1); clients announce `commands.v1` in their WebSocket `hello` | always |
+| `webhooks.v1` | incoming webhooks, event subscriptions, hook tokens and embeds (`APPLICATIONS.md` §6) | while `TAVRN_WEBHOOKS_ENABLED` is on |
+| `sso.oidc` | single sign-on (§5a.6, `APPLICATIONS.md` §8) | while `TAVRN_OIDC_ISSUER` is set |
+| `search.v1` | node-side message search (§7d, `SEARCH.md`) | while `TAVRN_SEARCH_ENABLED` is on |
+| `push.webpush` | web push to browsers (§6d) | while `TAVRN_PUSH` is on |
+| `reports.v1`, `automod.v1` | reports and auto-moderation (`MODERATION.md`) | always |
+| `threads`, `forum`, `announcement` | threads, forum posts and announcement channels (§7e) | always |
+| `threads.client_ids` | the client-chosen thread id of §7e | always |
+| `voice`, `soundboard` | voice channels and calls (`VOICE.md`), room clips (`VOICE.md` §8) | while `TAVRN_VOICE_ENABLED` is on |
+| `screenshare` | screen sharing is allowed (`VOICE.md`) | while `TAVRN_VOICE_ENABLED` and `TAVRN_SCREENSHARE_ENABLED` are on |
+| `history.restore` | history restore after a key reset by request and approval (`ENCRYPTION.md` §7b "History after a key reset") | always |
+| `history.shares2` | history shares sealed to each recipient device, device share keys (`ENCRYPTION.md` §3.1, §7b "Format v2") | always |
+| `files.e2ee` | end-to-end encrypted files channels (`FILES.md` §8) | always |
+| `age.v1` | date of birth, private age status and age gates (§5e) | always |
+| `content.signed1` | the client signs its plaintext messages (below) | never: a client capability |
+
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
-
-`threads`, `forum` and `announcement` (threads, forum posts and announcement channels, §7e) are announced by every
-node that implements §7e; `threads.client_ids` by every node that takes the client-chosen thread id of §7e (clients
-send `id` only to those: an older node would ignore it, and the first message's signature would not match).
-
-`voice` (voice channels, `VOICE.md`), `screenshare` (screen sharing allowed) and `soundboard` (room clips) are
-announced by nodes while `TAVRN_VOICE_ENABLED` (and for `screenshare` also `TAVRN_SCREENSHARE_ENABLED`) is on.
-`unfurl` (link previews for the node's own users, §7b) is announced while `TAVRN_UNFURL` is on. `webhooks.v1`
-(incoming webhooks, event subscriptions, hook tokens and embeds, `APPLICATIONS.md` §6) is announced while
-`TAVRN_WEBHOOKS_ENABLED` is on. `push.webpush` (web push to browsers, §6d) is announced while `TAVRN_PUSH` is on.
+Clients send the thread `id` of §7e only to nodes that announce `threads.client_ids`: an older node would ignore it,
+and the first message's signature would not match.
 
 `content.signed1` is a client capability (FEDERATION.md §10.3): a client announcing it signs every plaintext
 message it sends with its device key, and a node MAY then refuse unsigned plaintext messages of that device
