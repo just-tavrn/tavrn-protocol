@@ -5,6 +5,16 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **History since the join under `since_join`** (`ENCRYPTION.md` §7b, `PROTOCOL.md` §6, `FILES.md` §8.7). The history
+  window belongs to the room membership: messages (and entry records of files channels) posted after a member's room
+  join but before its device first entered the channel's MLS group are part of the member's history under every
+  policy. Nodes therefore mark such members `history_pending` also under `since_join` (encrypted content in the window
+  from before the device's first leaf; `view_channel` and `read_history` as before), list them in `…/history-pending`
+  and accept `POST …/history-keys` under `since_join` (no more `403 history.forbidden` for the policy; the recipient's
+  window still bounds what its node serves and its client accepts). Sharing clients send the epochs of the encrypted
+  messages since the recipient's join; every window lookup of a sharing client includes thread messages (`GET
+  …/messages?…&threads=all`), so forum posts count. Clients join the groups of a room's encrypted channels the user
+  may view when the room is loaded, one after the other, so the gap stays small.
 - **History shares v2 and signed titles and answers** (`ENCRYPTION.md`, capability `history.shares2`). Every device
   has an X25519 share key, signed by its device key, published with the device key (`PUT
   /users/me/devices/{id}/key` gets `share_public_key` and `share_key_signature`) or once with the new `PUT

@@ -737,14 +737,16 @@ Channels carry `history_for_new_members`: `since_join` (default), `days:<n>` (1 
 `PATCH /rooms/{room_id}/channels/{channel_id}` (`manage_channels`, audit action `channel.history_policy`
 with `{ from, to }`, `400 channel.history_policy_invalid`), announced with `channel.update`. In `GET …/messages`
 the node cuts **encrypted** messages older than the requester's window: the room membership's `joined_at`
-(`since_join`, or always without permission bit 34 `read_history`), `joined_at` minus `n` days (`days:<n>`),
-nothing (`all`). Plaintext messages are never cut; owners and administrators follow the same rule; node admins who
-are not members, and DMs, are not cut; group DM members start at their own join. A re-join starts a new window.
-`GET …/messages?epoch=<n>` lists only encrypted messages of that epoch (within the window), for key checks. The
-history key routes `POST|GET /conversations/{id}/history-keys`, `DELETE /conversations/{id}/history-keys/{share_id}`
-and `GET /conversations/{id}/history-pending` are described in `ENCRYPTION.md` §7b. Files channels differ: their
-policy is `all` (their default) or `since_join`, never `days:<n>`, and entry records take the place of messages
-(`FILES.md` §8.7).
+(`since_join`, or always without permission bit 34 `read_history`), `joined_at` minus `n` days (`days:<n>`), nothing
+(`all`). The window belongs to the room membership: messages posted after the join but before the member's device
+first entered the channel's MLS group are part of it under every policy, and their keys reach the member through
+history key shares (`since_join` included). Plaintext messages are never cut; owners and administrators follow the
+same rule; node admins who are not members, and DMs, are not cut; group DM members start at their own join. A re-join
+starts a new window. `GET …/messages?epoch=<n>` lists only encrypted messages of that epoch (within the window), for
+key checks. The history key routes `POST|GET /conversations/{id}/history-keys`, `DELETE
+/conversations/{id}/history-keys/{share_id}` and `GET /conversations/{id}/history-pending` are described in
+`ENCRYPTION.md` §7b. Files channels differ: their policy is `all` (their default) or `since_join`, never `days:<n>`,
+and entry records take the place of messages (`FILES.md` §8.7).
 
 **History after a key reset (capability `history.restore`, normative: `ENCRYPTION.md` §7b "History after a key
 reset").** An identity reset sets `key_reset_at` on the member's room memberships: the message cut and the automatic

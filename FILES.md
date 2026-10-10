@@ -276,15 +276,17 @@ shares of `ENCRYPTION.md` §7b decide which older entries a later member can ope
 channel shares **everything or nothing** from before a member's join: its policy is `all` (the **default** for files
 channels, set at creation) or `since_join`; `days:<n>` is refused with `400 channel.history_policy_invalid`. With
 `all`, the sharing devices hand a new member every epoch key they still hold (so every file whose record they can
-read), as far back as possible.
+read), as far back as possible; with `since_join`, the keys of the epochs of the records written since the member's
+join (before its device first entered the channel's group).
 
 - The node serves a record only inside the requester's window (`ENCRYPTION.md` §7b, measured on `record_at`): entries
   whose record is older come with `record`, `record_epoch`, `record_author` and `record_device_id` set to `null` in
   folder listings, `GET mine` and `GET {id}`, and `GET records` leaves them out. Their ciphertext stays downloadable (it is useless without the
   record), and the owner can still delete them (§8.8).
-- A new member is marked `history_pending` when there are entry records in its window from before its join (in
-  addition to the messages rule of §7b). Recipients check a shared key against a record of that epoch from
-  `GET records?epoch=<n>` (preferring records whose author is not the sharer) instead of a message.
+- A new member is marked `history_pending` when there are entry records in its window from before its device's first
+  leaf in the group (in addition to the messages rule of §7b; under `since_join` the records since its join).
+  Recipients check a shared key against a record of that epoch from `GET records?epoch=<n>` (preferring records whose
+  author is not the sharer) instead of a message.
 - Renaming an entry writes a new record under the current epoch, so its file key becomes readable for every current
   member (as it already is for those who could read the old record).
 
