@@ -26,7 +26,7 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 17 | `speak` | Speak |
 | 18 | `stream` | Share screen or window |
 | 19 | `mute_members` | Mute others |
-| 20 | `move_members` | Move others between voice channels |
+| 20 | `move_members` | Move others between voice channels, also into channels they may not view or connect to (they see the channel while connected) |
 | 21 | `use_soundboard` | Use the soundboard |
 | 22 | `manage_emojis` | Manage custom emojis and sounds |
 | 23 | `change_nickname` | Change own nickname |
@@ -195,6 +195,11 @@ Age gates (`PROTOCOL.md` §5e) come before this evaluation: in a channel whose e
 `adults_only`, a member below it (a minor or a user of unknown age) has 0, owners and node admins included. The gate
 is not an input of `testvectors/permissions.json`; implementations apply it around the evaluation.
 
+**Moved participations** (`VOICE.md` §7): in the voice channel into which a moderator moved a member, from the move
+until the moved participation ends, `view_channel`, `read_history` and `connect` are added after step 3 (before
+step 4), whatever the overrides deny. Steps 4 and 5, the bot cap and the age gate apply as usual, so a timeout
+still leaves only reading. Like the age gate this is node state, not an input of the test vectors.
+
 Example: the `@everyone` role lacks `view_channel`, the category has no override for it ("–"), and the channel
 allows `view_channel` for `@everyone`: every member sees that channel. A category is a container, not a permission
 target for viewing: clients show it as soon as at least one of its channels is visible. A category that allows
@@ -242,6 +247,10 @@ closes. Reference: `no_bots_effective` / `noBotsEffective`, vectors in `testvect
 `no_bots` and `scopes` in `testvectors/permissions.json`.
 
 ## Changes
+
+- **2026-10-11, moved participations**: a member moved into a voice channel by a moderator with `move_members`
+  holds `view_channel`, `read_history` and `connect` there while the moved participation lasts ("Evaluation"
+  above, `VOICE.md` §7); before, a move needed `connect` of the member in the target.
 
 - **2026-10-09, layered overrides**: the evaluation applies the category's overrides and then the
   channel's own on top (above) instead of either the category's (a channel "synced with its category") or the

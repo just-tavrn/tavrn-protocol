@@ -494,7 +494,9 @@ attestations. With `C` = committer identity from the summary:
    (identity reset: §9).
 2. **External join** (`external_join = true`): allowed if the user may be in the conversation (member of
    the DM/group DM, or room member with read access to the channel; node admins who are not room members are
-   not entitled, so they never appear as ghost members). Bots are never entitled in a channel whose effective
+   not entitled, so they never appear as ghost members). A member moved into a voice channel by a moderator has
+   read access to it while the moved participation lasts (`VOICE.md` §7 "Moved participations"), even without
+   `view_channel`; when it ends the node announces their leaves with `mls.remove_needed`. Bots are never entitled in a channel whose effective
    "no bots" flag is set (`APPLICATIONS.md` §3.5): the node refuses their GroupInfo requests and commits with
    `403 mls.forbidden`. It MAY remove only leaves with the identity `C` itself
    (rejoin after state loss).
@@ -690,8 +692,8 @@ same authorization; the group exists before the first voice join, created by the
   derived yet are dropped until it has; the overlap is short and needs no further coordination.
 - **Who can listen:** whoever holds the frame key of an epoch, i.e. every device in the channel's MLS group at that
   epoch: the room members with read access to the channel (§4.5), not only those currently in voice. Receiving the
-  media additionally needs a LiveKit token, which the node issues only to members with `connect`
-  (`VOICE.md` §3). Against the node, LiveKit and network observers the media stays confidential and authentic
+  media additionally needs a LiveKit token, which the node issues only to members with `connect` or a moved
+  participation (`VOICE.md` §3, §7). Against the node, LiveKit and network observers the media stays confidential and authentic
   to the group; within the group, frames are not authenticated per sender (shared key, as in LiveKit's E2EE).
 - **What stays visible:** who is in which voice channel and when, mute/deafen/stream/camera flags, track types,
   packet sizes and timing (from which speaking activity can be inferred). LiveKit sees the unencrypted codec

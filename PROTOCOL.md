@@ -628,6 +628,10 @@ the room as `GET /rooms/{id}` lists it to each member:
   true }` for a category no longer listed to them). `hidden: true` means "no longer visible to you", not deleted:
   clients remove the channel without announcing a deletion. These events have their own `id` and are not
   replayed. `GET /rooms/{id}` lists only the overrides of the listed channels and categories.
+- A moderator's move into a voice channel is the only way to gain a view without permissions (`VOICE.md` §7
+  "Moved participations"): from the move until the moved participation ends the member views that channel
+  (`channel.create` before `voice.move`, its events, `GET /rooms/{id}`), afterwards it is hidden again
+  (`channel.delete { hidden: true }`) unless their permissions show it.
 
 Event types besides the room/message events of phase 1:
 

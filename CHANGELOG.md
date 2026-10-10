@@ -5,6 +5,16 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **Moving members into channels they may not view or connect to** (`VOICE.md` §7 "Moved participations",
+  `permissions.md`, `PROTOCOL.md` §6, `ENCRYPTION.md` §4.5). `…/voice/members/{address}/move` and
+  `/voice/move-all` need only the mover's permissions; `voice.target_forbidden` now means "below the target's age
+  gate" (before: no `connect` in the target). Each move leaves a single-use grant (60 seconds) that entitles the
+  member's next join of the target without `connect` and beyond its `user_limit`; the participation that follows is
+  marked `moved: true` in `VoiceParticipant` (new field) and lasts until the member leaves or is removed (a rejoin
+  within the reconnect grace period keeps it). Meanwhile the member views the channel (`channel.create` before
+  `voice.move`, its events, `GET /rooms/{id}`, its MLS group, reading its messages) and the access watcher and the
+  `/rtc` proxy accept them without `view_channel` or `connect`; when it ends they get `channel.delete
+  { hidden: true }` and their leaves are announced with `mls.remove_needed`. No self-rejoin without `connect`.
 - **History shares v2 and signed titles and answers** (`ENCRYPTION.md`, capability `history.shares2`). Every device
   has an X25519 share key, signed by its device key, published with the device key (`PUT
   /users/me/devices/{id}/key` gets `share_public_key` and `share_key_signature`) or once with the new `PUT

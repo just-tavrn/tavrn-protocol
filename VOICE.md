@@ -101,10 +101,11 @@ The node checks, in this order: voice enabled (`503 voice.disabled`), room exist
 is a room member (`403 room.not_member`; node admins who are not members cannot join voice), channel exists in the
 room (`404 channel.not_found`) and is a voice channel (`400 voice.not_voice_channel`), rate limit
 (`429`, 60 joins and state changes per user and minute), not banned (`403 room.banned`), `connect` in the channel
-(`403 voice.connect_forbidden`; members in timeout keep only `view_channel` and get this too), capacity
+or a moderator's move into it (§7 "Moved participations") (`403 voice.connect_forbidden`; members in timeout keep
+only `view_channel` and get this too, also after a move), capacity
 (`409 voice.channel_full`, `meta.user_limit`): connected, reconnecting and reserved participants of other users ≥ the
-channel's `user_limit` (members with `move_members` may exceed it) or ≥ `voice_max_participants` (nobody may exceed
-that).
+channel's `user_limit` (members with `move_members` and moved members may exceed it) or ≥ `voice_max_participants`
+(nobody may exceed that).
 
 A successful join *reserves* a slot for the device for 60 seconds (counted for the limit, invisible to others) until
 LiveKit reports the participant. **One voice session per user:** a join of another device of the same user replaces
@@ -127,7 +128,8 @@ the user's earlier device in every voice channel of the node; the node disconnec
 **Signaling (`/rtc`).** `GET /rtc`, `/rtc/v1` (WebSocket) and `/rtc/validate`, `/rtc/v1/validate` (HTTP) on the
 node's domain are forwarded to LiveKit only with a valid token (query `access_token` as the LiveKit SDKs send it, or
 `Authorization: Bearer`). The node verifies the signature with its LiveKit secret, the issuer, `exp`/`nbf`, that the
-token joins a voice channel room, and that its holder is still a member with `connect` and not banned (for a call,
+token joins a voice channel room, and that its holder is still a member with `connect` (or a moved participation
+there, §7) and not banned (for a call,
 §11: an accepted member of the conversation while its call runs; a connection-test token, §10.4: only its own test
 room). Errors:
 `401 voice.token_invalid`, `403 voice.connect_forbidden` (e.g. kicked after the token was issued), `404` for other
@@ -198,12 +200,14 @@ Calls in DMs (§11) are speech: their limits carry `min(64, node maximum)`.
   "identity": "alice@node.example/01J…",
   "muted": false, "deafened": false, "streaming": false, "camera": false,
   "server_muted": false, "joined_at": "2026-10-05T12:00:00.000Z",
-  "connection": "connected"
+  "connection": "connected", "moved": false
 }
 ```
 
 `connection` is `connected` or `reconnecting` (§5a); clients treat unknown values as `connected` (`poor` is
-reserved: participants of a call take the connection quality from LiveKit).
+reserved: participants of a call take the connection quality from LiveKit). `moved` is `true` while the participant
+is here through a moderator's move (§7 "Moved participations"; clients may show "moved here"); absent from older
+nodes, always `false` in calls.
 
 - **Initial state:** `GET /api/v1/rooms/{room_id}/voice` → `{ "items": [VoiceChannelState, …] }`: every voice channel
   of the room with at least one participant that the requester can view (members only).
@@ -232,7 +236,8 @@ reserved: participants of a call take the connection quality from LiveKit).
   `room.delete` for deletions). So does losing `view_channel` or `connect` in the channel through a role, override,
   membership or age change: the node checks the participants of a room after every event that changes who may view
   what, and all rooms with participants at least once a minute (changes without an event), and removes those who
-  lost access (`voice.state`).
+  lost access (`voice.state`). A moved participation (§7) needs neither: only room membership, no timeout or ban,
+  the channel's age gate and the channel's existence.
 
 ## 5a. Dropped connections and reconnects
 
@@ -275,7 +280,7 @@ room member (`404 member.not_found` otherwise). The usual hierarchy rules apply 
 |---|---|---|---|
 | `POST …/mute` `{ "muted": true \| false }` → `200 VoiceChannelState` | `mute_members` (19) in this channel, `403 voice.mute_forbidden` | Server mute in the **whole room**, stored (survives reconnects and restarts): `muted` and `server_muted` become `true`, the microphone grant is revoked in LiveKit immediately and missing from new tokens; `false` lifts it (the self mute stays the user's) | `voice.mute` / `voice.unmute` |
 | `POST …/disconnect` → `204` | `move_members` (20), `403 voice.move_forbidden` | All devices of the member leave this channel (LiveKit `RemoveParticipant`); `404 voice.not_connected` if none was there. The member may rejoin. | `voice.disconnect` |
-| `POST …/move` `{ "channel_id" }` → `204` | `move_members` in both channels | Disconnects the member here and sends `voice.move` `{ room_id, from_channel_id, channel_id, user_id }` to the member's connections; the client then joins `channel_id` normally (new token, new MLS group and frame key). The member needs `connect` in the target (`403 voice.target_forbidden`); `400 voice.not_voice_channel`, `400 voice.same_channel`, `404 voice.not_connected` | `voice.move` |
+| `POST …/move` `{ "channel_id" }` → `204` | `move_members` in both channels | Disconnects the member here and sends `voice.move` `{ room_id, from_channel_id, channel_id, user_id }` to the member's connections; the client then joins `channel_id` normally (new token, new MLS group and frame key). The member needs no permission in the target, not even `view_channel` ("Moved participations" below); only the target's age gate holds (`403 voice.target_forbidden` for a member below it); `400 voice.not_voice_channel`, `400 voice.same_channel`, `404 voice.not_connected` | `voice.move` |
 
 **Mass move** (design note 4.11): `POST /api/v1/rooms/{room_id}/voice/move-all`
 `{ "to_channel_id", "from_channel_id"? }` → `200 { moved: [address], skipped: [{ user, reason }] }`. Without
@@ -283,9 +288,32 @@ room member (`404 member.not_found` otherwise). The usual hierarchy rules apply 
 `move_members` in the target (`403 voice.move_forbidden`) and in `from_channel_id`; participants of other channels
 where the mover lacks it stay (`move_forbidden`). Each moved member is handled like `…/move` (disconnect plus
 `voice.move`); members the mover may not moderate stay (`outranked`: owner, node admins, equal or higher roles; the
-mover may move themselves), so do members without `connect` in the target (`target_forbidden`) and everybody beyond
+mover may move themselves), so do members below the target's age gate (`target_forbidden`) and everybody beyond
 the target's user limit (`channel_full`) — a partial result is still `200`. `400 voice.not_voice_channel`,
 `400 voice.same_channel`. One audit entry `voice.move_all` with the counts.
+
+**Moved participations** (decided 2026-10-11). A member may be moved into a voice channel they may neither view
+nor connect to; the moderator's `move_members` decides, not the member's permissions.
+
+- **Grant.** With every move (`…/move`, `move-all`) the node records a *move grant* for the member and the target
+  channel: valid for 60 seconds, one per user (a new move replaces it). The member's next `join` of that channel is
+  entitled by it instead of `connect` and may exceed the channel's `user_limit` (as the mover may);
+  `voice_max_participants`, bans and timeouts still refuse it. A join of another channel drops the grant.
+- **Moved participation.** The first join consumes the grant; the participation that follows is *moved*
+  (`VoiceParticipant.moved: true`) for as long as the member has a participant in the channel: a rejoin within the
+  reconnect grace period (§5a) keeps it, leaving, being disconnected or removed, the end of the grace period or a
+  join elsewhere ends it. Afterwards a join needs `connect` again: the member cannot come back by themselves.
+- **Temporary view.** From the move until the grant expires unused or the participation ends, the member holds
+  `view_channel`, `read_history` and `connect` in that channel whatever the overrides say (`permissions.md` "Moved
+  participations"); all other bits (`speak`, `stream`, `send_messages`, …) follow their roles and overrides as
+  usual, a timeout strips all but reading, and the channel's age gate still applies. So the member's connections get
+  `channel.create` for the channel (with its category's `category.create` if needed) before `voice.move`, see the
+  channel's `voice.state` and events, `GET /rooms/{id}` lists it, its MLS group is open to their devices
+  (`ENCRYPTION.md` §4.5), and its messages are readable (writing still needs `send_messages`); this is intended.
+  When it ends, the connections get `channel.delete` with `hidden: true` (`PROTOCOL.md` §6) and, if the member may
+  not view the channel by their permissions, the node announces their leaves with `mls.remove_needed`.
+- **Access checks.** The access watcher (§5) and the `/rtc` proxy accept a moved participant while they are a room
+  member, not timed out or banned, and the channel exists.
 
 There is no separate "deafen others" permission in v1 (`permissions.md` has none); moving with LiveKit's
 `MoveParticipant` is not used because the target channel has another MLS group and therefore another frame key, so a
