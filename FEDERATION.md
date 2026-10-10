@@ -883,9 +883,11 @@ After that the web client is simply a client of several nodes: one session per d
 sessions), each refreshed independently, one WebSocket per active node.
 
 **CORS and CSP.** All routes under `/api/v1` and `/.well-known/tavrn` MUST answer CORS requests from any origin:
-`Access-Control-Allow-Origin: *`, never `Access-Control-Allow-Credentials`, allowed headers `Authorization`,
-`Content-Type`, `Idempotency-Key`, `If-Match`, `Tavrn-Client`, `Accept-Language`, exposed headers `ETag`,
-`Retry-After`, `Location`, preflight cache 600 s. Authentication is bearer tokens only (no cookies), so open CORS
+`Access-Control-Allow-Origin: *`, never `Access-Control-Allow-Credentials`, allowed headers at least
+`Authorization`, `Content-Type`, `Idempotency-Key`, `If-Match`, `Tavrn-Client`, `Accept-Language` and the `Tavrn-*`
+headers of the upload routes (the reference node mirrors whatever headers a preflight names, so a new header never
+breaks a client of another origin, the desktop app included), every method, exposed headers `ETag`, `Retry-After`,
+`Location`, `Content-Range`, `Content-Disposition`, preflight cache 600 s. Authentication is bearer tokens only (no cookies), so open CORS
 gives other origins nothing they could not do with a token. The WebSocket does not check `Origin` (the token is
 sent in `hello`). The web client's CSP keeps `connect-src 'self' https: wss:` (already set), which allows every
 node; development builds that talk to `http://` dev peers need `http: ws:` there. `/connect` keeps
@@ -1562,7 +1564,7 @@ otherwise.
   `api`, `ws` and `web` URLs without credentials; since delegation (design note 4.2c) they may be on any host, the
   document being the identity domain's own statement. `http`/`ws` URLs only when the client itself was loaded
   over plain HTTP (development).
-- **CORS** is exactly §8 (plus the upload headers `Tavrn-File-Name` and `Tavrn-Emoji-Name`); the CSP of
+- **CORS** is exactly §8 (the preflight's request headers are mirrored); the CSP of
   `--dev` nodes adds `http: ws:` to `connect-src` for development peers.
 - **Conversation index**: one row per user with the JSON array and a `BIGINT` version (migration `0012`).
   `If-Match` accepts `"7"` and `7`; `*` or no header write unconditionally; `"0"` creates the index and

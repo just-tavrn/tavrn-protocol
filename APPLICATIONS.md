@@ -992,7 +992,8 @@ already know the bot user of `application.ref`, its avatar. No other images, but
 
 ### 7.3 Local activity bridge
 
-Applications never set a **user's** activity through the node: there is no route for it, and no token grants it.
+The interface below is fixed; the desktop app does not implement it yet (the web client has the typed module and a
+mock bridge for tests). Applications never set a **user's** activity through the node: there is no route for it, and no token grants it.
 Instead a local program (a game or its launcher) talks to the user's desktop client, which asks the user and then
 sets the activity on the user's own sessions.
 
@@ -1336,7 +1337,7 @@ the test harness; Playwright runs the web client against real nodes (phone, tabl
   encrypted channel, a remote installation on a second node works, hook verification rejects tampered bodies,
   replayed `jti` and wrong `htu`. Done in two parts: 5a (shared module `@tavrn/e2ee`) and 5b (the runtime
   `@tavrn/bot`, notes in §12 "Step 5b").
-- [ ] **6. SSO via OpenID Connect**: config and validation, discovery/JWKS cache, start/callback/token routes, linking
+- [x] **6. SSO via OpenID Connect**: config and validation, discovery/JWKS cache, start/callback/token routes, linking
   and unlinking, provisioning, `TAVRN_OIDC_ONLY` with break-glass, group map with `sso_grants` and sync modes,
   session cap, logout URL, identity reset confirmation by SSO. Tests: a fake provider in the Rust test harness
   (`--dev`, `http://` issuer) covering wrong `iss`, wrong `aud`/`azp`, expired, bad `nonce`, reused `state`, `alg =

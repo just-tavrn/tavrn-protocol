@@ -129,8 +129,9 @@ the user's earlier device in every voice channel of the node; the node disconnec
 | `sub` (identity), TTL | `<user address>/<device id>`, 10 minutes |
 
 **Signaling (`/rtc`).** `GET /rtc`, `/rtc/v1` (WebSocket) and `/rtc/validate`, `/rtc/v1/validate` (HTTP) on the
-node's domain are forwarded to LiveKit only with a valid token (query `access_token` as the LiveKit SDKs send it, or
-`Authorization: Bearer`). The node verifies the signature with its LiveKit secret, the issuer, `exp`/`nbf`, that the
+node's domain are forwarded to LiveKit only with a valid token (query `access_token` as the browser SDK sends it, or
+`Authorization: Bearer` as native SDKs do; either way the node hands the checked token on to LiveKit as a bearer
+header). The node verifies the signature with its LiveKit secret, the issuer, `exp`/`nbf`, that the
 token joins a voice channel room, and that its holder is still a member with `connect` (or a moved participation
 there, §7) and not banned (for a call,
 §11: an accepted member of the conversation while its call runs; a connection-test token, §10.4: only its own test
@@ -493,8 +494,8 @@ Part of the web client, responsive like the rest of the client:
   `"voice_problem": "<text>"` while a voice setup problem needs the operator (no announced hostname resolves, §10.2);
   `GET /readyz` → `{ "ready", "database", "livekit", "cache" }` (`livekit` = LiveKit answers locally, `null` without
   voice; `cache` = the shared Valkey answers and its event bus is subscribed, `null` without `TAVRN_CACHE_URL`).
-- Participant state is kept in memory (one node process; with several instances behind a load balancer, phase 5,
-  it moves to the shared cache). Dropped participants stay `reconnecting` for `TAVRN_VOICE_RECONNECT_GRACE_SECS` (§5a);
+- Participant state is kept in memory by one instance: the node process, or with several instances behind a load
+  balancer the leader, to which the other instances relay through the shared cache (`TAVRN_CACHE_URL`). Dropped participants stay `reconnecting` for `TAVRN_VOICE_RECONNECT_GRACE_SECS` (§5a);
   a sweeper removes expired ones.
 
 ### 10.1 Connectivity settings

@@ -147,7 +147,8 @@ Compatibility rules:
 - Authentication: `Authorization: Bearer <token>`. No cookies. CORS is open for all origins.
 - Pagination: `?limit=50&before=<id>` or `?after=<id>`; the response contains `items` and `next`.
 - Idempotency: an `Idempotency-Key` header on `POST` is stored for 24 hours.
-- Rate limits respond with `429` and `Retry-After`.
+- Rate limits respond with `429` and `Retry-After`. Besides the limits of individual routes a node may cap the API
+  requests of each user per minute (the reference node: `TAVRN_RATE_USER_PER_MINUTE`, default 1200, `0` = off).
 - **Errors** are always RFC 9457 Problem Details, `Content-Type: application/problem+json`:
 
 ```json
@@ -185,8 +186,8 @@ in the shape of `APPLICATIONS.md` §5.1/§5.4, so that application commands and 
 - `source`: `builtin` (executed by the client through the normal routes: kick, ban, timeout, voice mute and move,
   purge with its preview and confirmation, slowmode, topic, nickname, …) or `app`.
 - Built-ins of the reference client: `/kick`, `/ban`, `/timeout`, `/mute`, `/unmute`, `/move`, `/purge`,
-  `/slowmode`, `/topic`, `/nick`, `/me` (content type `action`, §7), `/shrug`, `/whiteboard`, `/poll` (reserved
-  until phase 5), `/help`. Destructive ones (kick, ban, purge) ask for confirmation.
+  `/slowmode`, `/topic`, `/nick`, `/me` (content type `action`, §7), `/shrug`, `/whiteboard`, `/help` (`/poll`
+  is reserved). Destructive ones (kick, ban, purge) ask for confirmation.
 
 **Announce flow for applications (`commands.v1`, normative in `APPLICATIONS.md` §5).** An application
 announces its commands to its home node (`PUT /applications/{id}/commands`, or `/applications/me/commands` with an

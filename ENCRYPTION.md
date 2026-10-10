@@ -1200,6 +1200,9 @@ rotation keeps.
 
 - `e2ee.mls1` (PROTOCOL.md §3) means this document: ciphersuite `0x0001`, content format 1.
 - `history.shares2`: the node accepts and serves history shares of format 2 (§7b) and device share keys (§3.1).
+- `history.restore`: after a key reset the node lets history from before the reset be shared only by request and
+  approval (§7b "History after a key reset", permission bit 37 `restore_history`).
+- `files.e2ee`: files channels may be end-to-end encrypted (§5c, `FILES.md` §8).
 - Version bytes: key file `0x01`, recovery key `0x02`, wrapped master secret `0x01`, identity blob `0x01`,
   content `0x01`, backup `0x01`. Unknown versions MUST be rejected; new versions are introduced together with a new
   capability or envelope `format`.

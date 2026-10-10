@@ -100,7 +100,8 @@ Browsers keep a bounded index: per conversation the last **90 days**, and at mos
 bounded conversations (oldest messages evicted first, by UTC day). A conversation with **"keep the full history on
 this device"** (a device-local setting, stored sealed in its `meta` record, default off) has neither limit. Turning
 it off applies the window and the cap right away. Accounting is approximate (sealed doc size plus 32 bytes per
-posting entry). Native apps (phase 6) plug a SQLite backend into the same interface and keep everything.
+posting entry). Native apps can plug a SQLite backend into the same interface and keep everything (the desktop app
+still uses the browser backend).
 
 ### 3.4 What goes in
 
