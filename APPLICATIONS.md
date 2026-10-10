@@ -984,7 +984,7 @@ The activity of `PROTOCOL.md` §6a gains optional fields (compatible additions):
 ```
 
 `state` ≤ 128 characters, `ends_at` after `started_at`, `application` set only through the bridge below. The node
-validates the format only (`400 presence.activity_invalid`); clients show "via <application name>" and, when they
+validates the format only (`400 presence.activity_invalid`); clients show "via \<application name>" and, when they
 already know the bot user of `application.ref`, its avatar. No other images, buttons or party joins in v1.
 
 ### 7.3 Local activity bridge (interface fixed now, implemented with the desktop apps in phase 6)
@@ -1000,7 +1000,7 @@ sets the activity on the user's own sessions.
 - **Handshake**: `{ "op": "hello", "v": 1, "application": "<application ref>" }`. The client fetches the public
   document (§1.8) from the application's node; unknown, disabled or blocked applications, and applications whose
   `scopes` do not include `presence`, are refused (`{ "op": "error", "code": "app.not_allowed" }`).
-- **Consent**: the first time, the client asks "Allow <name> (<bot address>) to show what you are doing?" with
+- **Consent**: the first time, the client asks "Allow \<name> (\<bot address>) to show what you are doing?" with
   allow once / always / never; the decision is stored per application ref on the device and revocable in the
   settings. Users with `hide_activity` are asked nothing and nothing is shown.
 - **Operations**: `{ "op": "set_activity", "activity": { type, name, details?, state?, started_at, ends_at? } }`
@@ -1135,7 +1135,7 @@ client                               node                                       
   them as for any full session.
 - `POST /auth/logout` revokes the tavrn session as today; for SSO sessions the response additionally carries
   `end_session_url` (the provider's `end_session_endpoint` with `client_id` and `post_logout_redirect_uri =
-  <web>/login`) when the provider has one; clients offer "also sign out at <label>".
+  <web>/login`) when the provider has one; clients offer "also sign out at \<label>".
 - Disabling an account at the provider takes effect at the next SSO login or session end; operators who need it
   faster disable the account in tavrn as well. (OIDC back-channel logout MAY be added later as
   `POST /auth/oidc/backchannel-logout`.)
@@ -1512,7 +1512,7 @@ refines §1.8 and §4:
 - **Role position.** "Directly below the caller's highest role": the managed role takes the position of the
   caller's highest role and every non-`@everyone` role at or above it moves up by one (`role.update` for each);
   for owners and node admins it goes above every role. Names collide case-insensitively (`Name (2)`, `Name (3)`, …).
-  The role carries `application_id` = the application reference; the web client shows "Managed by <name>" in the
+  The role carries `application_id` = the application reference; the web client shows "Managed by \<name>" in the
   role list and editor. `create_role` defaults to `true`; with `create_role: false` (the consent screen sends it when
   the installer lacks `manage_roles`) the bot joins with `@everyone` only and `permissions` is recorded as granted.
 - **Installation object.** `dropped_permissions` is part of the `201` answer only; listings carry
@@ -1597,8 +1597,8 @@ refines §1.8 and §4:
   `hide_activity` rule (nothing asked, nothing published, the program still gets `ok`), `application` taken from
   the document rather than from the program, clearing on disconnect, and a `MockTransport`. There is no listener in
   the browser; the consent dialog itself comes with the desktop app.
-- **Client.** The member list's activity line and the profile card show `details`, `state`, "until <time>" and
-  "via <application name>" with the bot's avatar when the bot of `application.ref` is a known room member. The
+- **Client.** The member list's activity line and the profile card show `details`, `state`, "until \<time>" and
+  "via \<application name>" with the bot's avatar when the bot of `application.ref` is a known room member. The
   privacy settings list the stored bridge decisions ("Game activity: allowed applications") with revoke.
 - **Tests.** Unit tests of the validation (`presence.rs`), the presence part of `app_install_flow.rs` (scope
   refusal on all three routes, the bot's status and activity reaching a room member, rich fields accepted and
@@ -1751,7 +1751,7 @@ namespace `api.commands`, the web client's palette merge (`commands/merge.ts`), 
   The ephemeral first response goes to the invoker's other connections, ephemeral follow-ups to all of them.
   Non-ephemeral replies and follow-ups are bot messages and count against the bot message limit of §2.7.
 - **Envelope.** `interaction` is stored as JSON with the message (`messages.interaction`); clients show
-  "<user> used /<command>" above the answer.
+  "\<user> used /\<command>" above the answer.
 - **Client.** The palette is fetched per conversation when the node announces `commands.v1` and refetched on
   `commands.update`, `role.*`, `override.update` and `member.update`. Typed names resolve to the picked command, else
   the built-in, else the only application command of the name; two applications with one name and no pick are an

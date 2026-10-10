@@ -139,7 +139,7 @@ on another node is `409 report.target_remote`.
 
 - `report.create` `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`
   goes to the online users who may see the report, except the reporter (no detail, no evidence). Clients refresh their
-  inbox badge and may show "New report in <room>" through their normal notification path (the user's notification
+  inbox badge and may show "New report in \<room>" through their normal notification path (the user's notification
   settings apply). Those without an open connection get a web push of type `report` with the report's kind and room
   only (`PROTOCOL.md` §6d), unless they turned the notification setting `reports` off (`PROTOCOL.md` §6c, default
   on); at most one per room and moderator every 30 seconds.

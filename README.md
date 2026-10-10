@@ -100,7 +100,9 @@ exactly.
 There is no build. The checks need Node.js 20 or newer and no dependencies:
 
 ```sh
-npm test                  # every JSON file parses, openapi.json is OpenAPI 3.1, vector shapes, package exports
+npm test                  # every JSON file parses, openapi.json is OpenAPI 3.1, vector shapes, package exports,
+                          # no hidden <placeholder> in the Markdown prose
+scripts/check-placeholders.mjs [files]  # the placeholder check alone, with file:line:column per finding
 scripts/check-spdx.sh     # SPDX headers of scripts and tests
 scripts/publish-check.sh  # no private files, domains or secrets (needs the private pattern list, docs/GITHUB.md)
 ```

@@ -13,7 +13,7 @@ A channel of kind `files` is a file browser instead of a chat. It has no message
   MLS group like a text channel; names, types, folder names and contents are encrypted by the clients, the node
   stores ciphertext and the few plaintext fields of §8.2.
 - **Not end-to-end encrypted**: no MLS group. Clients show a permanent banner "Files in this channel are not
-  end-to-end encrypted" (and, for an external store, "stored on external storage: <kind>"), analogous to
+  end-to-end encrypted" (and, for an external store, "stored on external storage: \<kind>"), analogous to
   PROTOCOL.md §8. On the node the files use the storage encryption at rest of design note 4.12 (per-file key
   wrapped with `keys/storage.key`): the node can read them, the disk or backup alone cannot.
 
@@ -324,7 +324,7 @@ room's) files channels:
   so they are always deleted. The audit log of the deletion records `keep_external` and the number of kept objects.
 
 Clients ask for a typed confirmation (the channel's or room's name) and say what happens: the counts (files,
-folders, bytes from `GET usage`), where the files are ("stored on this node" or "stored on <kind> at <host>") and the
-consequence ("All files are deleted permanently"; external: "The objects under <prefix> are deleted from the
+folders, bytes from `GET usage`), where the files are ("stored on this node" or "stored on \<kind> at \<host>") and the
+consequence ("All files are deleted permanently"; external: "The objects under \<prefix> are deleted from the
 external store", with the "Keep the objects on the external store" option only for unencrypted external channels).
 The room deletion dialog lists its files channels with the same information.

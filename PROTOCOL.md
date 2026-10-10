@@ -784,7 +784,7 @@ conversations. A node therefore never learns the presence of a user without a se
   details?, state?, started_at, ends_at?, application? }` belong to the device. `state` (≤ 128) is a second line,
   `ends_at` (RFC 3339, after `started_at`, at most 7 days ahead) a countdown, `application` `{ ref, name }` the
   application that reported it through the local activity bridge (`APPLICATIONS.md` §7.2–§7.3; clients show
-  "via <name>"); the node checks the format only. Bots set their own presence and activity with the `presence`
+  "via \<name>"); the node checks the format only. Bots set their own presence and activity with the `presence`
   scope (`APPLICATIONS.md` §7.1). Effective status: `offline` without a connection, else `dnd` or
   `invisible` as chosen, else `idle` when every connected device is idle, else `online`. Clients report `idle`
   after 10 minutes without input (only while the chosen status is `online`) and `online` when input returns.
@@ -1018,7 +1018,7 @@ Every message consists of an envelope (readable by the node) and content (opaque
   every other message.
 - `interaction` (set by the node on a message an application posted as the answer to a command, `APPLICATIONS.md`
   §5.7): `{ id, command, application, user }` with the interaction id, the command's name, the application reference
-  and the invoker's address. Clients show "<user> used /<command>" above the message. The field is absent on every
+  and the invoker's address. Clients show "\<user> used /\<command>" above the message. The field is absent on every
   other message.
 - `device_id` is the sending (or last editing) device, null for system and webhook messages; `epoch` is set for
   encrypted messages only. For
