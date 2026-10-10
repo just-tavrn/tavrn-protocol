@@ -5,6 +5,10 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **Voice presence of all rooms at once** (`VOICE.md` §5, §9). New route `GET /api/v1/users/me/voice` →
+  `{ rooms: [ { room_id, channels: [VoiceChannelState] } ] }`: the initial voice state of every room of the node the
+  requester is a member of, limited to channels with participants the requester can view (like
+  `GET /rooms/{id}/voice`); app tokens need the scope `voice`. Clients call it after `ready` and after a resync.
 - **Moving members into channels they may not view or connect to** (`VOICE.md` §7 "Moved participations",
   `permissions.md`, `PROTOCOL.md` §6, `ENCRYPTION.md` §4.5). `…/voice/members/{address}/move` and
   `/voice/move-all` need only the mover's permissions; `voice.target_forbidden` now means "below the target's age

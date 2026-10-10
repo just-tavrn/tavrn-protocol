@@ -211,6 +211,12 @@ nodes, always `false` in calls.
 
 - **Initial state:** `GET /api/v1/rooms/{room_id}/voice` → `{ "items": [VoiceChannelState, …] }`: every voice channel
   of the room with at least one participant that the requester can view (members only).
+- **Initial state of all rooms:** `GET /api/v1/users/me/voice` →
+  `{ "rooms": [ { "room_id": "01J…", "channels": [VoiceChannelState, …] }, … ] }`: the same for every room of this
+  node the requester is a member of, in one request; rooms without such a channel are left out (empty `rooms` when
+  voice is disabled). Clients call it once after `ready` and after every resync to show voice activity in their room
+  list (who is in voice where, who streams) without loading each room; `voice.state` keeps it current. Members of
+  rooms on other nodes ask each of those nodes with their session there. App tokens need the scope `voice`.
 - **Changes:** WebSocket event `voice.state` to all room members who can view the channel, `data` = `VoiceChannelState`
   `{ room_id, channel_id, epoch, participants: [VoiceParticipant, …] }`, always the *complete* list of the channel
   (replace, do not merge; an empty list means the channel is empty).
@@ -374,6 +380,11 @@ Part of the web client (phase 4 part B), responsive like the rest of the client:
 - **Channel list:** voice channels show their participants (avatar, display name, mute/deafen/stream/camera icons,
   server mute in another color) from `GET …/voice` and `voice.state`, also for members who are not in the call; the
   user limit as `3/5`; joining by clicking the channel.
+- **Room list and friends:** from `GET /users/me/voice` and `voice.state` (so only channels the user can view), a room
+  icon carries a speaker badge while somebody is in voice there and a monitor badge while somebody streams; a hover
+  card (also on keyboard focus; on touch the head of the room's long-press menu) lists who is in which voice channel.
+  A friend in a voice channel the user can view is shown with that room and channel in the friends list, with a
+  "Join" entry in the friend's menu; nothing is shown for channels or rooms the user cannot view.
 - **Voice view:** one tile per participant (avatar, or the camera video when on), a **speaking indicator** (ring
   around the tile while LiveKit reports speech), mute/deafen icons and the display name; screen shares as large tiles
   that can be focused (enlarged) and opened in their own window (picture-in-picture or popout); simulcast picks the
