@@ -14,7 +14,10 @@ Changes of the protocol that implementations must follow, newest first. Versions
   and signature key.
 - **Plaintext in encrypted conversations** (`ENCRYPTION.md` §5.4) is never shown as the author's content; link
   previews are listed with the metadata the node sees.
-- **Trust record** (`ENCRYPTION.md` §7): pins, verified contacts and own devices as an encrypted backup.
+- **Trust record** (`ENCRYPTION.md` §7): pins, verified contacts and own devices as an encrypted backup, restored
+  before first-use pinning; a conflicting pin is a changed key unless a continuity chain links the keys.
+- **Unattended clients and ghosts** (`ENCRYPTION.md` §4.6): acknowledgements cover one leaf (identity and key); bots
+  decide by an operator setting (default: only retired devices are accepted).
 - **History shares: format 1 removed** (`ENCRYPTION.md` §7b). Clients send only format 2 and bound the window of an
   automatic share by their own knowledge of the member.
 - **CORS mirrors the requested headers** (`FEDERATION.md` §8 "CORS and CSP"). Nodes allow at least the listed

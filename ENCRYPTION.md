@@ -543,10 +543,18 @@ comes first in the roster; a second leaf with the attested key is a duplicate.
 Any violation MUST be shown as a visible warning naming the unknown device ("An unknown device is part of
 this conversation"), and the client MUST NOT encrypt any content for the conversation (messages and edits, thread
 titles, forum posts, file records, whiteboard scenes and other ephemeral content) until the user acknowledged that
-leaf. Only the user's explicit acknowledgement counts: running the check and showing its result is not one, and a
-leaf that appears later needs its own acknowledgement. Implementations SHOULD enforce this in the component that
+leaf. Only the user's explicit acknowledgement counts: running the check and showing its result is not one, and an
+acknowledgement covers one leaf, by identity **and** signature key: a leaf that appears later, also under an
+acknowledged device id with another key, needs its own. Implementations SHOULD enforce this in the component that
 encrypts, so that a view that does not show the warning fails closed. Members without any leaf are not an error (they
 have not joined yet); their messages cannot exist.
+
+Unattended clients (bots, `APPLICATIONS.md`) have nobody to acknowledge a warning and decide by an operator setting
+instead. The safe default accepts only leaves of devices that were attested and are now retired (deleted, removal
+pending, §2.3) and refuses to encrypt for anything else (a key never attested, an identity key that changed without
+a continuity chain from the pinned key, a non-member), reporting the conversation and the leaves; rotations with a
+valid chain (§9a) are no violation. An operator MAY opt into sending anyway, in which case every accepted leaf is
+logged.
 
 ### 4.7 Removing ghost leaves (client)
 
@@ -679,8 +687,9 @@ keys that new members cannot read.
   share older keys with them (§7b); removed members cannot read messages after their removal.
 - The node sees metadata: conversation, author, device, timestamps, epoch, ciphertext sizes, `mentions`
   (deliberately plaintext, PROTOCOL.md §7), reactions, pins, reply and thread references, attachment
-  count, sizes and ciphertext hashes, membership changes (commits are public messages), and the URLs of link
-  previews, which are fetched only when the user enables them.
+  count, sizes and ciphertext hashes, membership changes (commits are public messages), the URLs of link
+  previews, which are fetched only when the user enables them, and the size and update times of the user's trust
+  record (§7), which grow with the number of contacts.
 - Every message of an encrypted conversation is encrypted by its sender. A plaintext message there (other than the
   node's own `system.*` entries) can only come from the node: clients MUST NOT show it as the author's content
   (nor its attachments, reply references or notification previews), whatever `device_id` or signature it carries.
@@ -854,9 +863,12 @@ plaintext = {"v":1,"pins":{"<address>":{"key":"<base64url identity key>","change
 
 It is stored with the backup routes under the home node's domain and the conversation ULID
 `00000000000000000000000000` (time 0, never a conversation), merged like the other backups (entries are added, an
-entry a device holds is never replaced by the stored one; `If-Match`). A new device restores it with the backups. The
-node can neither read nor forge it; serving an older blob or none only loses entries, which then pin on first use
-again. An identity reset deletes it with the backups.
+entry a device holds is never replaced by the stored one; `If-Match`). A new device restores it before the
+conversation backups and before it pins any key on first use; a restore whose trust record could not be fetched is
+tried again. A pin of this device that differs from the stored one is a changed key (§3.3) unless the user's
+continuity chain (§9a) leads from the stored key to it (a rotation; the other direction means the stored pin is newer
+and is taken). The node can neither read nor forge the record; serving an older blob or none only loses entries,
+which then pin on first use again. An identity reset deletes it with the backups.
 
 ## 7a. Whiteboard scenes
 
