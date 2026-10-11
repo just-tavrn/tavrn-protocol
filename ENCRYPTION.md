@@ -343,7 +343,12 @@ ciphersuite in §4.1 whose leaf carries the device identity and the device key.
   `{ "key_packages": [ { "device_id", "key_package" } ] }`: one KeyPackage per attested device; each
   returned KeyPackage is deleted (single use). Devices without a KeyPackage are omitted. On the node hosting
   a conversation the route also accepts foreign addresses, served only through the S2S claim proxy to the
-  user's home node (`FEDERATION.md` §3.5).
+  user's home node (`FEDERATION.md` §3.5). The home node limits claims per requesting user and target user and, for
+  requesters who share no room, DM, group DM or friendship with the target, per source (the home node itself, or one
+  requesting node) and target user, so that claims in many names neither drain a user's KeyPackages nor lock out the
+  people who legitimately add them (reference node: `TAVRN_E2EE_CLAIMS_PER_TARGET_PER_HOUR`, default 60 per source,
+  ten times that per target over all sources; related requesters and a user's claims for their own devices do not
+  count; beyond the budget `429`).
 
 ### 3.3 Verifying other users' devices
 
@@ -442,7 +447,9 @@ with the GroupInfo of the resulting epoch:
 
 Clients process the handshake log strictly in epoch order. A commit for an epoch older than the local one
 is skipped (`stale_epoch`); a newer one means commits are missing (`future_epoch`). A commit that fails
-validation stops processing; the client then rejoins by external commit and warns the user.
+validation stops processing; the client then rejoins by external commit and warns the user. Clients apply the
+identity rule of §4.4 themselves: a member's commit whose update-path leaf carries another identity than the
+committer's is refused (`invalid_credential`), whatever the node accepted.
 
 ### 4.4 Delivery service (node)
 
@@ -460,7 +467,10 @@ The node hosting the conversation implements, under `/api/v1/conversations/{conv
      the current epoch); the first commit for an epoch wins, enforced by a unique key
      `(conversation, epoch)` in the same transaction that updates the group state;
   2. validates commit and GroupInfo with `DsGroup::process_commit` (signature, epoch, allowed proposals,
-     credentials, GroupInfo signed by the committer and matching the new epoch and ratchet tree);
+     credentials, GroupInfo signed by the committer and matching the new epoch and ratchet tree). **A leaf never
+     changes its identity:** the update-path leaf of a member's commit MUST carry the committer's identity, and after
+     the commit no two leaves may share a signature key (OpenMLS checks key uniqueness only for added KeyPackages);
+     such a commit is refused as `400 mls.invalid`;
   3. applies the authorization rules of §4.5 to the returned summary (committer, external join, added and
      removed identities), answering `403 mls.forbidden` on violation;
   4. stores the commit in the handshake log at `epoch`, replaces the stored GroupInfo and DS state, stores
@@ -502,7 +512,10 @@ attestations. With `C` = committer identity from the summary:
    `view_channel`; when it ends the node announces their leaves with `mls.remove_needed`. Bots are never entitled in a channel whose effective
    "no bots" flag is set (`APPLICATIONS.md` §3.5): the node refuses their GroupInfo requests and commits with
    `403 mls.forbidden`. It MAY remove only leaves with the identity `C` itself
-   (rejoin after state loss).
+   (rejoin after state loss), and it MUST remove every leaf that carries `C`'s signature key (`403 mls.forbidden`
+   otherwise): a device is in the group at most once. A leaf with the identity `C` but another key is tolerated at
+   the join (OpenMLS external commits remove only the leaf with the joiner's key): it is an unattested ghost that
+   housekeeping lists and any member may remove (rule 4). Clients remove such leaves by identity *and* key.
 3. **Add**: every added identity MUST be an attested device of a user who may be in the conversation. For
    DMs, group DMs and private channels, adding devices of another user additionally requires that the user
    was invited according to the room or conversation rules; adding further devices of one's own user is
@@ -510,7 +523,8 @@ attestations. With `C` = committer identity from the summary:
    flag emits `mls.remove_needed` for the bots' leaves.
 4. **Remove**: a leaf may be removed if its user is no longer entitled to the conversation (left, kicked,
    banned, lost read permission), its device was deleted or is not attested under the current identity key,
-   or it belongs to the committer's own user. Removing a leaf of an entitled user's attested device is
+   its signature key is not the attested key of the device it names (any member may remove such a leaf;
+   housekeeping lists it as `unattested`, §4.7), or it belongs to the committer's own user. Removing a leaf of an entitled user's attested device is
    refused: membership is decided by the node's room rules (kick/ban go through the normal API first), MLS
    follows. When membership ends, the node emits `mls.remove_needed` `{ conversation_id, identities }` to the
    members' devices; the first valid commit wins.
@@ -895,7 +909,8 @@ there, as for every conversation route):
   another member with
   `view_channel` and `read_history` (`403 history.forbidden`; oneself `400 history.self`). `0 ≤ epoch_from ≤
   epoch_to ≤` the group's epoch and at most 1000 epochs (`400 history.invalid`); `ciphertext` is content format 1
-  (§5.2) under a known epoch (`400 history.invalid`), at most 64 KiB (`413 history.too_large`). `v` is the share
+  (§5.2) under a known epoch (`400 history.invalid`), at most 64 KiB measured on the base64url string
+  (`413 history.too_large`). `v` is the share
   format, 1 (default) or 2 ("Format v2" below, capability `history.shares2`); a format 2 share carries `boxes`, an
   object of device id → base64url sealed key, 1 to 20 entries, each box at most 128 bytes, every device id an
   attested device of `to_user` (under its current identity key) with a share key (§3.1); a format 1 share carries no
@@ -1123,10 +1138,14 @@ When the master secret is lost (no trusted device, no recovery key, no PRF passk
    `POST /api/v1/users/me/identity/reset` `{ "identity_public_key", "password" }`. Accounts without a
    password (SSO accounts, `APPLICATIONS.md` §8.4) confirm with a fresh SSO login instead: the client runs
    the SSO flow with `purpose: "reauth"` and sends `{ "identity_public_key", "reauth_token" }` (5 minutes,
-   single use, bound to the account; the provider must confirm the identity linked to it).
+   single use, bound to the account; the provider must confirm the identity linked to it). The node accepts any
+   valid reauth token of the session here (PROTOCOL.md §5c: from a login of the last five minutes, a password, a
+   passkey or an SSO confirmation; in the body or the `Tavrn-Reauth` header), not only the two confirmations
+   above.
 3. The node sets the new identity key and `identity_reset_at = now`, deletes all device attestations,
    KeyPackages, backups, whiteboard scenes (§7a) and secret storage entries of the user and notifies the user's contacts
-   (`identity.changed`) and sets `key_reset_at` on the user's room memberships, which stops the
+   (`identity.changed`) and sets `key_reset_at` on the user's room memberships (in the same transaction as the key
+   change, so a reset never takes effect without it), which stops the
    automatic history sharing of §7b for everything before the reset ("History after a key reset"). The client uploads the new `recovery` entry (and passkey entries) afterwards.
 4. Each device of the user re-attests its **existing** device key under the new identity key (devices keep
    their keys; a device that is not re-attested is invalid), uploads new KeyPackages and rejoins all
