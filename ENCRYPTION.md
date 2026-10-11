@@ -343,10 +343,12 @@ ciphersuite in §4.1 whose leaf carries the device identity and the device key.
   `{ "key_packages": [ { "device_id", "key_package" } ] }`: one KeyPackage per attested device; each
   returned KeyPackage is deleted (single use). Devices without a KeyPackage are omitted. On the node hosting
   a conversation the route also accepts foreign addresses, served only through the S2S claim proxy to the
-  user's home node (`FEDERATION.md` §3.5). The home node limits claims per requesting user and target user and,
-  across all requesters (local and from other nodes), per target user, so that claims in many names cannot drain a
-  user's KeyPackages (reference node: `TAVRN_E2EE_CLAIMS_PER_TARGET_PER_HOUR`, default 60; a user's claims for their
-  own devices do not count; beyond the budget `429`).
+  user's home node (`FEDERATION.md` §3.5). The home node limits claims per requesting user and target user and, for
+  requesters who share no room, DM, group DM or friendship with the target, per source (the home node itself, or one
+  requesting node) and target user, so that claims in many names neither drain a user's KeyPackages nor lock out the
+  people who legitimately add them (reference node: `TAVRN_E2EE_CLAIMS_PER_TARGET_PER_HOUR`, default 60 per source,
+  ten times that per target over all sources; related requesters and a user's claims for their own devices do not
+  count; beyond the budget `429`).
 
 ### 3.3 Verifying other users' devices
 
@@ -510,8 +512,10 @@ attestations. With `C` = committer identity from the summary:
    `view_channel`; when it ends the node announces their leaves with `mls.remove_needed`. Bots are never entitled in a channel whose effective
    "no bots" flag is set (`APPLICATIONS.md` §3.5): the node refuses their GroupInfo requests and commits with
    `403 mls.forbidden`. It MAY remove only leaves with the identity `C` itself
-   (rejoin after state loss), and it MUST remove every leaf that carries the identity `C` or `C`'s signature key
-   (`403 mls.forbidden` otherwise): a device is in the group at most once.
+   (rejoin after state loss), and it MUST remove every leaf that carries `C`'s signature key (`403 mls.forbidden`
+   otherwise): a device is in the group at most once. A leaf with the identity `C` but another key is tolerated at
+   the join (OpenMLS external commits remove only the leaf with the joiner's key): it is an unattested ghost that
+   housekeeping lists and any member may remove (rule 4). Clients remove such leaves by identity *and* key.
 3. **Add**: every added identity MUST be an attested device of a user who may be in the conversation. For
    DMs, group DMs and private channels, adding devices of another user additionally requires that the user
    was invited according to the room or conversation rules; adding further devices of one's own user is
