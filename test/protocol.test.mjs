@@ -68,7 +68,7 @@ test("case lists have a unique name, an input and an expected value", () => {
 });
 
 test("reference value files carry a description", () => {
-  for (const file of ["testvectors/encryption.json", "testvectors/federation.json"]) {
+  for (const file of ["testvectors/encryption.json", "testvectors/federation.json", "testvectors/federation_node.json"]) {
     const doc = read(file);
     assert.equal(typeof doc.description, "string", `${file} has no description`);
     assert.ok(Object.keys(doc).length > 1, `${file} has no values`);

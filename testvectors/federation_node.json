@@ -1,0 +1,291 @@
+{
+  "description": "Reference values for FEDERATION.md §1.1/§1.4 (discovery documents) and §2.3/§7.3 (node and listing tokens). Binary values are base64url without padding. The signing key is derived from seed 00 01 … 1f; the payloads are serialized with sorted keys and no whitespace, so a signer can reproduce the tokens byte for byte (Ed25519 signatures are deterministic). Verifiers check the signature over `header.payload` with the key the `kid` names, then the claims (the `exp` here lies in the past: check the signature and claims, not the clock).",
+  "signing_key": {
+    "seed": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "kid": "20261011-3f9a1c",
+    "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+  },
+  "discovery": {
+    "for_domain": "a.example",
+    "valid": {
+      "tavrn": 1,
+      "domain": "a.example",
+      "api": "https://a.example/api/v1",
+      "ws": "wss://a.example/api/v1/ws",
+      "software": {
+        "name": "tavrn-node",
+        "version": "0.3.0"
+      },
+      "capabilities": [
+        "federation",
+        "federation.v1"
+      ],
+      "keys": [
+        {
+          "kid": "20261011-3f9a1c",
+          "alg": "EdDSA",
+          "crv": "Ed25519",
+          "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+        }
+      ]
+    },
+    "invalid": [
+      {
+        "reason": "unknown protocol version",
+        "document": {
+          "tavrn": 2,
+          "domain": "a.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation",
+            "federation.v1"
+          ],
+          "keys": [
+            {
+              "kid": "20261011-3f9a1c",
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+            }
+          ]
+        }
+      },
+      {
+        "reason": "domain does not match",
+        "document": {
+          "tavrn": 1,
+          "domain": "evil.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation",
+            "federation.v1"
+          ],
+          "keys": [
+            {
+              "kid": "20261011-3f9a1c",
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+            }
+          ]
+        }
+      },
+      {
+        "reason": "domain does not match",
+        "document": {
+          "tavrn": 1,
+          "domain": "A.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation",
+            "federation.v1"
+          ],
+          "keys": [
+            {
+              "kid": "20261011-3f9a1c",
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+            }
+          ]
+        }
+      },
+      {
+        "reason": "federation.v1 missing",
+        "document": {
+          "tavrn": 1,
+          "domain": "a.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation"
+          ],
+          "keys": [
+            {
+              "kid": "20261011-3f9a1c",
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+            }
+          ]
+        }
+      },
+      {
+        "reason": "expected 1 to 10 keys",
+        "document": {
+          "tavrn": 1,
+          "domain": "a.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation",
+            "federation.v1"
+          ],
+          "keys": []
+        }
+      },
+      {
+        "reason": "invalid kid",
+        "document": {
+          "tavrn": 1,
+          "domain": "a.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation",
+            "federation.v1"
+          ],
+          "keys": [
+            {
+              "kid": "a b",
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+            }
+          ]
+        }
+      },
+      {
+        "reason": "invalid key type",
+        "document": {
+          "tavrn": 1,
+          "domain": "a.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation",
+            "federation.v1"
+          ],
+          "keys": [
+            {
+              "kid": "20261011-3f9a1c",
+              "alg": "RS256",
+              "crv": "Ed25519",
+              "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+            }
+          ]
+        }
+      },
+      {
+        "reason": "invalid key",
+        "document": {
+          "tavrn": 1,
+          "domain": "a.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation",
+            "federation.v1"
+          ],
+          "keys": [
+            {
+              "kid": "20261011-3f9a1c",
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "x": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            }
+          ]
+        }
+      },
+      {
+        "reason": "duplicate kid",
+        "document": {
+          "tavrn": 1,
+          "domain": "a.example",
+          "api": "https://a.example/api/v1",
+          "ws": "wss://a.example/api/v1/ws",
+          "software": {
+            "name": "tavrn-node",
+            "version": "0.3.0"
+          },
+          "capabilities": [
+            "federation",
+            "federation.v1"
+          ],
+          "keys": [
+            {
+              "kid": "20261011-3f9a1c",
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+            },
+            {
+              "kid": "20261011-3f9a1c",
+              "alg": "EdDSA",
+              "crv": "Ed25519",
+              "x": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "s2s_token": {
+    "claims": {
+      "aud": "b.example",
+      "body_sha256": "T-JKN1dpgod107SPX55KJ5pJQLzhb0U9Ap0lrK_nEVs",
+      "exp": 1791720300,
+      "htm": "POST",
+      "htu": "/api/v1/federation/inbox",
+      "iat": 1791720000,
+      "iss": "a.example",
+      "jti": "01JABCDEFGHJKMNPQRSTVWXYZ2",
+      "sub": "a.example",
+      "typ": "s2s"
+    },
+    "body": "{\"id\":\"01JABCDEFGHJKMNPQRSTVWXYZ0\",\"type\":\"friend.request\",\"from\":\"alice@a.example\",\"to\":\"bob@b.example\",\"at\":\"2026-10-11T12:00:00.000Z\",\"payload\":{\"request_id\":\"01JABCDEFGHJKMNPQRSTVWXYZ1\"}}",
+    "body_sha256": "T-JKN1dpgod107SPX55KJ5pJQLzhb0U9Ap0lrK_nEVs",
+    "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IjIwMjYxMDExLTNmOWExYyJ9.eyJhdWQiOiJiLmV4YW1wbGUiLCJib2R5X3NoYTI1NiI6IlQtSktOMWRwZ29kMTA3U1BYNTVLSjVwSlFMemhiMFU5QXAwbHJLX25FVnMiLCJleHAiOjE3OTE3MjAzMDAsImh0bSI6IlBPU1QiLCJodHUiOiIvYXBpL3YxL2ZlZGVyYXRpb24vaW5ib3giLCJpYXQiOjE3OTE3MjAwMDAsImlzcyI6ImEuZXhhbXBsZSIsImp0aSI6IjAxSkFCQ0RFRkdISktNTlBRUlNUVldYWVoyIiwic3ViIjoiYS5leGFtcGxlIiwidHlwIjoiczJzIn0.QcK-g3vVcGvjKwMSC5utG7w6veICIrLWe7-sd834u9AEVGCFjmjFogJH6X4KlkWeoXNizO4GnypnuLjvWm8jDw"
+  },
+  "listing_token": {
+    "claims": {
+      "aud": "tavrn-directory",
+      "description": "A room for everyone",
+      "exp": 1791892800,
+      "iat": 1791720000,
+      "icon_sha256": null,
+      "iss": "a.example",
+      "jti": "01JABCDEFGHJKMNPQRSTVWXYZ3",
+      "member_count": 42,
+      "name": "Lobby",
+      "sub": "01JABCDEFGHJKMNPQRSTVWXYZ4",
+      "typ": "listing"
+    },
+    "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IjIwMjYxMDExLTNmOWExYyJ9.eyJhdWQiOiJ0YXZybi1kaXJlY3RvcnkiLCJkZXNjcmlwdGlvbiI6IkEgcm9vbSBmb3IgZXZlcnlvbmUiLCJleHAiOjE3OTE4OTI4MDAsImlhdCI6MTc5MTcyMDAwMCwiaWNvbl9zaGEyNTYiOm51bGwsImlzcyI6ImEuZXhhbXBsZSIsImp0aSI6IjAxSkFCQ0RFRkdISktNTlBRUlNUVldYWVozIiwibWVtYmVyX2NvdW50Ijo0MiwibmFtZSI6IkxvYmJ5Iiwic3ViIjoiMDFKQUJDREVGR0hKS01OUFFSU1RWV1hZWjQiLCJ0eXAiOiJsaXN0aW5nIn0.X4-Ca5DxDNtEqnBf0Z7nJp8q05OSp-xDznPBb3c1jypdTbTImdedikr2eKhcdys5bffCY72Ugzea3mTTZRSgDQ"
+  }
+}

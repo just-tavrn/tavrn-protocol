@@ -60,7 +60,7 @@ per-domain limits of §11.1 so peers can pace themselves and the conformance che
   (`x` = base64url of the 32-byte public key). `kid` is 1–64 characters of `[A-Za-z0-9._-]` and unique in
   the document; at most 10 keys. A `kid` MUST NOT ever be reused for a different key: peers treat a known `kid`
   with another key as a key conflict and block the node (§1.4). Derive `kid`s so that a lost key directory cannot
-  produce one again (the reference node: the creation date plus a random suffix, `2026-10-11-3f9a1c`; a date alone
+  produce one again (the reference node: the creation date plus a random suffix, `20261011-3f9a1c`; a date alone
   repeats when a node restores a backup without its keys and generates a new key on the same day).
 - A node signs with its newest key. **Rotation**: add the new key (the reference node: a new file
   `/data/keys/node-<kid>.pem`) and restart; peers learn it on first use through the unknown-`kid`

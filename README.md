@@ -87,12 +87,14 @@ report here).
 | `no_bots.json` | The effective "no bots" flag of a channel (`APPLICATIONS.md`, `permissions.md`) | list of `{ name, input, expected }` with a boolean result |
 | `encryption.json` | Formats of `ENCRYPTION.md` and `FILES.md` §8: key file, local storage key, device attestation, device share key, device login proof, content (also with the signed context) and file encryption, the chunks and entry records of encrypted files channels, history shares (formats 1 and 2), backups, whiteboard scenes, secret storage, identity rotation, the webhook inbox, the sealed unlock material of app sessions | object per section; binary values base64url without padding |
 | `federation.json` | `FEDERATION.md` §10: JSON canonicalization (JCS), plaintext signatures, safety numbers, payloads that must be refused | object per section; binary values base64url without padding |
+| `federation_node.json` | `FEDERATION.md` §1.1/§1.4 and §2.3/§7.3: discovery documents (one valid, invalid ones with the reason) and node and listing tokens (a fixed signing key, the exact token bytes, the body hash) | object per section; binary values base64url without padding |
 
 The reference implementations use them as follows: the node evaluates `permissions.json` and `no_bots.json`
 in its unit tests; the crypto core checks `encryption.json` and `federation.json` in Rust and through its
 WebAssembly build; `@tavrn/sdk` runs `permissions.json`, `no_bots.json` and the JCS cases of
 `federation.json`; `@tavrn/e2ee` runs the identity, webhook inbox, files channel, local storage key, signed context, device share key,
-history share (both formats) and sealed unlock cases of `encryption.json`; the node checks the device login proof. A
+history share (both formats) and sealed unlock cases of `encryption.json`; the node checks the device login proof and
+runs `federation_node.json`. A
 new implementation should do the same: load the file, run every case, and compare exactly.
 
 ### Using this repository from code
