@@ -37236,6 +37236,13 @@
               "null"
             ],
             "description": "Rooms: `{ node, id, name, description, icon_url, member_count }`."
+          },
+          "via": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set when the inviter is a user of a third node (neither `node` nor this node): `node` named them, but cannot\nvouch for them, so their identity is unverified (FEDERATION.md §5.2). Clients show \"via <node>\"."
           }
         }
       },
