@@ -865,7 +865,8 @@ It is stored with the backup routes under the home node's domain and the convers
 `00000000000000000000000000` (time 0, never a conversation), merged like the other backups (entries are added, an
 entry a device holds is never replaced by the stored one; `If-Match`). A new device restores it before the
 conversation backups and before it pins any key on first use; a restore whose trust record could not be fetched is
-tried again. A pin of this device that differs from the stored one is a changed key (§3.3) unless the user's
+tried again. A pin this device took on first use before that first sync that differs from the stored one is a
+changed key (§3.3) unless the user's
 continuity chain (§9a) leads from the stored key to it (a rotation; the other direction means the stored pin is newer
 and is taken). The node can neither read nor forge the record; serving an older blob or none only loses entries,
 which then pin on first use again. An identity reset deletes it with the backups.
