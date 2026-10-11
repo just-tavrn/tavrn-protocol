@@ -5,6 +5,8 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+### Security
+
 - **Fresh proof for new sessions and login methods** (`PROTOCOL.md` §5c, `FEDERATION.md` §8, `APPLICATIONS.md`
   §8.3). `POST /auth/connect/code` (origin, or a `login` app session) and linking or unlinking a single sign-on
   identity need a reauth token (`403 auth.reauth_required`). The session of a connect code exchange carries no
@@ -19,6 +21,26 @@ Changes of the protocol that implementations must follow, newest first. Versions
 - **Password reset limits** (`PROTOCOL.md` §5a). `POST /auth/forgot-password`: three mails per account and hour, a
   pending link stays valid, `503 mail.unavailable` on nodes without e-mail. Failed logins count per account, and the
   right password with a valid device proof passes an account over its limit.
+- SRV delegation no longer makes DNS the trust anchor: the target must present a certificate valid for the identity
+  domain, and a document from another source with none of the known keys is a key conflict (`FEDERATION.md` §1.3, §1.4).
+- Requests to a slow peer cannot hold node-wide connection slots; failed discovery is remembered for 60 seconds and
+  peers known only from unverified requests are capped (`FEDERATION.md` §1.3, §1.4).
+- More IPv6 transition ranges and 192.88.99.0/24 are non-public addresses (`FEDERATION.md` §1.3 rule 3).
+- Domain bans and blocklist entries cover subdomains (`FEDERATION.md` §1.5, §3.3).
+- A remote account's kind and owner come from the verified token; a bot is never turned into a user
+  (`federation.kind_mismatch`, `FEDERATION.md` §2.6).
+- Inviters and callers of third nodes are unverified: never a friend, always a request, shown with `via`
+  (`FEDERATION.md` §5.2; new optional `via` of invite list entries).
+- `ban.notify` only from nodes the user signed in on; forwarded legal notices need federation history, are limited
+  and send no confirmation mail (`FEDERATION.md` §5.2, `LEGAL.md` §1.5).
+- `message.purge` is sent per channel (`PROTOCOL.md` §6).
+- New reference values `testvectors/federation_node.json` (discovery documents, node and listing tokens).
+
+### Fixed
+
+- `FEDERATION.md` §7.1/§7.2 match the implementation notes (6-hour announces to reference nodes, 48-hour expiry);
+  §10.3 says how signed mentions are handled by a node that normalises mentions; §1.2 recommends `kid`s that a
+  restored node cannot repeat.
 
 - **CORS mirrors the requested headers** (`FEDERATION.md` §8 "CORS and CSP"). Nodes allow at least the listed
   request headers and the `Tavrn-*` headers of the upload routes; the reference node mirrors whatever headers a
