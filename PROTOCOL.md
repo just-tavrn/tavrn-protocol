@@ -622,7 +622,8 @@ device). Room events that concern a channel (`message.*`, reactions and pins as 
 names a `conversation_id` or `channel_id` of the room, directly or in an embedded `thread` or `message`) reach only
 **all room members who can view the channel** at delivery time: `view_channel` after roles and overrides
 (`permissions.md`) and the age gate of §5e; a change of roles, overrides or membership applies to the next event.
-`message.purge` (`conversation_ids`) reaches the members who can view at least one of its channels. The same
+`message.purge` is sent once per purged channel (`conversation_ids` names that one channel, `deleted` counts its
+messages) and reaches that channel's viewers, so no member learns of a channel hidden from them. The same
 check gates web push (§6d) and the `notify` hints to other nodes (`FEDERATION.md` §5.2).
 
 **Audiences of the room's metadata.** A private channel's metadata follows the same rule as its content, against

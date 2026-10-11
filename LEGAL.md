@@ -122,9 +122,11 @@ The reporter receives the counter-notice (DMCA §512(g)(2)(B)); the case is `cou
 Content of a room hosted on another node lives there; only that node can remove it. `forward` sends S2S
 `legal.notice` (FEDERATION.md §5.2) with the case data (basis, work, explanation, the locations of that node, the
 reporter's name and contact, the statements, the signature). The receiving node opens a case of its own in state
-`received` with `origin` and `origin_case` recorded (a replay is a no-op), mails the reporter, and decides itself —
-also when its own public form is off. The reporter is told about the forwarding; the form says that details may be
-forwarded.
+`received` with `origin` and `origin_case` recorded (a replay is a no-op) and decides itself — also when its own
+public form is off. It sends no confirmation at receipt: the reporter's address came from the forwarding node, which
+confirmed the notice itself; the receiving node writes to the reporter once its admin acts. It accepts forwarded
+notices only from nodes it has federation history with and within an hourly budget per sending domain and in total
+(`FEDERATION.md` §5.2). The reporter is told about the forwarding; the form says that details may be forwarded.
 
 ### 1.6 Retention
 
