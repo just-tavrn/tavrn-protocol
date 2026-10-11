@@ -315,8 +315,9 @@ stage `enroll`. Bodies are JSON; errors are Problem Details (§4) with the codes
 
 | Route | Auth | Body → response | Errors |
 |---|---|---|---|
-| `POST /auth/login` | – | `{ username, password, device_name?, captcha_token?, device? }` → pre-auth response (`device`: device proof, §5b) | `401 auth.invalid_credentials`, `401 auth.account_disabled`, `403 auth.email_unverified`, `429` |
+| `POST /auth/login` | – | `{ username, password, device_name?, captcha_token?, device? }` → pre-auth response (`device`: device proof, §5b). Attempts are limited per client address (IPv6 by prefix) and failed ones per account; an account over its limit still lets the right password with a valid device proof through | `401 auth.invalid_credentials`, `401 auth.account_disabled`, `403 auth.email_unverified`, `429` |
 | `POST /auth/register` | – | (unchanged request) → `201` pre-auth response, stage `enroll` | as before |
+| `POST /auth/forgot-password` | – | `{ account }` (username or e-mail) → `204` whether or not the account exists; at most three mails per account and hour, and a reset link that has not expired stays the valid one (a new request sends none) | `429`, `503 mail.unavailable` (the node sends no e-mail) |
 | `POST /auth/second-factor/verify` | pre-auth token in body (stage `verify`) | `{ preauth_token, totp_code? , recovery_code? }` → session | `400 auth.second_factor_missing`, `401 auth.preauth_invalid`, `401 auth.second_factor_invalid`, `429` |
 | `POST /auth/totp/enroll` | Bearer: session or enroll | – → `{ secret (base32), otpauth_url, issuer }` | `401 auth.second_factor_required`, `401 auth.preauth_invalid`, `409 auth.totp_exists` |
 | `POST /auth/totp/confirm` | Bearer: session or enroll | `{ code }` → `{ recovery_codes: [10] \| null, session: <session> \| null }` (session only with a pre-auth token) | `401 auth.second_factor_invalid`, `404 auth.totp_not_found`, `409 auth.totp_exists`, `429` |
@@ -395,11 +396,11 @@ Normative: `APPLICATIONS.md` §8 (capability `sso.oidc`). A node with `TAVRN_OID
 
 | Route | Auth | Body → response | Errors |
 |---|---|---|---|
-| `POST /auth/oidc/start` | – (`login`); Bearer: session of a local user (`link`, `reauth`) | `{ purpose: "login" \| "link" \| "reauth", code_challenge (S256), client_state (16–128 of [A-Za-z0-9_-]), device_name? }` → `{ authorization_url, expires_in: 600 }` | `400 validation.code_challenge`, `400 validation.client_state`, `401 auth.required`, `403 federation.local_only`, `404 sso.disabled`, `409 sso.already_linked` (link), `409 sso.not_linked` (reauth), `429`, `502 sso.idp_unreachable` |
+| `POST /auth/oidc/start` | – (`login`); Bearer: session of a local user (`link`, `reauth`); `link` also `Tavrn-Reauth` (§5c) | `{ purpose: "login" \| "link" \| "reauth", code_challenge (S256), client_state (16–128 of [A-Za-z0-9_-]), device_name? }` → `{ authorization_url, expires_in: 600 }` | `400 validation.code_challenge`, `400 validation.client_state`, `401 auth.required`, `403 auth.reauth_required` (link), `403 federation.local_only`, `404 sso.disabled`, `409 sso.already_linked` (link), `409 sso.not_linked` (reauth), `429`, `502 sso.idp_unreachable` |
 | `GET /auth/oidc/callback` | – (the provider's redirect) | `?code&state` or `?error&state` → always `303 <web>/sso/callback?code=…&state=<client_state>` or `?error=<code>[&idp_error=…]&state=…`, `Cache-Control: no-store` | redirected: `sso.state_invalid`, `sso.idp_error`, `sso.idp_unreachable`, `sso.token_invalid` |
 | `POST /auth/oidc/token` | – (`login`); Bearer: the session that started `link`/`reauth` | `{ code, code_verifier }` → session response (§5a.1, `status: "ok"`, no second factor) \| `{ linked: true }` \| `{ reauth_token, expires_in: 300 }` | `400 sso.code_invalid`, `401 auth.account_disabled`, `403 sso.not_provisioned`, `403 sso.email_unverified`, `403 sso.session_mismatch`, `403 sso.identity_mismatch` (reauth), `409 sso.identity_linked`, `409 sso.already_linked`, `429` |
 | `GET /auth/oidc/identity` | Bearer: session (local) | → `{ issuer, linked_at, last_login_at } \| null` | `404 sso.disabled` |
-| `DELETE /auth/oidc/identity` | Bearer: session (local) | → `204` | `409 sso.not_linked`, `409 sso.last_login_method` |
+| `DELETE /auth/oidc/identity` | Bearer: session (local) + `Tavrn-Reauth` (§5c) | → `204` | `403 auth.reauth_required`, `409 sso.not_linked`, `409 sso.last_login_method` |
 | `GET` / `PUT /admin/sso/group-map` | Bearer: node admin | `{ map }` → `{ map, fixed, sync }` | `400 sso.group_map_invalid`, `403 auth.node_admin_required`, `409 sso.group_map_fixed` |
 
 - Codes and state are single use; the one-time code lives 60 s and is bound to the start request's
@@ -427,6 +428,14 @@ its rotation answers with the current pair as well (two tabs, a request in fligh
 treated as theft: the previous token revokes the session (`401 auth.refresh_invalid`), older ones are refused. The
 grace never yields a newer token than the current one, so a stolen token gains nothing beyond those 30 seconds.
 A refresh also counts as "seen" for the device (`last_seen_at`).
+
+**Revocation.** Ending a local device's sessions (logout, a password change or reset, deleting the device, a node
+admin disabling the account or resetting its second factor, a node ban, account deletion) takes effect at once,
+not when the access tokens expire: the node refuses access tokens of a device without a live session with
+`401 auth.session_revoked` (it may cache a positive answer for at most a few seconds), closes the device's
+WebSockets with `4001`, and removes it from voice channels and calls (every device of the account when the account
+is disabled, banned or deleted). Clients treat `auth.session_revoked` like a refused refresh: the session is over.
+Deleting a device id that is not one of the caller's devices is `404 device.not_found` and changes nothing.
 
 **Clients** run one refresh at a time per node and session, coordinated across tabs (Web Locks plus the shared
 storage: a tab adopts tokens another tab stored instead of refreshing again). Only a definitive answer to the
@@ -468,14 +477,20 @@ expired) for the end-to-end tests of these paths; production nodes do not route 
 A session alone does not allow changes that would let a thief lock the owner out or replace their keys. These need
 a **reauth token** from the last five minutes in the `Tavrn-Reauth` header: deleting a device, adding or removing
 passkeys and their secret storage entries, enrolling TOTP with a session, replacing the recovery key entry
-(`PUT /users/me/secret-storage/recovery` when one exists) and the identity reset. `DELETE /auth/totp` and
+(`PUT /users/me/secret-storage/recovery` when one exists), linking or unlinking a single sign-on identity
+(`POST /auth/oidc/start` with purpose `link`, `DELETE /auth/oidc/identity`), a connect code that becomes a new
+session (`POST /auth/connect/code` with `origin`, or with the `session_id` of a `login` app session; `FEDERATION.md`
+§8) and the identity reset. `DELETE /auth/totp` and
 `POST /auth/recovery-codes/regenerate` accept the password in the body as before or a reauth token; the password
 change keeps asking for the current password. The identity key rotation (`POST /users/me/identity/rotate`,
 `ENCRYPTION.md` §9a) needs the header as well. Without a valid token the routes answer
 `403 auth.reauth_required` with `meta.methods` (`password`, `webauthn`, `sso`).
 
-- Every login response (`AuthResponse.reauth_token`) carries one: the login was a fresh proof. Clients keep it in
-  memory only.
+- A **fresh proof** is one of: the password together with the second factor (or a recovery code), a passkey login,
+  a single sign-on login at the provider, `POST /auth/reauth` (password or a passkey assertion), or the provider's
+  `reauth` flow. A session, a refresh, a federated login and a connect code exchange are no proof.
+- Every login response after a fresh proof (`AuthResponse.reauth_token`) carries one. Clients keep it in memory only.
+  The session of a connect code exchange (`POST /auth/connect/token`) carries none (`reauth_token: null`).
 - `POST /auth/reauth { password }` or `{ challenge_id, response }` (an assertion of `POST /auth/reauth/webauthn/start`)
   → `{ reauth_token, expires_in }`; a wrong proof is `403 auth.reauth_failed` (never `401`: the session is fine).
 - SSO accounts re-run the provider login (`POST /auth/oidc/start`, purpose `reauth`); the exchange returns the same
@@ -608,10 +623,15 @@ room and channel settings, and never show another user's age or status.
 3. Events: `{"op":"event","id":"<ulid>","type":"message.create","data":{…}}`. Unknown `type` values are ignored.
 4. Client operations: `typing` (`{ room_id, channel_id }` in room channels, `{ conversation_id }` in DMs and
    group DMs; the node forwards it to the room or to the members and drops typing operations of one connection
-   less than a second apart), `ack` `{ conversation_id, message_id }` (read up to; the same checks and effect as
-   `PUT …/read` below, errors are ignored). Everything else goes through REST, presence too (§6a).
+   less than a second apart), `ack` `{ conversation_id, message_id }` (read up to; the same checks, limit and effect
+   as `PUT …/read` below; errors and acks over the limit are dropped silently). Everything else goes through REST,
+   presence too (§6a). Client frames and messages are at most 64 KiB; a larger one closes the connection.
+   Connecting counts against the user's general request limit, and one user holds at most a node-configured number
+   of connections (default 20; beyond it the node closes the new one with `4002` and the reason
+   `too_many_connections`). The node re-checks the session at every heartbeat and closes with `4001` once it has
+   ended (§5b).
 5. Heartbeat: the node sends `ping` every 30 s, the client answers `pong`; two missed answers close the connection.
-6. Close code `4000` means "node restarting, reconnect immediately", `4001` "token invalid", `4002` "protocol version not supported", `4004` "replaced by a newer connection of the same app token, do not reconnect" (`APPLICATIONS.md` §2.6).
+6. Close code `4000` means "node restarting, reconnect immediately", `4001` "token invalid or session ended", `4002` "protocol version not supported" (or the reason given, e.g. `too_many_connections`, `rate_limited`), `4004` "replaced by a newer connection of the same app token, do not reconnect" (`APPLICATIONS.md` §2.6).
 7. App tokens (`APPLICATIONS.md` §2.6): `ready` also carries `application_id`; at most two connections per token;
    events are filtered by the token's scopes (an event a scope does not cover is dropped); a revoked, reset or
    expired token closes the connection with `4001`.

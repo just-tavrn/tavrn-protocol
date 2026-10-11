@@ -1085,12 +1085,14 @@ client                               node                                       
   not apply: the provider is the gate. Audited `sso.provision`.
 - **Unknown identity, `AUTO_PROVISION` off** → `403 sso.not_provisioned`.
 - **Linking** is only possible from a signed-in account (password **and** second factor): settings → "Link SSO
-  account" (`purpose: "link"`). The node never links by matching email or username, because whoever controls a
+  account" (`purpose: "link"`), with a fresh proof: the start needs a reauth token (`Tavrn-Reauth`, `PROTOCOL.md`
+  §5c; `403 auth.reauth_required` otherwise), because a linked identity is a login method that skips the second
+  factor (§8.4) and must not be added with a stolen session alone. The node never links by matching email or username, because whoever controls a
   provider account with a matching claim would otherwise take over a local account. An identity already linked to
   another account: `409 sso.identity_linked`. Audited `sso.link`.
 - `GET /auth/oidc/identity` (session) → `{ issuer, linked_at, last_login_at } | null`; `DELETE /auth/oidc/identity`
-  unlinks, only if the account also has a password and a second factor (`409 sso.last_login_method`). Audited
-  `sso.unlink`.
+  unlinks, only with a reauth token (`403 auth.reauth_required`) and only if the account also has a password and a
+  second factor (`409 sso.last_login_method`). Audited `sso.unlink`.
 - **SSO-only accounts** (provisioned, no password) cannot set a password in v1 (`409 sso.password_unavailable`).
   With `TAVRN_OIDC_ONLY` the node refuses `POST /auth/register`, `POST /auth/login` and passkey-only logins
   (`403 auth.password_login_disabled`), **except** for the accounts in `TAVRN_ADMIN_USERS` (break-glass, password and

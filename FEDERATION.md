@@ -762,10 +762,13 @@ Every node serves the web client; there is no central client (design note 3.2). 
    flow**: it redirects to `https://home.example/connect?origin=<own origin>&state=<random>&code_challenge=<S256>`
    (a page of the home node's web client). The user signs in there with any method and confirms "Sign in to the
    web client of visited.example?"; the home client calls `POST /api/v1/auth/connect/code { origin,
-   code_challenge, device_name }` (full session) → `{ code }` (single use, valid 2 minutes, bound to origin and
-   challenge) and redirects to `<origin>/connect/callback?code=…&state=…&node=home.example`. The visiting client
-   checks `state` and calls `POST https://home.example/api/v1/auth/connect/token { code, code_verifier }` →
-   session response for a new device. Errors: `400 connect.origin_invalid` (not `https://<valid domain>`;
+   code_challenge, device_name }` (full session and a reauth token in `Tavrn-Reauth`, `PROTOCOL.md` §5c: the code
+   becomes a new long-lived session, so a session alone must not mint one; `403 auth.reauth_required` otherwise) →
+   `{ code }` (single use, valid 2 minutes, bound to origin and challenge) and redirects to
+   `<origin>/connect/callback?code=…&state=…&node=home.example`. The visiting client checks `state` and calls
+   `POST https://home.example/api/v1/auth/connect/token { code, code_verifier }` → session response for a new
+   device, without a reauth token (`reauth_token: null`: the exchange proves no credential; the visiting client
+   confirms with `POST /auth/reauth` when it needs sudo mode). Errors: `400 connect.origin_invalid` (not `https://<valid domain>`;
    `http://` origins are accepted only with `--dev`), `400 connect.code_invalid`.
 
    **App sessions** (capability `connect.app`). A native app (the desktop app) has no `https://<domain>` origin to
@@ -793,7 +796,8 @@ Every node serves the web client; there is no central client (design note 3.2). 
         the page's lifetime (also across the sign-in and an SSO round trip in the same window) and removes it
         from the address bar. A page that finds no valid key never seals anything.
    3. The home client calls `POST /api/v1/auth/connect/code { session_id, code_challenge?, device_name?,
-      sealed_unlock? }` (full session). Exactly one of `origin` and `session_id` is given (both or neither: `400
+      sealed_unlock? }` (full session; a `login` session also needs a reauth token in `Tavrn-Reauth`, `PROTOCOL.md`
+      §5c, an `unlock` session does not, it issues no code). Exactly one of `origin` and `session_id` is given (both or neither: `400
       connect.target_invalid`). `code_challenge`, if given, must equal the session's (`400
       connect.challenge_invalid`); `device_name` is ignored (the session's name wins). The node issues the code
       as for an origin (single use, 2 minutes, bound to the session, the challenge and the confirming device) and
@@ -1539,14 +1543,15 @@ otherwise.
 ### 13.2 Implementation notes (reference node and web client, step 5)
 
 - **Connect flow** (§8): `POST /auth/connect/code` takes `origin`, `code_challenge` (S256, 43 characters)
-  and an optional `device_name`; local users with a full session only (`federation.local_only` otherwise).
+  and an optional `device_name`; local users with a full session and a reauth token only
+  (`federation.local_only`, `auth.reauth_required` otherwise).
   The code (32 random bytes) is kept in memory as its SHA-256 for 2 minutes, bound to the origin, the
   challenge, the user and the confirming device. `POST /auth/connect/token` takes `code` and
   `code_verifier` without authentication; the first attempt spends the code whatever its outcome, and it
   fails with `connect.code_invalid` unless the verifier matches, the request's `Origin` header equals the
   bound origin (browsers always send it on these requests), the user is enabled and the confirming device
   still has a live session. Success is the session response of a **new device** of the home node
-  (`device_name`, default "Browser (\<origin host>)"), audited as `user.connect`; the visiting client then
+  (`device_name`, default "Browser (\<origin host>)") without a reauth token, audited as `user.connect`; the visiting client then
   requests federation tokens like any home client. A malformed challenge is `400 connect.challenge_invalid`.
   Limits: codes per device with the federation token limit (30/min), exchanges per client IP with the login
   limit. `http://` origins only with `--dev`.

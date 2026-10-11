@@ -5,6 +5,21 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **Fresh proof for new sessions and login methods** (`PROTOCOL.md` §5c, `FEDERATION.md` §8, `APPLICATIONS.md`
+  §8.3). `POST /auth/connect/code` (origin, or a `login` app session) and linking or unlinking a single sign-on
+  identity need a reauth token (`403 auth.reauth_required`). The session of a connect code exchange carries no
+  reauth token. §5c lists what counts as a fresh proof.
+- **Revocations take effect at once** (`PROTOCOL.md` §5b, §6). Logout, password change or reset, device deletion,
+  disabling, second-factor reset, node ban and account deletion end the access tokens of the affected devices
+  (`401 auth.session_revoked`), close their WebSockets (`4001`) and remove them from voice and calls. Deleting a
+  device id of another account changes nothing (`404 device.not_found`).
+- **WebSocket limits** (`PROTOCOL.md` §6). Client frames at most 64 KiB; connecting counts against the general
+  request limit; a per-user connection cap (close `4002`, reason `too_many_connections`); `ack` shares the limit of
+  `PUT …/read`.
+- **Password reset limits** (`PROTOCOL.md` §5a). `POST /auth/forgot-password`: three mails per account and hour, a
+  pending link stays valid, `503 mail.unavailable` on nodes without e-mail. Failed logins count per account, and the
+  right password with a valid device proof passes an account over its limit.
+
 - **CORS mirrors the requested headers** (`FEDERATION.md` §8 "CORS and CSP"). Nodes allow at least the listed
   request headers and the `Tavrn-*` headers of the upload routes; the reference node mirrors whatever headers a
   preflight names, allows every method and exposes `Content-Range` and `Content-Disposition` besides `ETag`,
