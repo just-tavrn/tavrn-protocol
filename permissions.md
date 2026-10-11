@@ -219,7 +219,11 @@ then on; when that grants anybody more than before, the actor needs `manage_role
 
 Hierarchy: roles have a position (`@everyone` = 0). Members can only manage or assign roles below their own
 highest position, only grant permissions they hold themselves, and only kick, ban or time out members whose
-highest role is lower. Owners outrank everything, node admins as well.
+highest role is lower. Owners outrank everything, node admins as well. "Grant" covers every way of handing out
+bits: creating or editing a role, **assigning** a role (to another member or to oneself; a role the member already
+holds may stay in the list) — `403 role.escalation` when the role carries a bit the actor lacks — and overrides,
+where the actor may neither allow nor **deny** a bit they do not hold where the override applies, nor allow or deny
+an upload category they cannot use there (`403 override.escalation`).
 
 ## Bots (`APPLICATIONS.md` §2.4, §3.5)
 
