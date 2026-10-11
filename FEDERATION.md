@@ -906,7 +906,8 @@ Every node serves the web client; there is no central client (design note 3.2). 
    - The app creates a fresh X25519 key pair for every app session and puts the public key into the fragment
      (`#k=`, step 2). The secret key never leaves the app and is dropped when the session ends.
    - After a passkey ceremony with a PRF result on the page (the passkey-only login, a passkey as second factor,
-     or, for an `unlock` session, an assertion just for the PRF), the page builds
+     on a page that is already signed in the passkey re-authentication `POST /auth/reauth` whose assertion also
+     yields the reauth token of step 3, or, for an `unlock` session, an assertion just for the PRF), the page builds
      `sealed_unlock = base64url(crypto_box_seal(plaintext, k))`: libsodium's sealed box, the construction of the
      webhook inbox (ENCRYPTION.md §5b: ephemeral X25519 key, XSalsa20-Poly1305, `ephemeral public(32) ||
      ciphertext || tag(16)`). The plaintext is the UTF-8 JSON `{ "type": "tavrn.connect.unlock.v1",
