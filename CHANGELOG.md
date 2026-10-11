@@ -5,6 +5,10 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **Native apps: SRV targets must hold a certificate for the identity domain** (`FEDERATION.md` §1.4). At the SRV
+  step a native app connects to the target but makes the request for the identity domain (SNI and `Host`), and the
+  target's certificate must be valid for that domain; a certificate only for the target counts as a failure of that
+  record. A forged DNS answer can no longer bind the app to another node.
 - **CORS mirrors the requested headers** (`FEDERATION.md` §8 "CORS and CSP"). Nodes allow at least the listed
   request headers and the `Tavrn-*` headers of the upload routes; the reference node mirrors whatever headers a
   preflight names, allows every method and exposes `Content-Range` and `Content-Disposition` besides `ETag`,
