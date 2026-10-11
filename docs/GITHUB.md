@@ -59,7 +59,7 @@ code of the repository and installs nothing.
 3. With `CI_ENABLED` the release workflow's job `build` checks the tag against `package.json`, runs the tests and
    packs the tarball without any secret; `release` creates the GitHub release with it; with `NPM_PUBLISH_ENABLED`,
    `publish` waits for the owner's approval of the environment `release` and publishes that same tarball to npm
-   with provenance (no checkout, no install in the job that holds `NPM_TOKEN`).
+   with provenance after comparing it with `npm pack --ignore-scripts` of the tag (no install and no code of the repository in the job that holds `NPM_TOKEN`).
 
 During the private phase the node (`tavrn-node`) and the JavaScript packages (`tavrn-js`) carry this
 repository as a git submodule pinned to a tag. After a new tag, bump the submodule there.

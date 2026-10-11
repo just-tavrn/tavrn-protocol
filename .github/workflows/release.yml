@@ -7,7 +7,8 @@
 #
 # Three jobs, so that no code of the build ever runs next to a publishing credential: `build` tests and packs the
 # tarball without any secret, `release` attaches it to the GitHub release, and `publish` (environment `release`:
-# tags v*, the owner's approval) publishes exactly that tarball; it checks out nothing and installs nothing.
+# tags v*, the owner's approval) publishes exactly that tarball after comparing it with `npm pack --ignore-scripts`
+# of the tag; it installs nothing and runs no code of the repository.
 name: Release
 
 on:
@@ -79,7 +80,10 @@ jobs:
       contents: read
       id-token: write
     steps:
-      # No checkout, no install, no cache: npm publishes the tarball the build job packed.
+      # No install, no cache: npm publishes the tarball the build job packed, after checking it against the tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
@@ -87,8 +91,16 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: npm-package
-          path: release
+          path: ${{ runner.temp }}/release
+      - name: The tarball to publish holds the tag's files
+        run: |
+          mkdir -p "$RUNNER_TEMP/from-tag" "$RUNNER_TEMP/a" "$RUNNER_TEMP/b"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/from-tag" >/dev/null
+          n="$(basename "$(ls "$RUNNER_TEMP"/from-tag/*.tgz)")"
+          tar -xzf "$RUNNER_TEMP/release/$n" -C "$RUNNER_TEMP/a"
+          tar -xzf "$RUNNER_TEMP/from-tag/$n" -C "$RUNNER_TEMP/b"
+          diff -r "$RUNNER_TEMP/a" "$RUNNER_TEMP/b"
       - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish release/*.tgz --provenance --access public
+        run: npm publish "$RUNNER_TEMP"/release/*.tgz --provenance --access public
