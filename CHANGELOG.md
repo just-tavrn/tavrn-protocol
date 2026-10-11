@@ -5,6 +5,73 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+### Security
+
+- **Fresh proof for new sessions and login methods** (`PROTOCOL.md` §5c, `FEDERATION.md` §8, `APPLICATIONS.md`
+  §8.3). `POST /auth/connect/code` (origin, or a `login` app session) and linking or unlinking a single sign-on
+  identity need a reauth token (`403 auth.reauth_required`). The session of a connect code exchange carries no
+  reauth token. §5c lists what counts as a fresh proof.
+- **Revocations take effect at once** (`PROTOCOL.md` §5b, §6). Logout, password change or reset, device deletion,
+  disabling, second-factor reset, node ban and account deletion end the access tokens of the affected devices
+  (`401 auth.session_revoked`), close their WebSockets (`4001`) and remove them from voice and calls. Deleting a
+  device id of another account changes nothing (`404 device.not_found`).
+- **WebSocket limits** (`PROTOCOL.md` §6). Client frames at most 64 KiB; connecting counts against the general
+  request limit; a per-user connection cap (close `4002`, reason `too_many_connections`); `ack` shares the limit of
+  `PUT …/read`.
+- **Password reset limits** (`PROTOCOL.md` §5a). `POST /auth/forgot-password`: three mails per account and hour, a
+  pending link stays valid, `503 mail.unavailable` on nodes without e-mail. Failed logins count per account, and the
+  right password with a valid device proof passes an account over its limit.
+- SRV delegation no longer makes DNS the trust anchor: the target must present a certificate valid for the identity
+  domain, and a document from another source with none of the known keys is a key conflict (`FEDERATION.md` §1.3, §1.4).
+- Requests to a slow peer cannot hold node-wide connection slots; failed discovery is remembered for 60 seconds and
+  peers known only from unverified requests are capped (`FEDERATION.md` §1.3, §1.4).
+- More IPv6 transition ranges and 192.88.99.0/24 are non-public addresses (`FEDERATION.md` §1.3 rule 3).
+- Domain bans and blocklist entries cover subdomains (`FEDERATION.md` §1.5, §3.3).
+- A remote account's kind and owner come from the verified token; a bot is never turned into a user
+  (`federation.kind_mismatch`, `FEDERATION.md` §2.6).
+- Inviters and callers of third nodes are unverified: never a friend, always a request, shown with `via`
+  (`FEDERATION.md` §5.2; new optional `via` of invite list entries).
+- `ban.notify` only from nodes the user signed in on; forwarded legal notices need federation history, are limited
+  and send no confirmation mail (`FEDERATION.md` §5.2, `LEGAL.md` §1.5).
+- `message.purge` is sent per channel (`PROTOCOL.md` §6).
+- New reference values `testvectors/federation_node.json` (discovery documents, node and listing tokens).
+- **A leaf never changes its identity** (`ENCRYPTION.md` §4.3, §4.4). The delivery service and clients refuse a
+  member commit whose update-path leaf carries another identity than the committer's, and the delivery service
+  refuses a commit after which two leaves share a signature key.
+- **External joins replace every old leaf of the device** (`ENCRYPTION.md` §4.5 rule 2): the commit must remove
+  every leaf with the joiner's key; a leaf with its identity but another key is a ghost any member may remove. Rule 4 lets any member remove a leaf whose key is not the attested
+  key of the device it names.
+- **Claim budget per source and target** (`ENCRYPTION.md` §3.2): home nodes limit KeyPackage claims of requesters
+  who share no room, DM or friendship with the target per source (the node itself or one requesting node).
+- **Clarifications** (`ENCRYPTION.md` §7b, §9; `PROTOCOL.md` §7): the 64 KiB share limit is measured on the
+  base64url string; the identity reset accepts any reauth token of the session and records `key_reset_at` with the
+  key change; the envelope example names the field `reply_to_id`.
+- **Unknown devices block every encrypted write** (`ENCRYPTION.md` §4.6). Clients encrypt no content (messages, edits,
+  thread titles, forum posts, file records, scenes) while the roster holds a ghost leaf the user has not explicitly
+  acknowledged; a leaf naming an attested device with another key is unattested.
+- **Claimed KeyPackages are checked** (`ENCRYPTION.md` §4.2): the leaf must carry the claimed device's identity and
+  attested key.
+- **Retired re-attestation only for own recorded devices** (`ENCRYPTION.md` §4.7); removals name the leaf by identity
+  and signature key.
+- **Plaintext in encrypted conversations** (`ENCRYPTION.md` §5.4) is never shown as the author's content; link
+  previews are listed with the metadata the node sees.
+- **Trust record** (`ENCRYPTION.md` §7): pins, verified contacts and own devices as an encrypted backup, restored
+  before first-use pinning; a conflicting pin is a changed key unless a continuity chain links the keys.
+- **Unattended clients and ghosts** (`ENCRYPTION.md` §4.6): acknowledgements cover one leaf (identity and key); bots
+  decide by an operator setting (default: only retired devices are accepted).
+- **History shares: format 1 removed** (`ENCRYPTION.md` §7b). Clients send only format 2 and bound the window of an
+  automatic share by their own knowledge of the member.
+- **Native apps: SRV targets must hold a certificate for the identity domain** (`FEDERATION.md` §1.4). At the SRV
+  step a native app connects to the target but makes the request for the identity domain (SNI and `Host`), and the
+  target's certificate must be valid for that domain; a certificate only for the target counts as a failure of that
+  record. A forged DNS answer can no longer bind the app to another node.
+
+### Fixed
+
+- `FEDERATION.md` §7.1/§7.2 match the implementation notes (6-hour announces to reference nodes, 48-hour expiry);
+  §10.3 says how signed mentions are handled by a node that normalises mentions; §1.2 recommends `kid`s that a
+  restored node cannot repeat.
+
 - **CORS mirrors the requested headers** (`FEDERATION.md` §8 "CORS and CSP"). Nodes allow at least the listed
   request headers and the `Tavrn-*` headers of the upload routes; the reference node mirrors whatever headers a
   preflight names, allows every method and exposes `Content-Range` and `Content-Disposition` besides `ETag`,

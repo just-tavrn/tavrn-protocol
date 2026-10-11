@@ -58,7 +58,10 @@ per-domain limits of §11.1 so peers can pace themselves and the conformance che
 
 - `keys` lists every currently valid node signing key as `{ kid, alg: "EdDSA", crv: "Ed25519", x }`
   (`x` = base64url of the 32-byte public key). `kid` is 1–64 characters of `[A-Za-z0-9._-]` and unique in
-  the document; at most 10 keys. A `kid` MUST NOT ever be reused for a different key.
+  the document; at most 10 keys. A `kid` MUST NOT ever be reused for a different key: peers treat a known `kid`
+  with another key as a key conflict and block the node (§1.4). Derive `kid`s so that a lost key directory cannot
+  produce one again (the reference node: the creation date plus a random suffix, `20261011-3f9a1c`; a date alone
+  repeats when a node restores a backup without its keys and generates a new key on the same day).
 - A node signs with its newest key. **Rotation**: add the new key (the reference node: a new file
   `/data/keys/node-<kid>.pem`) and restart; peers learn it on first use through the unknown-`kid`
   refresh (§1.4), so the new key can be used immediately. The old key MUST stay listed for at least
@@ -85,16 +88,20 @@ KeyPackage claims) goes through one dedicated HTTP client with these rules (desi
    (`federation.address_forbidden`) if **any** resolved address is in a non-public range: `0.0.0.0/8`,
    `10.0.0.0/8`, `100.64.0.0/10`, `127.0.0.0/8`, `169.254.0.0/16`, `172.16.0.0/12`, `192.0.0.0/24`,
    `192.0.2.0/24`, `192.168.0.0/16`, `198.18.0.0/15`, `198.51.100.0/24`, `203.0.113.0/24`, `224.0.0.0/4`,
-   `240.0.0.0/4`, `::/128`, `::1/128`, `64:ff9b::/96` and `::ffff:0:0/96` (checked against the embedded
-   IPv4 address), `100::/64`, `2001:db8::/32`, `fc00::/7`, `fe80::/10`, `ff00::/8`. The connection is
-   then made to the **vetted address** (with SNI and `Host` = domain), never by resolving again, so DNS
+   `240.0.0.0/4`, `192.88.99.0/24`, `::/128`, `::1/128`, `::/96` (IPv4-compatible), `2001::/32` (Teredo),
+   `64:ff9b:1::/48` (local-use NAT64), `64:ff9b::/96`, `::ffff:0:0/96` and `2002::/16` (6to4; these three are
+   checked against the embedded IPv4 address), `100::/64`, `2001:db8::/32`, `fc00::/7`, `fe80::/10`, `ff00::/8`.
+   The connection is then made to the **vetted address** (with SNI and `Host` = domain), never by resolving again, so DNS
    rebinding cannot switch the target. `TAVRN_FEDERATION_ALLOW_PRIVATE=true` lifts the range check (for
    development, tests and closed intranets; the node logs a warning at startup).
 4. **Redirects**: at most 3, only to `https` on the **same host**; any other redirect is an error.
 5. **Limits**: connect timeout 5 s, total timeout 10 s (inbox deliveries 15 s); response bodies are read
    with a hard cap and the request fails beyond it: discovery document 64 KiB, profile 16 KiB, user keys
    256 KiB, KeyPackage claim 512 KiB, avatar 1 MiB, directory page 1 MiB. At most 4 concurrent requests
-   per peer and 64 overall; excess requests queue.
+   per peer and 64 overall; excess requests queue, first for a slot of their peer and only then for one of the
+   node-wide slots (a slow peer never holds node-wide slots while it waits), at most
+   `TAVRN_FEDERATION_PERMIT_TIMEOUT_SECS` (reference node default 10 s), then the request fails
+   (`502 federation.peer_unreachable`).
 6. **Headers**: `User-Agent: tavrn-node/<version> (+https://<own domain>)`, `Accept: application/json`;
    no cookies are sent or stored; environment proxy variables are ignored.
 7. Only `200`–`299` responses are parsed. Content types other than `application/json` (or the image types
@@ -111,17 +118,23 @@ identity domain's website OR the `_tavrn._tcp` SRV record, never both:
 |---|---|---|
 | `200`, valid, names `domain` | not consulted | the document's `api`/`ws`/`web` (`well_known`) |
 | `200`, invalid or names another domain | not consulted | `502 federation.peer_invalid` |
-| `404` (website without the document) | a target serves a document naming `domain` | that document's endpoints (`srv`) |
+| `404` (website without the document) | a target serves a document naming `domain`, over TLS valid for `domain` | that document's endpoints (`srv`) |
 | `404` | the target's document names another domain or is invalid | `502 federation.peer_invalid` (no direct attempt) |
 | `404` | a target resolves to a non-public address (rule 3) | `502 federation.address_forbidden` |
 | `404` | no record, lookup failure, or no target reachable | `https://<domain>/api/v1`, `wss://<domain>/api/v1/ws`, web `https://<domain>` (`domain`), cached 5 minutes |
-| no HTTPS server: connection refused or reset, DNS failure, TLS failure, timeout | a target serves a document naming `domain` | that document's endpoints (`srv`) |
+| no HTTPS server: connection refused or reset, DNS failure, TLS failure, timeout | a target serves a document naming `domain`, over TLS valid for `domain` | that document's endpoints (`srv`) |
+| `404` or no HTTPS server | a target presents a certificate that is not valid for `domain` (only for itself) | `502 federation.peer_unreachable` |
 | no HTTPS server | no usable record or no target reachable | `502 federation.peer_unreachable` |
 | any other status (`5xx`, `401`, `403`, a refused redirect, …) | not consulted | `502 federation.peer_unreachable` |
 | the domain resolves to a non-public address (rule 3) | not consulted | `502 federation.address_forbidden` |
 
 SRV targets are tried lowest priority first, then highest weight, at most 3; they must be domain names (no IP
-literals), are vetted like any host (rule 3) and serve the document at `https://<target>:<port>/.well-known/tavrn`.
+literals) and are vetted like any host (rule 3). The SRV record only says **where** to connect: the node connects to
+the target's vetted addresses and port, but the TLS handshake and the request are for the identity domain (SNI
+`<domain>`, `Host: <domain>:<port>`, `GET https://<domain>:<port>/.well-known/tavrn`), and the target's
+certificate MUST be valid for `<domain>` (a SAN entry or a wildcard covering it suffices). A certificate valid only
+for the target host is refused like any TLS failure. This is the rule of other federated systems with SRV
+delegation, and it applies to every party that resolves through SRV, nodes and native apps alike.
 With `TAVRN_FEDERATION_SRV_FALLBACK=false` the SRV column is skipped: a `404` goes straight to the direct domain,
 a missing server is `federation.peer_unreachable`. Development peers (rule 8) use SRV only after a `404` (a
 stopped development peer fails at once). Browsers cannot query DNS records; web clients get the same result
@@ -151,8 +164,8 @@ for application URLs only.
      there. The endpoints must be `https`/`wss` URLs without credentials, query or fragment (`http`/`ws` only
      in development); `api` ends in `/api/v1`.
   2. **No document** (`404`, or no HTTPS server at all: connection refused, DNS or TLS failure, timeout) and
-     `TAVRN_FEDERATION_SRV_FALLBACK` (default on): the `_tavrn._tcp.<domain>` SRV records; the target's document
-     must name `domain`.
+     `TAVRN_FEDERATION_SRV_FALLBACK` (default on): the `_tavrn._tcp.<domain>` SRV records; the target must
+     present a certificate valid for `domain` (§1.3) and its document must name `domain`.
   3. **Still nothing after a `404`**: the API is `https://<domain>/api/v1` (cached for the minimum lifetime), the
      last attempt. Any other HTTP status, a refused address or an invalid document is an error at every step.
 - A node fetches a peer's document on first need and validates it: `tavrn` known, `domain` equal to the
@@ -167,13 +180,39 @@ for application URLs only.
 - **Unknown `kid`**: when a token names a `kid` that is not cached, the node refetches the document once,
   at most once per 5 minutes per peer (negative cache), then fails with `federation.token_invalid`.
 - **Key consistency**: if a refetch returns a different key for a `kid` already seen, the node treats it as
-  a hard failure (§9.4) and keeps the old cache entry blocked until an operator decides.
+  a hard failure (§9.4) and keeps the old cache entry blocked until an operator decides. The same holds when the
+  document now comes from another source than before (`well_known` → `srv` or back) and shares **no** key with the
+  keys seen before: a takeover looks exactly like that, a real move keeps at least one key during the change
+  (§1.2). The peer's federated sessions on this node end with the block (§2.5).
+- **Failed fetches**: a fetch that fails or returns an invalid document is remembered per domain for 60 seconds;
+  during that time requests that need the domain's keys to check a signature (inbox, claims, federated logins)
+  fail at once with the same error instead of fetching again, so unsigned requests naming a slow or foreign
+  domain neither tie up the client nor make the node fetch other sites' URLs on demand. A request that found no free
+  local connection slot in time is not a failure of the peer and is not remembered. Fetches for issuers the node
+  has no cached document of, started by requests not verified yet, run in a few slots of their own
+  (`TAVRN_FEDERATION_DISCOVERY_SLOTS`, reference node 12; when all are taken the request is refused at once with
+  `503 federation.busy`), so requests naming many slow domains leave the other slots to known peers. Peers known
+  only from requests whose signature never verified are capped (`TAVRN_FEDERATION_MAX_UNVERIFIED_PEERS`, reference
+  node 1000; peers the node looked up itself, listed in its directory, with users or sign-ins never count): beyond
+  it such requests naming new domains are refused with `503 federation.peer_limit` before any fetch. Cached peers
+  unused for 30 days without users, sessions or directory entries are pruned.
+- **Why DNS alone is never the trust anchor.** The node's signing keys are what every federation decision rests
+  on, and plain DNS (no DNSSEC validation, any resolver on the path) can be spoofed by anyone on the network path
+  of the fetching party. A spoofer can make the direct fetch fail (a black-hole address, an invalid certificate)
+  and answer the SRV query with a host of their own. Without the certificate rule they would then hold valid keys
+  for every user of the domain. With it, they also need a certificate for the identity domain itself, which DNS
+  spoofing alone does not give; TLS for the identity domain stays the anchor whichever path found the server.
 - Clients follow the same rules where a browser allows (HTTPS, size cap, `domain` check, resolution step 1;
   when the domain serves no document (`404`) or the browser cannot fetch it at all, e.g. without CORS headers,
   they ask the node they were loaded from, `GET /federation/resolve/{domain}`, which runs the whole order
   including SRV); they cache the endpoints per domain for at most 1 hour. Native apps that can query DNS (the
   desktop app, before its first sign-in, has no node to ask) run the whole order themselves: well-known, then SRV
-  after a `404` or without an HTTPS server, then the direct domain after a `404` only.
+  after a `404` or without an HTTPS server, then the direct domain after a `404` only. At the SRV step they connect
+  to the target's host and port but make the request for the identity domain: TLS SNI and `Host` name `domain`, and
+  the target's certificate MUST be valid for `domain` (the same rule as for nodes, §1.3); a certificate valid only
+  for the target counts as a transport failure of that record, and with no record left the domain is unreachable.
+  A TLS failure of the direct fetch may still lead to SRV: a forged DNS answer alone cannot hand the app another
+  node, because a target cannot present a certificate for the domain without controlling it.
   The stored session of a node keeps both the identity domain (addresses, display) and its endpoints
   (requests).
 
@@ -183,7 +222,9 @@ Evaluated for every federated login, inbox message, claim and outbound request, 
 
 1. Federation disabled (`TAVRN_FEDERATION_ENABLED=false`) → `403 federation.disabled`.
 2. Domain on the node blocklist (`TAVRN_FEDERATION_BLOCKLIST`, admin node bans `POST /admin/bans` with a
-   domain subject, automatic blocks of §9.4) → `403 federation.peer_blocked`. The blocklist always wins.
+   domain subject, automatic blocks of §9.4) → `403 federation.peer_blocked`. The blocklist always wins. Entries
+   of the blocklist and domain bans (node bans here, room bans in §3.3) also cover every subdomain of the named
+   domain: a ban of `evil.example` refuses `a.evil.example`.
 3. `TAVRN_FEDERATION_ALLOWLIST` non-empty and the domain not on it → `403 federation.peer_blocked`.
 4. Per-domain rate limits (§11.1) → `429` with `Retry-After`. They are charged only for requests whose signature
    verified, so requests forged in a peer's name cannot use up its budget. Before the signature check (which may
@@ -307,8 +348,10 @@ device:
 - Errors: `401 federation.token_invalid` (malformed, signature, `aud`, `typ`, lifetime, unknown `kid`),
   `401 federation.token_expired`, `401 federation.token_replayed`, `401 federation.issuer_mismatch`,
   `403 federation.disabled`, `403 federation.peer_blocked`, `403 federation.user_banned`, `403
-  federation.bots_refused`, `403 federation.remote_limit`, `502 federation.peer_unreachable`, `502
-  federation.peer_invalid`, `429`.
+  federation.bots_refused`, `403 federation.remote_limit`, `403 federation.kind_mismatch` (§2.6), `502
+  federation.peer_unreachable`, `502 federation.peer_invalid`, `429`.
+- A peer blocked after a key conflict (§1.4) or by an operator loses its federated sessions here at once: every
+  request of a remote user checks that the home domain is still usable (domain policy and peer status).
 
 ### 2.6 Remote users on a node
 
@@ -320,7 +363,10 @@ token. Profile fields are a mirror. Extra state lives in `remote_users`:
 
 - Rows are created lazily: by a federated login, or as a **stub** when a local action names a remote
   address (friend request, DM, direct invite, ban, mention resolution). Creating a stub fetches the profile
-  (§2.7); `404` there → `404 user.not_found`.
+  (§2.7); `404` there → `404 user.not_found`. A stub is a `user` without owner; the first federated login
+  takes `kind` and `owner` from the verified token, so a bot that was first known as a stub becomes a bot with
+  its owner (bot scopes, "no bots" and owner bans apply). The reverse, a `bot` row presented by a token of
+  another kind, is refused with `403 federation.kind_mismatch`: it would lift the bot rules.
 - Remote users are addressed by **address** across nodes. Their user ULID is node-local and differs on every
   node; clients MUST NOT compare user ids of different nodes.
 - Quotas: at most `TAVRN_FEDERATION_MAX_REMOTE_USERS` remote users in total and
@@ -419,7 +465,9 @@ Room domain bans use the existing route `POST /api/v1/rooms/{room_id}/bans` with
 `{ "subject": "evil.example", "reason" }` (subjects are `user@domain` or a domain; own domain refused with
 `400 ban.own_domain`), listed under `GET …/bans` and lifted with `DELETE …/bans/{subject}`. Node-level
 domain bans use `POST /api/v1/admin/bans` the same way. A separate `…/bans/domains` route is not
-introduced. For federation a domain ban MUST additionally:
+introduced. A domain ban covers the domain and all its subdomains (a ban of `evil.example` also matches
+`a.evil.example` and `user@a.evil.example`), like the blocklist (§1.5). For federation a domain ban MUST
+additionally:
 
 - remove every current member whose address is in that domain and every bot whose owner is in that domain,
   with `member.leave` events and `mls.remove_needed` for their leaves (as a user ban does);
@@ -526,7 +574,7 @@ against them.
 
 Pending invitations are not index entries: they are stored by H in the user's **invite list**
 (`GET /api/v1/users/me/invites` → `{ items: [ { id, kind: "room" | "conversation", node, room?,
-conversation?, inviter, invite_code?, received_at, expires_at } ] }`, `DELETE /api/v1/users/me/invites/{id}`
+conversation?, inviter, via?, invite_code?, received_at, expires_at } ] }`, `DELETE /api/v1/users/me/invites/{id}`
 to dismiss; at most 200, oldest dropped, expired ones pruned). Accepting = joining on the hosting node, adding
 the index entry and deleting the invite.
 
@@ -567,12 +615,12 @@ federation.payload_too_large`, checked before reading further):
 | `devices.changed` | the user's home node | user (domain = `iss`) → receiving domain | `{}` | Refetch the key cache; `mls.remove_needed` for leaves of devices that disappeared. Also sent after an identity key rotation (`ENCRYPTION.md` §9a): a refetch that shows another identity key writes `system.key_changed` into the welcome channels of the user's rooms on the receiving node (`rotated` = the document's continuity chain leads from the cached key to the new one) and sends WS `identity.rotated` (or `identity.changed`) to local contacts |
 | `session.revoke` | the user's home node | user (domain = `iss`) → receiving domain | `{ device: id \| null }` | §2.9 |
 | `node.announce` | the announcing node | domain = `iss` → receiving domain | §7.2 | §7.2 |
-| `ban.notify` | the room's node | room node domain → user | `{ room: { node, id, name }, scope: "room" \| "node" }` | Information only (no enforcement): optional notice to the user; no reason is transmitted |
+| `ban.notify` | the room's node | room node domain → user | `{ room: { node, id, name }, scope: "room" \| "node" }` | Information only (no enforcement): optional notice to the user, only if the user signed in on the sending node (otherwise dropped silently, `202`); no reason is transmitted |
 | `notify` | the conversation's node | node domain → user | `{ node, conversation_id, room_id, mention: bool }` | Push hint without content: H forwards it as web push (PROTOCOL.md §6d) to the user's devices without a connection and as WS `notify` to the user's connections on H |
 | `app.install` | the room's node | room node domain → bot address | `{ room: { node, id, name }, installed_by }` (`room.node` = `iss`) | H checks that the recipient is a bot with an enabled application (else `404 federation.recipient_unknown`), adds the room to the application's install index and emits WS `application.install` to the bot (`APPLICATIONS.md` §4.5) |
 | `app.uninstall` | the room's node | room node domain → bot address | `{ room: { node, id }, reason }` (`room.node` = `iss`) | H removes the index entry and emits WS `application.uninstall` |
 | `app.changed` | the bot's home node | bot address (domain = `iss`) → receiving domain | `{ application_id, commands_version, deleted }` | Only for a bot the receiver knows as that application: refetch its profile (name, avatar) and, from step 3, the commands; `deleted: true` uninstalls the bot from every local room and disables its stub (installations and logins refused) |
-| `legal.notice` | the node that received a takedown notice | domain = `iss` → receiving domain | `{ case_id, basis, work, explanation, locations: [{ kind, value }], reporter: { name, email, address, phone }, good_faith, accuracy, perjury, signature, submitted_at }` | Opens a case of its own (state `received`, origin `iss` and `case_id` recorded, idempotent per origin case) and mails the reporter; the fields are checked like the public form (`400 federation.payload_invalid`). Accepted even when the receiver's public form is off (`LEGAL.md` §1.5) |
+| `legal.notice` | the node that received a takedown notice | domain = `iss` → receiving domain | `{ case_id, basis, work, explanation, locations: [{ kind, value }], reporter: { name, email, address, phone }, good_faith, accuracy, perjury, signature, submitted_at }` | Opens a case of its own (state `received`, origin `iss` and `case_id` recorded, idempotent per origin case); the fields are checked like the public form (`400 federation.payload_invalid`). No confirmation mail at receipt (the address comes from the sender, which confirmed the notice itself); the reporter hears from the receiver once its admin acts. Accepted even when the receiver's public form is off (`LEGAL.md` §1.5), but only from a node with federation history (users of it known to the receiver for at least a day, receiver users signed in there, or listed in the receiver's directory; else `403 legal.forward_refused`) and at most 10 per sending registrable domain (subdomains share it) and 50 in total per hour (reference node, `TAVRN_LEGAL_NOTICE_INBOUND_PER_HOUR`; `429`), both checked before the message counts as received |
 | `user.deleted` | the user's home node | user (domain = `iss`) → receiving domain | `{ delete_messages: bool }` | The stub is tombstoned like a local deletion (`LEGAL.md` §3.3): memberships, sessions, devices and keys go, messages move to a "Deleted user" tombstone with device ids and signatures stripped, their content and files are deleted too when `delete_messages`; the request is recorded in the audit log (`federation.user_deleted`) and the stub row is removed |
 
 Claims about the receiver's own users: a user address of the receiving node named as the inviter (`from` of
@@ -583,6 +631,14 @@ of third nodes are accepted as before (their users act on the sending node throu
 cannot see). `notify` hints, rings included, are accepted only for a recipient who signed in on the sending node
 (a member of something there); others are dropped silently (`202`). The block filters apply as listed in the
 table.
+
+Third-node users are **unverified**: the sending node can name a user of a third node (a member of a group it
+hosts) as inviter or caller, but it cannot vouch for that user. The receiver therefore treats such an inviter as a
+stranger: friendship with the named user does not count, the recipient's `dm_policy` applies as to anyone else,
+`requested` is always `true`, and the stored invitation carries `via` = the sending node (`room.invite` and
+`conversation.invite`; the summary object and the invite list entry), so clients show the inviter "via" the sending node and
+never present it as coming from a friend. A ring hint naming a third-node caller reaches the recipient's
+connections as `call.ring { …, via }` in the same way.
 
 Who sends what:
 - `identity.changed`, `devices.changed`, `session.revoke`: H to every domain in `federation_targets` of the user
@@ -688,13 +744,17 @@ remote party as a stub user).
 
 Every node keeps `known_nodes`: domain, name, description, software, capabilities, registration mode,
 public room count, listing opt-in, keys, `first_seen`, `last_seen`, `last_announce`, conformance record (§9.3),
-block state. A domain enters the table only after its `.well-known` was fetched and validated (§1.4). Nodes
-unreachable for 30 days are removed. At most 10 000 entries; beyond that the least recently seen are dropped.
+block state. A domain enters the table only after its `.well-known` was fetched and validated (§1.4). A node not
+seen for **48 hours** (no announce, not confirmed through a reference node's list) is removed with its rooms. At
+most 10 000 entries; beyond that the least recently seen are dropped. (The reference node keeps the peer cache and
+the directory in two tables, `federation_peers` and `directory_nodes`, §13.1.)
 
 ### 7.2 Announcing
 
-- At startup and then hourly (±10 min jitter) a node sends `node.announce` to every reference node
-  (`TAVRN_REFERENCE_NODES`, empty by default; the example configuration names a public test node), and daily to the other known peers it federates with.
+- Shortly after startup and then every **6 hours** (±10 min jitter), and whenever a listing-relevant room setting
+  changes, a node sends `node.announce` to every reference node (`TAVRN_REFERENCE_NODES`, empty by default; the
+  example configuration names a public test node). Announces go to reference nodes only; other nodes learn of it
+  through the reference nodes' lists.
 - Payload: `{ domain, name, description, software: { name, version }, capabilities, registration,
   public_rooms, users? , listing: true }` (`users` only if the operator publishes it). Strings are length-capped
   (name 64, description 500).
@@ -702,8 +762,8 @@ unreachable for 30 days are removed. At most 10 000 entries; beyond that the lea
   updates `known_nodes` and `last_seen`. Announces are limited to one per domain per 10 minutes.
 - With `TAVRN_DIRECTORY_LISTING=false` a node does not announce itself and other nodes MUST NOT list it even if
   they know it from federation traffic; it still federates and may read directories.
-- A node also pulls the peer lists of its reference nodes hourly (`GET /api/v1/directory/nodes`) and verifies
-  every new domain through its `.well-known` before adding it.
+- A node also pulls the peer lists of its reference nodes every 6 hours (`GET /api/v1/directory/nodes`) and
+  verifies every new domain through its `.well-known` before adding it.
 
 ### 7.3 Directory routes (public, no authentication, CORS-open)
 
@@ -762,10 +822,13 @@ Every node serves the web client; there is no central client (design note 3.2). 
    flow**: it redirects to `https://home.example/connect?origin=<own origin>&state=<random>&code_challenge=<S256>`
    (a page of the home node's web client). The user signs in there with any method and confirms "Sign in to the
    web client of visited.example?"; the home client calls `POST /api/v1/auth/connect/code { origin,
-   code_challenge, device_name }` (full session) → `{ code }` (single use, valid 2 minutes, bound to origin and
-   challenge) and redirects to `<origin>/connect/callback?code=…&state=…&node=home.example`. The visiting client
-   checks `state` and calls `POST https://home.example/api/v1/auth/connect/token { code, code_verifier }` →
-   session response for a new device. Errors: `400 connect.origin_invalid` (not `https://<valid domain>`;
+   code_challenge, device_name }` (full session and a reauth token in `Tavrn-Reauth`, `PROTOCOL.md` §5c: the code
+   becomes a new long-lived session, so a session alone must not mint one; `403 auth.reauth_required` otherwise) →
+   `{ code }` (single use, valid 2 minutes, bound to origin and challenge) and redirects to
+   `<origin>/connect/callback?code=…&state=…&node=home.example`. The visiting client checks `state` and calls
+   `POST https://home.example/api/v1/auth/connect/token { code, code_verifier }` → session response for a new
+   device, without a reauth token (`reauth_token: null`: the exchange proves no credential; the visiting client
+   confirms with `POST /auth/reauth` when it needs sudo mode). Errors: `400 connect.origin_invalid` (not `https://<valid domain>`;
    `http://` origins are accepted only with `--dev`), `400 connect.code_invalid`.
 
    **App sessions** (capability `connect.app`). A native app (the desktop app) has no `https://<domain>` origin to
@@ -793,7 +856,8 @@ Every node serves the web client; there is no central client (design note 3.2). 
         the page's lifetime (also across the sign-in and an SSO round trip in the same window) and removes it
         from the address bar. A page that finds no valid key never seals anything.
    3. The home client calls `POST /api/v1/auth/connect/code { session_id, code_challenge?, device_name?,
-      sealed_unlock? }` (full session). Exactly one of `origin` and `session_id` is given (both or neither: `400
+      sealed_unlock? }` (full session; a `login` session also needs a reauth token in `Tavrn-Reauth`, `PROTOCOL.md`
+      §5c, an `unlock` session does not, it issues no code). Exactly one of `origin` and `session_id` is given (both or neither: `400
       connect.target_invalid`). `code_challenge`, if given, must equal the session's (`400
       connect.challenge_invalid`); `device_name` is ignored (the session's name wins). The node issues the code
       as for an origin (single use, 2 minutes, bound to the session, the challenge and the confirming device) and
@@ -842,7 +906,8 @@ Every node serves the web client; there is no central client (design note 3.2). 
    - The app creates a fresh X25519 key pair for every app session and puts the public key into the fragment
      (`#k=`, step 2). The secret key never leaves the app and is dropped when the session ends.
    - After a passkey ceremony with a PRF result on the page (the passkey-only login, a passkey as second factor,
-     or, for an `unlock` session, an assertion just for the PRF), the page builds
+     on a page that is already signed in the passkey re-authentication `POST /auth/reauth` whose assertion also
+     yields the reauth token of step 3, or, for an `unlock` session, an assertion just for the PRF), the page builds
      `sealed_unlock = base64url(crypto_box_seal(plaintext, k))`: libsodium's sealed box, the construction of the
      webhook inbox (ENCRYPTION.md §5b: ephemeral X25519 key, XSalsa20-Poly1305, `ephemeral public(32) ||
      ciphertext || tag(16)`). The plaintext is the UTF-8 JSON `{ "type": "tavrn.connect.unlock.v1",
@@ -1030,8 +1095,13 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
 - `nonce` is 16 random bytes per message; a second message with the same nonce in a conversation is a replay and
   is shown as a duplicate or hidden. Edits are signed anew by the editing device (`device_id`).
 - Nodes MUST store `signature` and `mentions` exactly as received (order included) and MUST NOT modify content.
-  They MAY reject a malformed `signature` (`400 message.signature_invalid`). Not covered by the signature:
-  `id`, `created_at`, reactions, pins (node-assigned metadata).
+  They MAY reject a malformed `signature` (`400 message.signature_invalid`). A node that normalises the mentions
+  of unsigned messages (the reference node: addresses trimmed and lowercased, role ids in canonical uppercase,
+  duplicates removed) MUST NOT do so for a signed message: it refuses a signed message whose mentions are not
+  already in that form with `400 message.mention_invalid` instead of changing them, so a stored signature always
+  matches what the client signed. Clients therefore sign canonical mentions: lowercase addresses,
+  `role:<ULID>` in uppercase, no duplicates. Not covered by the signature: `id`, `created_at`, reactions, pins
+  (node-assigned metadata).
 - Verifying is optional for clients: the device key comes from the author's attested devices fetched from the
   author's home node and checked against the pinned identity key. Valid → normal; missing → "unverified" marker;
   invalid → the content is hidden behind "This message could not be verified". Unsigned messages of bots and
@@ -1100,7 +1170,8 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
 address), `federation.domain_invalid` (400), `federation.target_self` (400), `federation.token_invalid` (401),
 `federation.token_expired` (401), `federation.token_replayed` (401), `federation.issuer_mismatch` (401),
 `federation.body_hash_mismatch` (401), `federation.user_banned` (403), `federation.bots_refused` (403),
-`federation.remote_limit` (403), `federation.local_only` (403), `federation.claim_refused` (403),
+`federation.remote_limit` (403), `federation.kind_mismatch` (403), `federation.peer_limit` (503), `federation.busy` (503),
+`federation.local_only` (403), `federation.claim_refused` (403), `legal.forward_refused` (403),
 `federation.type_forbidden` (403), `federation.recipient_unknown` (404), `federation.message_stale` (400),
 `federation.payload_too_large` (413), `federation.envelope_invalid` (400: malformed inbox envelope or payload), `federation.keys_unavailable` (503), `federation.conformance_pending`
 (503), `federation.already_blocked` (409), `federation.not_blocked` (409), `federation.peer_unknown` (404),
@@ -1325,12 +1396,12 @@ otherwise.
   = `announce` | `relay`, `first_seen`, `last_seen`, `last_announce`, `rooms_fetched_at`); `directory_rooms`
   (signed values plus the listing JWT and its expiry); `directory_delisted` (node, room id or `''` for the
   whole node).
-- **Announcing**: only to the reference nodes, shortly after the start, then every 6 hours (±10 minutes)
-  instead of hourly, and whenever a listing-relevant room setting changes (a room becomes discoverable or
-  not, a discoverable room is renamed, re-described or deleted). A queued, undelivered announce to the same
-  target is replaced. Nothing is sent with `TAVRN_DIRECTORY_LISTING=false`, with federation disabled or
-  when the node's domain is not a node domain (development); development nodes have no reference nodes by
-  default. The daily announce to other peers is not implemented. `users` is never sent (no setting yet).
+- **Announcing** (§7.2): only to the reference nodes, shortly after the start, then every 6 hours (±10 minutes),
+  and whenever a listing-relevant room setting changes (a room becomes discoverable or not, a discoverable room
+  is renamed, re-described or deleted). A queued, undelivered announce to the same target is replaced. Nothing is
+  sent with `TAVRN_DIRECTORY_LISTING=false`, with federation disabled or when the node's domain is not a node
+  domain (development); development nodes have no reference nodes by default. `users` is never sent (no setting
+  yet).
 - **Receiving `node.announce`** (handled before the dedupe record, so a refused announce can be sent
   again): payload at most 8 KiB (`413 federation.payload_too_large`), fields capped (name 64, description
   500, software name and version 64, registration 16 characters, at most 64 capabilities of 64 characters;
@@ -1356,9 +1427,8 @@ otherwise.
   (at most 10 pages of 100), and verifies the reference node itself and up to 200 domains it has not seen
   within 6 hours through their own `.well-known` (domain policy first), then fetches their rooms as above
   (`source = relay`).
-- **Expiry**: a node not seen for **48 hours** (no announce, not confirmed through a reference node list) is
-  removed with its rooms, instead of after 30 days without reachability; expired listings are removed
-  hourly. At most 10 000 nodes; beyond that the least recently seen are dropped. Floods of verifiable
+- **Expiry** (§7.1): a node not seen for **48 hours** (no announce, not confirmed through a reference node list)
+  is removed with its rooms; expired listings are removed hourly. At most 10 000 nodes; beyond that the least recently seen are dropped. Floods of verifiable
   subdomains are bounded only by these caps; blocking the parent domain (the blocklist covers subdomains)
   is the remedy.
 - **Routes**: `GET /directory/nodes?q=&limit=&cursor=` (ordered by domain, cursor = the last domain,
@@ -1539,14 +1609,15 @@ otherwise.
 ### 13.2 Implementation notes (reference node and web client, step 5)
 
 - **Connect flow** (§8): `POST /auth/connect/code` takes `origin`, `code_challenge` (S256, 43 characters)
-  and an optional `device_name`; local users with a full session only (`federation.local_only` otherwise).
+  and an optional `device_name`; local users with a full session and a reauth token only
+  (`federation.local_only`, `auth.reauth_required` otherwise).
   The code (32 random bytes) is kept in memory as its SHA-256 for 2 minutes, bound to the origin, the
   challenge, the user and the confirming device. `POST /auth/connect/token` takes `code` and
   `code_verifier` without authentication; the first attempt spends the code whatever its outcome, and it
   fails with `connect.code_invalid` unless the verifier matches, the request's `Origin` header equals the
   bound origin (browsers always send it on these requests), the user is enabled and the confirming device
   still has a live session. Success is the session response of a **new device** of the home node
-  (`device_name`, default "Browser (\<origin host>)"), audited as `user.connect`; the visiting client then
+  (`device_name`, default "Browser (\<origin host>)") without a reauth token, audited as `user.connect`; the visiting client then
   requests federation tokens like any home client. A malformed challenge is `400 connect.challenge_invalid`.
   Limits: codes per device with the federation token limit (30/min), exchanges per client IP with the login
   limit. `http://` origins only with `--dev`.

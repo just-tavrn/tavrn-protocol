@@ -343,7 +343,12 @@ ciphersuite in §4.1 whose leaf carries the device identity and the device key.
   `{ "key_packages": [ { "device_id", "key_package" } ] }`: one KeyPackage per attested device; each
   returned KeyPackage is deleted (single use). Devices without a KeyPackage are omitted. On the node hosting
   a conversation the route also accepts foreign addresses, served only through the S2S claim proxy to the
-  user's home node (`FEDERATION.md` §3.5).
+  user's home node (`FEDERATION.md` §3.5). The home node limits claims per requesting user and target user and, for
+  requesters who share no room, DM, group DM or friendship with the target, per source (the home node itself, or one
+  requesting node) and target user, so that claims in many names neither drain a user's KeyPackages nor lock out the
+  people who legitimately add them (reference node: `TAVRN_E2EE_CLAIMS_PER_TARGET_PER_HOUR`, default 60 per source,
+  ten times that per target over all sources; related requesters and a user's claims for their own devices do not
+  count; beyond the budget `429`).
 
 ### 3.3 Verifying other users' devices
 
@@ -426,6 +431,10 @@ deletes the old device once it discards its local data, so its leaves do not lin
 Clients SHOULD rotate (self update) at least weekly in active conversations and after a member was
 removed if they did not commit the removal themselves.
 
+Claimed KeyPackages reach the client through the node hosting the conversation (§3.5 of `FEDERATION.md`). Before an
+Add, a client MUST check that the KeyPackage's leaf carries the basic credential `<address>/<device id>` of the device
+it was claimed for and exactly that device's attested key (§3.3), and drops it otherwise.
+
 ### 4.3 Commit protocol (client)
 
 Commits are two-phase. The client creates a commit, which stays **pending** locally, and posts it together
@@ -442,7 +451,9 @@ with the GroupInfo of the resulting epoch:
 
 Clients process the handshake log strictly in epoch order. A commit for an epoch older than the local one
 is skipped (`stale_epoch`); a newer one means commits are missing (`future_epoch`). A commit that fails
-validation stops processing; the client then rejoins by external commit and warns the user.
+validation stops processing; the client then rejoins by external commit and warns the user. Clients apply the
+identity rule of §4.4 themselves: a member's commit whose update-path leaf carries another identity than the
+committer's is refused (`invalid_credential`), whatever the node accepted.
 
 ### 4.4 Delivery service (node)
 
@@ -460,7 +471,10 @@ The node hosting the conversation implements, under `/api/v1/conversations/{conv
      the current epoch); the first commit for an epoch wins, enforced by a unique key
      `(conversation, epoch)` in the same transaction that updates the group state;
   2. validates commit and GroupInfo with `DsGroup::process_commit` (signature, epoch, allowed proposals,
-     credentials, GroupInfo signed by the committer and matching the new epoch and ratchet tree);
+     credentials, GroupInfo signed by the committer and matching the new epoch and ratchet tree). **A leaf never
+     changes its identity:** the update-path leaf of a member's commit MUST carry the committer's identity, and after
+     the commit no two leaves may share a signature key (OpenMLS checks key uniqueness only for added KeyPackages);
+     such a commit is refused as `400 mls.invalid`;
   3. applies the authorization rules of §4.5 to the returned summary (committer, external join, added and
      removed identities), answering `403 mls.forbidden` on violation;
   4. stores the commit in the handshake log at `epoch`, replaces the stored GroupInfo and DS state, stores
@@ -502,7 +516,10 @@ attestations. With `C` = committer identity from the summary:
    `view_channel`; when it ends the node announces their leaves with `mls.remove_needed`. Bots are never entitled in a channel whose effective
    "no bots" flag is set (`APPLICATIONS.md` §3.5): the node refuses their GroupInfo requests and commits with
    `403 mls.forbidden`. It MAY remove only leaves with the identity `C` itself
-   (rejoin after state loss).
+   (rejoin after state loss), and it MUST remove every leaf that carries `C`'s signature key (`403 mls.forbidden`
+   otherwise): a device is in the group at most once. A leaf with the identity `C` but another key is tolerated at
+   the join (OpenMLS external commits remove only the leaf with the joiner's key): it is an unattested ghost that
+   housekeeping lists and any member may remove (rule 4). Clients remove such leaves by identity *and* key.
 3. **Add**: every added identity MUST be an attested device of a user who may be in the conversation. For
    DMs, group DMs and private channels, adding devices of another user additionally requires that the user
    was invited according to the room or conversation rules; adding further devices of one's own user is
@@ -510,7 +527,8 @@ attestations. With `C` = committer identity from the summary:
    flag emits `mls.remove_needed` for the bots' leaves.
 4. **Remove**: a leaf may be removed if its user is no longer entitled to the conversation (left, kicked,
    banned, lost read permission), its device was deleted or is not attested under the current identity key,
-   or it belongs to the committer's own user. Removing a leaf of an entitled user's attested device is
+   its signature key is not the attested key of the device it names (any member may remove such a leaf;
+   housekeeping lists it as `unattested`, §4.7), or it belongs to the committer's own user. Removing a leaf of an entitled user's attested device is
    refused: membership is decided by the node's room rules (kick/ban go through the normal API first), MLS
    follows. When membership ends, the node emits `mls.remove_needed` `{ conversation_id, identities }` to the
    members' devices; the first valid commit wins.
@@ -533,9 +551,24 @@ the member list served by the node and the device attestations:
   `bots_allowed` counts as "no bots". Clients compute it from the room and channel settings themselves and OR it with
   the node's `no_bots_effective`.
 
+A leaf that names an attested device but carries another signature key is unattested, whichever of the two leaves
+comes first in the roster; a second leaf with the attested key is a duplicate.
+
 Any violation MUST be shown as a visible warning naming the unknown device ("An unknown device is part of
-this conversation") and SHOULD prevent sending until the user acknowledged it. Members without any leaf are
-not an error (they have not joined yet); their messages cannot exist.
+this conversation"), and the client MUST NOT encrypt any content for the conversation (messages and edits, thread
+titles, forum posts, file records, whiteboard scenes and other ephemeral content) until the user acknowledged that
+leaf. Only the user's explicit acknowledgement counts: running the check and showing its result is not one, and an
+acknowledgement covers one leaf, by identity **and** signature key: a leaf that appears later, also under an
+acknowledged device id with another key, needs its own. Implementations SHOULD enforce this in the component that
+encrypts, so that a view that does not show the warning fails closed. Members without any leaf are not an error (they
+have not joined yet); their messages cannot exist.
+
+Unattended clients (bots, `APPLICATIONS.md`) have nobody to acknowledge a warning and decide by an operator setting
+instead. The safe default accepts only leaves of devices that were attested and are now retired (deleted, removal
+pending, §2.3) and refuses to encrypt for anything else (a key never attested, an identity key that changed without
+a continuity chain from the pinned key, a non-member), reporting the conversation and the leaves; rotations with a
+valid chain (§9a) are no violation. An operator MAY opt into sending anyway, in which case every accepted leaf is
+logged.
 
 ### 4.7 Removing ghost leaves (client)
 
@@ -556,7 +589,14 @@ rule 4, still enforced by the node):
 
 Before an own leaf goes whose device has no retired attestation yet (deleted before nodes kept them), the client
 attests it again as retired from the leaf key (§2.3), so the device's history stays readable; if that fails for
-network reasons the leaf stays for a later try.
+network reasons the leaf stays for a later try. A client MUST do this only for a device id and key the account
+attested itself, as recorded in its trust record (§7: this device, and own devices whose attestation the client
+verified under the own identity key); a roster key alone is no evidence, since the hosting node can plant a leaf under
+the user's address with a key of its own. Any other own ghost leaf is removed without a new attestation, and messages
+of such a device stay unverifiable.
+
+Removals name each leaf by identity **and** signature key, so a leaf that names a genuine device with another key is
+removed while the genuine leaf stays.
 
 Cleanup runs when a conversation is opened, when a voice channel is joined (before the self update that renews the
 voice key), on `mls.remove_needed` and after (re)connecting when the node lists pending removals of own leaves.
@@ -661,7 +701,12 @@ keys that new members cannot read.
   share older keys with them (§7b); removed members cannot read messages after their removal.
 - The node sees metadata: conversation, author, device, timestamps, epoch, ciphertext sizes, `mentions`
   (deliberately plaintext, PROTOCOL.md §7), reactions, pins, reply and thread references, attachment
-  count, sizes and ciphertext hashes, membership changes (commits are public messages).
+  count, sizes and ciphertext hashes, membership changes (commits are public messages), the URLs of link
+  previews, which are fetched only when the user enables them, and the size and update times of the user's trust
+  record (§7), which grow with the number of contacts.
+- Every message of an encrypted conversation is encrypted by its sender. A plaintext message there (other than the
+  node's own `system.*` entries) can only come from the node: clients MUST NOT show it as the author's content
+  (nor its attachments, reply references or notification previews), whatever `device_id` or signature it carries.
 
 ## 5a. Voice frame keys
 
@@ -819,6 +864,27 @@ plaintext = {"v":1,"conversation":"node.example/01J…","keys":{"41":"<base64url
 - A new device with the master secret (§2.4, §8) downloads all backups and can read the whole history of every
   conversation, as far as some device of the user had the keys.
 
+**Trust record.** The client keeps the pinned identity keys of other users (§3.3), the verified contacts
+(`FEDERATION.md` §10.2) and the account's own devices it attested (device id → device key, §4.7) as one more backup,
+so that they survive a sign-out and reach every device of the account:
+
+```text
+blob      = 0x01 || nonce(12) || AES-256-GCM(backup_key, nonce, aad, plaintext)
+aad       = "tavrn trust v1" || 0x00 || account address
+plaintext = {"v":1,"pins":{"<address>":{"key":"<base64url identity key>","changed":true?,"rotated":true?}},
+             "verified":{"<address>":{…verified contact…}},"devices":{"<device id>":"<base64url device key>"}}
+```
+
+It is stored with the backup routes under the home node's domain and the conversation ULID
+`00000000000000000000000000` (time 0, never a conversation), merged like the other backups (entries are added, an
+entry a device holds is never replaced by the stored one; `If-Match`). A new device restores it before the
+conversation backups and before it pins any key on first use; a restore whose trust record could not be fetched is
+tried again. A pin this device took on first use before that first sync that differs from the stored one is a
+changed key (§3.3) unless the user's
+continuity chain (§9a) leads from the stored key to it (a rotation; the other direction means the stored pin is newer
+and is taken). The node can neither read nor forge the record; serving an older blob or none only loses entries,
+which then pin on first use again. An identity reset deletes it with the backups.
+
 ## 7a. Whiteboard scenes
 
 The personal whiteboard scene library (`WHITEBOARD.md` §2.3, §5) uses the backup key like §7, with its own AAD
@@ -895,7 +961,8 @@ there, as for every conversation route):
   another member with
   `view_channel` and `read_history` (`403 history.forbidden`; oneself `400 history.self`). `0 ≤ epoch_from ≤
   epoch_to ≤` the group's epoch and at most 1000 epochs (`400 history.invalid`); `ciphertext` is content format 1
-  (§5.2) under a known epoch (`400 history.invalid`), at most 64 KiB (`413 history.too_large`). `v` is the share
+  (§5.2) under a known epoch (`400 history.invalid`), at most 64 KiB measured on the base64url string
+  (`413 history.too_large`). `v` is the share
   format, 1 (default) or 2 ("Format v2" below, capability `history.shares2`); a format 2 share carries `boxes`, an
   object of device id → base64url sealed key, 1 to 20 entries, each box at most 128 bytes, every device id an
   attested device of `to_user` (under its current identity key) with a share key (§3.1); a format 1 share carries no
@@ -919,8 +986,9 @@ there, as for every conversation route):
 
 encrypted and signed exactly like message content (§5.2) under the group's **current** epoch by the sharing
 device (`author` = `from_user`, `device_id` = `from_device`): only current members can read it, and the device
-signature covers the canonical JSON. It is never sent as a message and never stored as one. Format 1 is **to be
-removed** in a later release: clients send it only where format 2 is not possible (below).
+signature covers the canonical JSON. It is never sent as a message and never stored as one. Format 1 is
+**removed**: clients MUST NOT send it (any leaf of the group could read it, an unattested one included) and only
+still read format 1 shares that older clients left on a node.
 
 **Format v2 (capability `history.shares2`).** The payload is the same object with `"v": 2`. The sharing device
 encrypts and signs it exactly like content format 1 (§5.2: same AAD, bound to the conversation, the device signature
@@ -934,9 +1002,10 @@ ephemeral key; `Client.encryptShare`, `sealShareKey`, `Client.openShareBox`, `de
 
 **Sharing (client).**
 
-0. Format: a client sends format 2 when the node announces `history.shares2` **and** every device of the recipient in
-   the current roster has a share key whose signature verifies with its attested device key (§3.1, §3.3); otherwise
-   format 1. The same rule holds for restore shares ("History after a key reset" below).
+0. Format: a client sends format 2 only, when the node announces `history.shares2` **and** every device of the
+   recipient in the current roster has a share key whose signature verifies with its attested device key (§3.1,
+   §3.3); otherwise it sends nothing (the member stays pending). The same rule holds for restore shares ("History
+   after a key reset" below).
 
 1. The device that committed a member's Add shares right away. Otherwise, on `history.pending` and when a member
    opens the channel, clients read `…/history-pending`; per waiting member every candidate device (devices in the
@@ -948,7 +1017,9 @@ ephemeral key; `Client.encryptShare`, `sealShareKey`, `Client.openShareBox`, `de
    messages, such as forum posts, are content of the channel too); `since_join` → the same from `joined_at` (the
    epochs of the messages posted since the member's join), and none when there are no such messages. Chunks of at most
    500 epochs and a range of at most 1000 epochs; with nothing to send the device posts one empty share (`epochs: []`,
-   `epoch_from = epoch_to =` current epoch), which still clears the pending mark.
+   `epoch_from = epoch_to =` current epoch), which still clears the pending mark. The `since` of the pending mark
+   comes from the node: a client never lets the window of an automatic share start more than 30 days (the lifetime of
+   a pending mark) before it first saw the member waiting with a leaf in the group, whatever `since` the node reports.
 
 **Receiving (client).** On `history.keys_available` and when opening the channel, the recipient fetches its
 shares and for each:
@@ -993,11 +1064,8 @@ Earlier nodes marked nobody pending under `since_join` and refused shares there 
   key is fresh and sealed to their share keys, whose signatures by the attested device keys the sharer verified, so
   neither the node nor other members (who know the epoch's content key) can open it, and the node cannot add a
   device of its own (it would need a device attested by the recipient's identity key and a share key signed by that
-  device). A format 1 share is encrypted under the group's current epoch, so every device in the group at that epoch
-  can decrypt it; there only the node's routing (it serves a share to its recipient alone and drops it after the
-  acknowledgement) keeps it from other members, which is why format 1 is used only as a fallback and will be
-  removed. A leaked format 1 share hands other members keys of epochs before their own join, within the channel's
-  policy.
+  device). A format 1 share was encrypted under the group's current epoch, so every device in the group at that epoch
+  could decrypt it, including a leaf the node planted; that is why format 1 is no longer sent.
 - A replayed share only repeats keys the recipient already validated or holds; keys are never overwritten.
 - A member could post a message under a forged key and then "prove" that key with it; the recipient therefore
   prefers messages of other authors for the check. The residual risk equals what any member can do anyway (show
@@ -1123,10 +1191,14 @@ When the master secret is lost (no trusted device, no recovery key, no PRF passk
    `POST /api/v1/users/me/identity/reset` `{ "identity_public_key", "password" }`. Accounts without a
    password (SSO accounts, `APPLICATIONS.md` §8.4) confirm with a fresh SSO login instead: the client runs
    the SSO flow with `purpose: "reauth"` and sends `{ "identity_public_key", "reauth_token" }` (5 minutes,
-   single use, bound to the account; the provider must confirm the identity linked to it).
+   single use, bound to the account; the provider must confirm the identity linked to it). The node accepts any
+   valid reauth token of the session here (PROTOCOL.md §5c: from a login of the last five minutes, a password, a
+   passkey or an SSO confirmation; in the body or the `Tavrn-Reauth` header), not only the two confirmations
+   above.
 3. The node sets the new identity key and `identity_reset_at = now`, deletes all device attestations,
    KeyPackages, backups, whiteboard scenes (§7a) and secret storage entries of the user and notifies the user's contacts
-   (`identity.changed`) and sets `key_reset_at` on the user's room memberships, which stops the
+   (`identity.changed`) and sets `key_reset_at` on the user's room memberships (in the same transaction as the key
+   change, so a reset never takes effect without it), which stops the
    automatic history sharing of §7b for everything before the reset ("History after a key reset"). The client uploads the new `recovery` entry (and passkey entries) afterwards.
 4. Each device of the user re-attests its **existing** device key under the new identity key (devices keep
    their keys; a device that is not re-attested is invalid), uploads new KeyPackages and rejoins all

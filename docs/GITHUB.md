@@ -22,7 +22,11 @@ private; nothing runs on GitHub until `CI_ENABLED` is set.
 |---|---|---|
 | `PUBLISH_CHECK_PRIVATE` | repository or organization | `ci.yml` (job `publish-check`): comma-separated private domains, hosts and addresses that must never appear in the tree. Without it the check fails on purpose. Locally the same list lives in an untracked `.publish-check.private` (in the repository or its parent directory). |
 | `CLA_PAT` | organization | `cla.yml`: fine-grained personal access token with Contents read and write on `just-tavrn/cla-signatures` (the signatures). |
-| `NPM_TOKEN` | repository | `release.yml`: an npm automation token with publish rights on the `@tavrn` scope. Only needed once `NPM_PUBLISH_ENABLED` is set. |
+| `NPM_TOKEN` | environment `release` (never a repository secret) | `release.yml`, job `publish`: an npm automation token with publish rights on the `@tavrn` scope. Only needed once `NPM_PUBLISH_ENABLED` is set. |
+
+The environment `release` (Settings → Environments): deployment only from tags `v*`, required reviewer the owner,
+`NPM_TOKEN` as its secret (`gh secret set NPM_TOKEN --env release`). Only the job `publish` declares it; it runs no
+code of the repository and installs nothing.
 
 ## Settings to switch on by hand
 
@@ -44,15 +48,18 @@ private; nothing runs on GitHub until `CI_ENABLED` is set.
   repositories of the free organization plan): protect `main` with a ruleset: pull request required, one
   approving review from `@just-tavrn/maintainers` (CODEOWNERS), required checks `Schemas, test vectors, SPDX
   headers, package`, `Publication hygiene`, `Secret scan (gitleaks)` and `Contributor license agreement`,
-  linear history, no force pushes, no deletions; protect tags `v*` against deletion and updates.
+  linear history, no force pushes, no deletions; protect tags `v*` against deletion and updates, and let only
+  organization owners create them (just-tavrn/.github `scripts/github-rulesets.sh`).
 - **Team** `@just-tavrn/maintainers` must exist in the organization for CODEOWNERS to work.
 
 ## Releases
 
 1. Update the documents and test vectors; set `version` in `package.json`.
-2. Commit, tag `vX.Y.Z` (equal to the package version) and push the tag.
-3. With `CI_ENABLED` the release workflow checks the tag against `package.json`, runs the tests, creates the
-   GitHub release and (with `NPM_PUBLISH_ENABLED`) publishes to npm with provenance.
+2. Commit, tag `vX.Y.Z` (equal to the package version) and push the tag (only organization owners may).
+3. With `CI_ENABLED` the release workflow's job `build` checks the tag against `package.json`, runs the tests and
+   packs the tarball without any secret; `release` creates the GitHub release with it; with `NPM_PUBLISH_ENABLED`,
+   `publish` waits for the owner's approval of the environment `release` and publishes that same tarball to npm
+   with provenance after comparing it with `npm pack --ignore-scripts` of the tag (no install and no code of the repository in the job that holds `NPM_TOKEN`).
 
 During the private phase the node (`tavrn-node`) and the JavaScript packages (`tavrn-js`) carry this
 repository as a git submodule pinned to a tag. After a new tag, bump the submodule there.

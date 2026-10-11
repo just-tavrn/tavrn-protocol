@@ -5238,7 +5238,7 @@
         "tags": [
           "connect"
         ],
-        "summary": "One-time code for the web client of another node or a native app (connect flow, FEDERATION.md §8). Needs a full\nsession of a local user; remote users get `federation.local_only`. With `origin` the page redirects the code to\nthat web client; with `session_id` the node keeps it, and the optional `sealed_unlock`, for the app's next poll of\nits app session. An `unlock` session issues no code: its own user sends `sealed_unlock` and gets `204`.",
+        "summary": "One-time code for the web client of another node or a native app (connect flow, FEDERATION.md §8). Needs a full\nsession of a local user and, because the code becomes a new session, a reauth token (`Tavrn-Reauth`, PROTOCOL.md\n§5c; not for an `unlock` session); remote users get `federation.local_only`. With `origin` the page redirects the code to\nthat web client; with `session_id` the node keeps it, and the optional `sealed_unlock`, for the app's next poll of\nits app session. An `unlock` session issues no code: its own user sends `sealed_unlock` and gets `204`.",
         "operationId": "connect_code",
         "requestBody": {
           "content": {
@@ -5664,7 +5664,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Request a password reset by email. Always answers 204, so no accounts can be guessed.",
+        "summary": "Request a password reset by email. Always answers 204, so no accounts can be guessed. At most three mails per\naccount and hour; a link that has not expired stays valid (a new request sends no new one). A node without\nSMTP answers `503 mail.unavailable` (development nodes log the mail instead).",
         "operationId": "forgot_password",
         "requestBody": {
           "content": {
@@ -5681,6 +5681,16 @@
             "description": ""
           },
           "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
             "description": "",
             "content": {
               "application/json": {
@@ -5893,11 +5903,21 @@
       },
       "delete": {
         "tags": [],
-        "summary": "Unlinks the identity; only if the account keeps a password and a second factor (§8.3).",
+        "summary": "Unlinks the identity; only if the account keeps a password and a second factor (§8.3). Needs a reauth token\n(`Tavrn-Reauth`, PROTOCOL.md §5c).",
         "operationId": "unlink",
         "responses": {
           "204": {
             "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "404": {
             "description": "",
@@ -5930,7 +5950,7 @@
     "/api/v1/auth/oidc/start": {
       "post": {
         "tags": [],
-        "summary": "Starts an SSO flow (§8.2). `login` needs no session; `link` and `reauth` need the full session of a\nlocal user (`link`: not linked yet, `reauth`: linked).",
+        "summary": "Starts an SSO flow (§8.2). `login` needs no session; `link` and `reauth` need the full session of a\nlocal user (`link`: not linked yet, and a reauth token in `Tavrn-Reauth`, PROTOCOL.md §5c; `reauth`: linked).",
         "operationId": "start",
         "requestBody": {
           "content": {
@@ -37236,6 +37256,13 @@
               "null"
             ],
             "description": "Rooms: `{ node, id, name, description, icon_url, member_count }`."
+          },
+          "via": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set when the inviter is a user of a third node (neither `node` nor this node): `node` named them, but cannot\nvouch for them, so their identity is unverified (FEDERATION.md §5.2). Clients show \"via <node>\"."
           }
         }
       },
