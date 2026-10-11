@@ -61,6 +61,10 @@ Changes of the protocol that implementations must follow, newest first. Versions
   decide by an operator setting (default: only retired devices are accepted).
 - **History shares: format 1 removed** (`ENCRYPTION.md` §7b). Clients send only format 2 and bound the window of an
   automatic share by their own knowledge of the member.
+- **Native apps: SRV targets must hold a certificate for the identity domain** (`FEDERATION.md` §1.4). At the SRV
+  step a native app connects to the target but makes the request for the identity domain (SNI and `Host`), and the
+  target's certificate must be valid for that domain; a certificate only for the target counts as a failure of that
+  record. A forged DNS answer can no longer bind the app to another node.
 
 ### Fixed
 

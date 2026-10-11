@@ -207,8 +207,12 @@ for application URLs only.
   they ask the node they were loaded from, `GET /federation/resolve/{domain}`, which runs the whole order
   including SRV); they cache the endpoints per domain for at most 1 hour. Native apps that can query DNS (the
   desktop app, before its first sign-in, has no node to ask) run the whole order themselves: well-known, then SRV
-  after a `404` or without an HTTPS server (the target's certificate valid for the identity domain, §1.3), then the
-  direct domain after a `404` only.
+  after a `404` or without an HTTPS server, then the direct domain after a `404` only. At the SRV step they connect
+  to the target's host and port but make the request for the identity domain: TLS SNI and `Host` name `domain`, and
+  the target's certificate MUST be valid for `domain` (the same rule as for nodes, §1.3); a certificate valid only
+  for the target counts as a transport failure of that record, and with no record left the domain is unreachable.
+  A TLS failure of the direct fetch may still lead to SRV: a forged DNS answer alone cannot hand the app another
+  node, because a target cannot present a certificate for the domain without controlling it.
   The stored session of a node keeps both the identity domain (addresses, display) and its endpoints
   (requests).
 
