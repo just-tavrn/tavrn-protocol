@@ -627,7 +627,7 @@ Third-node users are **unverified**: the sending node can name a user of a third
 hosts) as inviter or caller, but it cannot vouch for that user. The receiver therefore treats such an inviter as a
 stranger: friendship with the named user does not count, the recipient's `dm_policy` applies as to anyone else,
 `requested` is always `true`, and the stored invitation carries `via` = the sending node (`room.invite` and
-`conversation.invite`; the summary object and the invite list entry), so clients show "<inviter> via <node>" and
+`conversation.invite`; the summary object and the invite list entry), so clients show the inviter "via" the sending node and
 never present it as coming from a friend. A ring hint naming a third-node caller reaches the recipient's
 connections as `call.ring { …, via }` in the same way.
 
