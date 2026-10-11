@@ -961,7 +961,9 @@ Payload (JSON, encrypted for the subscription; the service worker decides how to
 
 - `type`: `message` (channel message), `mention`, `dm`, `call`, `test`, or `notice` (other features, with `title`
   and `body`). `node` hosts the conversation; `local` is `false` for pushes forwarded from a `notify` hint (then
-  `conversation_kind` is `channel` or `direct`, `sender` is the caller's address of a ring, and there are no names).
+  `conversation_kind` is `channel` or `direct`, `sender` is the caller's address of a ring, and there are no names;
+  a ring whose caller is a user of a third node also carries `via` = `node`, the node that named the caller and
+  cannot vouch for them: clients show the caller as unverified, `FEDERATION.md` §5.2).
   `conversation_kind`: `channel`, `dm`, `group` (or `direct`); `room` and `conversation` are the room and channel
   name or the group DM name (at most 100 characters); `sender` is the author's room nickname or display name.
 - Encrypted conversations (`encrypted: true`) never carry ciphertext, plaintext or message ids. `text` (at most 120

@@ -89,9 +89,9 @@ KeyPackage claims) goes through one dedicated HTTP client with these rules (desi
    `10.0.0.0/8`, `100.64.0.0/10`, `127.0.0.0/8`, `169.254.0.0/16`, `172.16.0.0/12`, `192.0.0.0/24`,
    `192.0.2.0/24`, `192.168.0.0/16`, `198.18.0.0/15`, `198.51.100.0/24`, `203.0.113.0/24`, `224.0.0.0/4`,
    `240.0.0.0/4`, `192.88.99.0/24`, `::/128`, `::1/128`, `::/96` (IPv4-compatible), `2001::/32` (Teredo),
-   `64:ff9b::/96`, `64:ff9b:1::/48`, `::ffff:0:0/96` and `2002::/16` (6to4; these four are checked against the
-   embedded IPv4 address), `100::/64`, `2001:db8::/32`, `fc00::/7`, `fe80::/10`, `ff00::/8`. The connection is
-   then made to the **vetted address** (with SNI and `Host` = domain), never by resolving again, so DNS
+   `64:ff9b:1::/48` (local-use NAT64), `64:ff9b::/96`, `::ffff:0:0/96` and `2002::/16` (6to4; these three are
+   checked against the embedded IPv4 address), `100::/64`, `2001:db8::/32`, `fc00::/7`, `fe80::/10`, `ff00::/8`.
+   The connection is then made to the **vetted address** (with SNI and `Host` = domain), never by resolving again, so DNS
    rebinding cannot switch the target. `TAVRN_FEDERATION_ALLOW_PRIVATE=true` lifts the range check (for
    development, tests and closed intranets; the node logs a warning at startup).
 4. **Redirects**: at most 3, only to `https` on the **same host**; any other redirect is an error.
@@ -187,10 +187,15 @@ for application URLs only.
 - **Failed fetches**: a fetch that fails or returns an invalid document is remembered per domain for 60 seconds;
   during that time requests that need the domain's keys to check a signature (inbox, claims, federated logins)
   fail at once with the same error instead of fetching again, so unsigned requests naming a slow or foreign
-  domain neither tie up the client nor make the node fetch other sites' URLs on demand. Peers known only from
-  requests whose signature never verified are capped (`TAVRN_FEDERATION_MAX_UNVERIFIED_PEERS`, reference node
-  1000: beyond it such requests naming new domains are refused with `503 federation.peer_limit` before any fetch),
-  and cached peers unused for 30 days without users, sessions or directory entries are pruned.
+  domain neither tie up the client nor make the node fetch other sites' URLs on demand. A request that found no free
+  local connection slot in time is not a failure of the peer and is not remembered. Fetches for issuers the node
+  has no cached document of, started by requests not verified yet, run in a few slots of their own
+  (`TAVRN_FEDERATION_DISCOVERY_SLOTS`, reference node 12; when all are taken the request is refused at once with
+  `503 federation.busy`), so requests naming many slow domains leave the other slots to known peers. Peers known
+  only from requests whose signature never verified are capped (`TAVRN_FEDERATION_MAX_UNVERIFIED_PEERS`, reference
+  node 1000; peers the node looked up itself, listed in its directory, with users or sign-ins never count): beyond
+  it such requests naming new domains are refused with `503 federation.peer_limit` before any fetch. Cached peers
+  unused for 30 days without users, sessions or directory entries are pruned.
 - **Why DNS alone is never the trust anchor.** The node's signing keys are what every federation decision rests
   on, and plain DNS (no DNSSEC validation, any resolver on the path) can be spoofed by anyone on the network path
   of the fetching party. A spoofer can make the direct fetch fail (a black-hole address, an invalid certificate)
@@ -611,7 +616,7 @@ federation.payload_too_large`, checked before reading further):
 | `app.install` | the room's node | room node domain → bot address | `{ room: { node, id, name }, installed_by }` (`room.node` = `iss`) | H checks that the recipient is a bot with an enabled application (else `404 federation.recipient_unknown`), adds the room to the application's install index and emits WS `application.install` to the bot (`APPLICATIONS.md` §4.5) |
 | `app.uninstall` | the room's node | room node domain → bot address | `{ room: { node, id }, reason }` (`room.node` = `iss`) | H removes the index entry and emits WS `application.uninstall` |
 | `app.changed` | the bot's home node | bot address (domain = `iss`) → receiving domain | `{ application_id, commands_version, deleted }` | Only for a bot the receiver knows as that application: refetch its profile (name, avatar) and, from step 3, the commands; `deleted: true` uninstalls the bot from every local room and disables its stub (installations and logins refused) |
-| `legal.notice` | the node that received a takedown notice | domain = `iss` → receiving domain | `{ case_id, basis, work, explanation, locations: [{ kind, value }], reporter: { name, email, address, phone }, good_faith, accuracy, perjury, signature, submitted_at }` | Opens a case of its own (state `received`, origin `iss` and `case_id` recorded, idempotent per origin case); the fields are checked like the public form (`400 federation.payload_invalid`). No confirmation mail at receipt (the address comes from the sender, which confirmed the notice itself); the reporter hears from the receiver once its admin acts. Accepted even when the receiver's public form is off (`LEGAL.md` §1.5), but only from a node with federation history (users of it known to the receiver, receiver users signed in there, or listed in the receiver's directory; else `403 legal.forward_refused`) and at most 10 per sending domain and 50 in total per hour (reference node, `TAVRN_LEGAL_NOTICE_INBOUND_PER_HOUR`; `429`), both checked before the message counts as received |
+| `legal.notice` | the node that received a takedown notice | domain = `iss` → receiving domain | `{ case_id, basis, work, explanation, locations: [{ kind, value }], reporter: { name, email, address, phone }, good_faith, accuracy, perjury, signature, submitted_at }` | Opens a case of its own (state `received`, origin `iss` and `case_id` recorded, idempotent per origin case); the fields are checked like the public form (`400 federation.payload_invalid`). No confirmation mail at receipt (the address comes from the sender, which confirmed the notice itself); the reporter hears from the receiver once its admin acts. Accepted even when the receiver's public form is off (`LEGAL.md` §1.5), but only from a node with federation history (users of it known to the receiver for at least a day, receiver users signed in there, or listed in the receiver's directory; else `403 legal.forward_refused`) and at most 10 per sending registrable domain (subdomains share it) and 50 in total per hour (reference node, `TAVRN_LEGAL_NOTICE_INBOUND_PER_HOUR`; `429`), both checked before the message counts as received |
 | `user.deleted` | the user's home node | user (domain = `iss`) → receiving domain | `{ delete_messages: bool }` | The stub is tombstoned like a local deletion (`LEGAL.md` §3.3): memberships, sessions, devices and keys go, messages move to a "Deleted user" tombstone with device ids and signatures stripped, their content and files are deleted too when `delete_messages`; the request is recorded in the audit log (`federation.user_deleted`) and the stub row is removed |
 
 Claims about the receiver's own users: a user address of the receiving node named as the inviter (`from` of
@@ -1156,7 +1161,7 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
 address), `federation.domain_invalid` (400), `federation.target_self` (400), `federation.token_invalid` (401),
 `federation.token_expired` (401), `federation.token_replayed` (401), `federation.issuer_mismatch` (401),
 `federation.body_hash_mismatch` (401), `federation.user_banned` (403), `federation.bots_refused` (403),
-`federation.remote_limit` (403), `federation.kind_mismatch` (403), `federation.peer_limit` (503),
+`federation.remote_limit` (403), `federation.kind_mismatch` (403), `federation.peer_limit` (503), `federation.busy` (503),
 `federation.local_only` (403), `federation.claim_refused` (403), `legal.forward_refused` (403),
 `federation.type_forbidden` (403), `federation.recipient_unknown` (404), `federation.message_stale` (400),
 `federation.payload_too_large` (413), `federation.envelope_invalid` (400: malformed inbox envelope or payload), `federation.keys_unavailable` (503), `federation.conformance_pending`
