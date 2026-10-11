@@ -5,6 +5,18 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- **Unknown devices block every encrypted write** (`ENCRYPTION.md` §4.6). Clients encrypt no content (messages, edits,
+  thread titles, forum posts, file records, scenes) while the roster holds a ghost leaf the user has not explicitly
+  acknowledged; a leaf naming an attested device with another key is unattested.
+- **Claimed KeyPackages are checked** (`ENCRYPTION.md` §4.2): the leaf must carry the claimed device's identity and
+  attested key.
+- **Retired re-attestation only for own recorded devices** (`ENCRYPTION.md` §4.7); removals name the leaf by identity
+  and signature key.
+- **Plaintext in encrypted conversations** (`ENCRYPTION.md` §5.4) is never shown as the author's content; link
+  previews are listed with the metadata the node sees.
+- **Trust record** (`ENCRYPTION.md` §7): pins, verified contacts and own devices as an encrypted backup.
+- **History shares: format 1 removed** (`ENCRYPTION.md` §7b). Clients send only format 2 and bound the window of an
+  automatic share by their own knowledge of the member.
 - **CORS mirrors the requested headers** (`FEDERATION.md` §8 "CORS and CSP"). Nodes allow at least the listed
   request headers and the `Tavrn-*` headers of the upload routes; the reference node mirrors whatever headers a
   preflight names, allows every method and exposes `Content-Range` and `Content-Disposition` besides `ETag`,
