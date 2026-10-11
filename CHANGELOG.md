@@ -46,6 +46,21 @@ Changes of the protocol that implementations must follow, newest first. Versions
 - **Clarifications** (`ENCRYPTION.md` §7b, §9; `PROTOCOL.md` §7): the 64 KiB share limit is measured on the
   base64url string; the identity reset accepts any reauth token of the session and records `key_reset_at` with the
   key change; the envelope example names the field `reply_to_id`.
+- **Unknown devices block every encrypted write** (`ENCRYPTION.md` §4.6). Clients encrypt no content (messages, edits,
+  thread titles, forum posts, file records, scenes) while the roster holds a ghost leaf the user has not explicitly
+  acknowledged; a leaf naming an attested device with another key is unattested.
+- **Claimed KeyPackages are checked** (`ENCRYPTION.md` §4.2): the leaf must carry the claimed device's identity and
+  attested key.
+- **Retired re-attestation only for own recorded devices** (`ENCRYPTION.md` §4.7); removals name the leaf by identity
+  and signature key.
+- **Plaintext in encrypted conversations** (`ENCRYPTION.md` §5.4) is never shown as the author's content; link
+  previews are listed with the metadata the node sees.
+- **Trust record** (`ENCRYPTION.md` §7): pins, verified contacts and own devices as an encrypted backup, restored
+  before first-use pinning; a conflicting pin is a changed key unless a continuity chain links the keys.
+- **Unattended clients and ghosts** (`ENCRYPTION.md` §4.6): acknowledgements cover one leaf (identity and key); bots
+  decide by an operator setting (default: only retired devices are accepted).
+- **History shares: format 1 removed** (`ENCRYPTION.md` §7b). Clients send only format 2 and bound the window of an
+  automatic share by their own knowledge of the member.
 
 ### Fixed
 
