@@ -363,8 +363,9 @@ Secret storage routes: `ENCRYPTION.md` §2.4.
   passkeys only while its origin is in that list, and otherwise signs in through the browser (the connect flow of
   `FEDERATION.md` §8); a node without the field accepts only its web origin.
   - **Android**: `android:apk-key-hash:<hash>`, `<hash>` = base64url without padding (43 characters) of the
-    SHA-256 of the app's signing certificate (DER). A webview that runs WebAuthn for its app (Android 14+) and the
-    Credential Manager put this origin into `clientDataJSON`. Android lets the app use the relying party's passkeys
+    SHA-256 of the app's signing certificate (DER). Android's Credential Manager puts this origin into
+    `clientDataJSON` when the app itself requests a passkey (Android 14+; an app's webview cannot, because its
+    WebAuthn checks the relying party id against the page's origin). Android lets the app use the relying party's passkeys
     only when `https://<rp_id>/.well-known/assetlinks.json` lists the app with
     `delegate_permission/common.get_login_creds` and the **same** certificate fingerprint (there as colon-separated
     upper-case hex: `sha256_cert_fingerprints`). Each signing key (release, debug, a store's re-signing key) is
