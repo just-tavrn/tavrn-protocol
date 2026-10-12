@@ -24,6 +24,9 @@ node ──every 30 s──▶ LiveKit room service (reconciliation, no ghosts)
 - One LiveKit room per voice channel, named `<room id>:<channel id>`. One LiveKit participant per device, identity
   `<user address>/<device id>` (for users of other nodes: their home device id), which is also the device's MLS
   leaf identity. A device is in at most one voice channel of a node; joining another channel leaves the old one.
+  A device may add one *screen publisher* to its participation (identity `<user address>/<device id>#screen`,
+  §4b): a second LiveKit participant that only publishes the device's screen share, for apps whose own WebRTC cannot
+  take the platform's screen capture.
 - The node is the only issuer of LiveKit tokens and the only way to LiveKit's signaling. Users of other nodes
   join voice channels on the hosting node with their federated session there (`FEDERATION.md`), like any other
   room API.
@@ -56,7 +59,8 @@ operators lower it to save traffic.
 
 ## 3. Joining
 
-`POST /api/v1/rooms/{room_id}/channels/{channel_id}/voice/join` (no body) → `200`:
+`POST /api/v1/rooms/{room_id}/channels/{channel_id}/voice/join` (no body, or `{ "role": "device" }`; `{ "role":
+"screen" }` asks for the device's screen publisher instead, §4b) → `200`:
 
 ```json
 {
@@ -194,6 +198,64 @@ the kbps in a tooltip) from `limits.audio_bitrate_kbps`.
 
 Calls in DMs (§11) are speech: their limits carry `min(64, node maximum)`.
 
+## 4b. Screen publishers (native screen sharing)
+
+Some clients cannot publish a screen share from the connection that carries their voice: Android's webview, for
+example, has no `getDisplayMedia` and its WebRTC takes no video from the system's screen capture. Such a client
+publishes the screen from a native LiveKit SDK as a **second participant bound to the same device**, the device's
+*screen publisher*. It is the device's screen share, not a participant of its own.
+
+**Join.** `POST …/voice/join` with `{ "role": "screen" }` (calls: `POST /conversations/{id}/call/join` with the same
+body, §11.1). The node checks everything of §3 (calls: §11.1) and then, in this order:
+
+- the requesting device has a participant in this channel or call (reserved, connected or reconnecting), else
+  `409 voice.not_connected` (a screen publisher never comes alone);
+- screen sharing is allowed for it: the `stream` permission in the channel and the node's screen share policy (calls:
+  the policy), else `403 voice.stream_forbidden`;
+- the device has no screen publisher yet: one that is connected or reconnecting, or reserved within the last 60
+  seconds, refuses the join with `409 voice.screen_active` (one screen publisher per device; leave it first, below).
+
+The answer is the `VoiceJoin` of §3 (calls: `CallJoin`) for identity **`<user address>/<device id>#screen`**, with the
+owner's limits, and a token with exactly these grants:
+
+| Grant | Value |
+|---|---|
+| `roomJoin`, `room` | as for the device |
+| `canSubscribe` | `false` (it never receives anything) |
+| `canPublishSources` | `screen_share`, `screen_share_audio` |
+| `canPublish` | `true` |
+| `canPublishData`, `canUpdateOwnMetadata` | `false` |
+| `sub` (identity), TTL | `<user address>/<device id>#screen`, 10 minutes |
+
+The `/rtc` proxy accepts its token like the device's (the holder needs `connect` there, §3). A screen publisher
+**counts as its owner**: it takes no seat of the `user_limit`, `voice_max_participants`, `voice.max_participants` or
+`call.full`, displaces nobody and consumes no move grant (§7); the user's one voice session (§3) is the owner's.
+
+**Presence.** The screen publisher is a `VoiceParticipant` (§5) with `screen_of` = the owner's identity, listed
+directly after its owner in `voice.state`, the join answers and `CallState`, with the owner's `user`, `user_id`,
+`device_id`, `server_muted` and `moved`, `muted: true`, `deafened: false`, `camera: false` and `streaming` while its
+`screen_share` track is published. The owner's `streaming` is `true` while either of them publishes a screen share.
+Clients show a screen publisher as the owner's stream (the stream tile carries the owner's name; no participant tile,
+row or count of its own) and subscribe to it like any stream; LiveKit participants whose identity ends in `#screen`
+are treated the same before the node reports them.
+
+**Lifetime.** It ends with its owner's participation: the owner's leave, a moderator's disconnect or move, the end
+of the owner's reconnect grace period (§5a), another device of the user taking over (§3), a join of the owner
+elsewhere, and everything of §5 "Leaving" remove the screen publisher as well, in the node's state and in LiveKit.
+While the owner is only `reconnecting`, the screen publisher stays. Its own dropped connection follows §5a like any
+participant's. `POST …/voice/leave` with `{ "role": "screen" }` (calls: `…/call/leave`) ends only the screen
+publisher of the requesting device; without a body the device leaves with its screen publisher. A screen identity
+whose owner is not in the channel is removed from LiveKit (webhook, reconciliation). `PATCH …/voice/state` stays the
+device's own; a server mute (§7) does not touch the screen publisher (as it does not touch a device's screen share).
+
+**Encryption.** The screen publisher encrypts with **its owner's frame key** (`ENCRYPTION.md` §5a): the same 32 bytes
+of the same epoch at `keyIndex = epoch mod 256`, with the same key provider settings. It is not a member of the MLS
+group and derives nothing itself: the owner's client hands each epoch's key to the native publisher over the app's
+local bridge between its client and its native part (the Android app: the shell's `android_screen_share_*`
+commands), right after deriving it, before its own connection uses it. The key never travels through the node,
+LiveKit or any network. Like every client, the native publisher MUST NOT publish without a key; receivers decrypt
+its frames with the channel's shared key as any other's.
+
 ## 5. Presence: who is in which channel
 
 `VoiceParticipant`:
@@ -207,6 +269,10 @@ Calls in DMs (§11) are speech: their limits carry `min(64, node maximum)`.
   "connection": "connected", "moved": false
 }
 ```
+
+A device's screen publisher (§4b) additionally carries `"screen_of": "alice@node.example/01J…"` (its owner's
+identity); the field is absent for devices. Clients that do not know it would show it as another participant of the
+same user.
 
 `connection` is `connected` or `reconnecting` (§5a); clients treat unknown values as `connected` (`poor` is
 reserved: participants of a call take the connection quality from LiveKit). `moved` is `true` while the participant
@@ -240,7 +306,7 @@ nodes, always `false` in calls.
   (the reference client measures the decoded audio itself and falls back to LiveKit's `ActiveSpeakersChanged`, §9.1),
   which works for every participant of the call. Clients that are not in the call do not see who speaks.
 - **Leaving:** `POST …/voice/leave` → `204` (always allowed, also when not connected; the node disconnects the device in
-  LiveKit too). A client that hangs up calls it (LiveKit also reports `CLIENT_INITIATED`), so the participant is gone
+  LiveKit too, with its screen publisher, §4b; `{ "role": "screen" }` ends only the screen publisher). A client that hangs up calls it (LiveKit also reports `CLIENT_INITIATED`), so the participant is gone
   at once; a dropped connection gets the grace period of §5a. Leaving a room, being kicked, banned or timed out, a deleted channel or room end the voice connection
   automatically (the node removes the participants in LiveKit and sends `voice.state`, or `channel.delete` and
   `room.delete` for deletions). So does losing `view_channel` or `connect` in the channel through a role, override,
@@ -396,7 +462,8 @@ Part of the web client, responsive like the rest of the client:
   a large tile above a strip of small ones); shares, cameras, the whiteboard and the whole stage can go fullscreen
   (Fullscreen API, `F`, Escape, a controls overlay with mute, deafen and leave). On phones the tiles become a
   **swipeable grid** (pages of up to 4), the controls a bottom bar.
-- **Controls:** mute, deafen, camera, screen share (hidden when `limits.*.enabled` is false), soundboard (with
+- **Controls:** mute, deafen, camera, screen share (hidden when `limits.*.enabled` is false; the Android app shares
+  through a screen publisher, §4b), soundboard (with
   `use_soundboard`), the priority speaker toggle (with `priority_speaker`, §7a), leave; device selection (microphone, speaker, camera); a connection quality indicator.
 - **Participant menu** (design note 4.13 item 3): right-click, long press and the ⋯ button on a channel-list row and on a
   stage tile open the member list's dropdown (anchored at the pointer): profile, message, roles, per-user volume
@@ -414,7 +481,7 @@ Part of the web client, responsive like the rest of the client:
   (moved, stayed and why) shows as a toast.
 - **Encryption:** the lock icon of the channel, a blocking warning if E2EE cannot be set up (no insertable streams),
   never a silent fallback to unencrypted media; ghost member warning as in text.
-- **Errors:** the codes of §3, §5, §7 and §8 mapped to translated messages (`voice.channel_full` with the limit,
+- **Errors:** the codes of §3, §4b, §5, §7 and §8 mapped to translated messages (`voice.channel_full` with the limit,
   `voice.connect_forbidden`, `voice.disabled`, `voice.unavailable` "voice server unreachable", …).
 - **Connection problems** (§5a): a reconnecting participant gets a small amber "unplugged" glyph on the avatar in the
   channel list and on the stage tile (pulsing softly, opacity 0.55 → 1 over 1.6 s, static with reduced motion,
@@ -623,8 +690,8 @@ All under `/api/v1/conversations/{conversation_id}/call`, for accepted members o
 | Route | Answer | Effect |
 |---|---|---|
 | `POST …/start` | `200 CallJoin` | Starts a call (or joins the running one without ringing again): every other accepted member rings (§11.2); the answer is a LiveKit token like §3 |
-| `POST …/join` | `200 CallJoin` | Answers/joins a running call; the user's devices stop ringing |
-| `POST …/leave` | `204` | This device leaves. A DM call ends when one of the two hangs up after it was answered; a group call when the last one left |
+| `POST …/join` | `200 CallJoin` | Answers/joins a running call; the user's devices stop ringing. `{ "role": "screen" }`: the device's screen publisher (§4b; no answer, no ring change) |
+| `POST …/leave` | `204` | This device leaves (with its screen publisher). A DM call ends when one of the two hangs up after it was answered; a group call when the last one left. `{ "role": "screen" }`: only the screen publisher |
 | `POST …/decline` | `204` | The user stops ringing; a DM call ends as missed; in a group the call ends as missed only when nobody answered and nobody else rings |
 | `GET …` | `200 CallState` | `{ conversation_id, active, started_by, started_at, group, participants, ringing }` (`ringing` = addresses still ringing) |
 | `PATCH …/state` | `200 CallState` | Own `muted`/`deafened`/`streaming`/`camera` as in §5 |
@@ -634,7 +701,9 @@ reconnect_grace_secs, ice_aliases, call: CallState }`; the limits are the node's
 `min(64, TAVRN_VOICE_MAX_BITRATE_KBPS)` (speech, §4a) with `audio_fec`, camera and screen share as the node policies allow. Errors: `400 call.not_direct`
 (a room channel), `403 call.request_pending` (the requester has not accepted the conversation), `404
 conversation.not_found`, `409 call.not_active` (join/decline without a call), `409 call.full`
-(`TAVRN_VOICE_MAX_PARTICIPANTS`), `409 voice.not_connected` (state without a connection), `429`, `503 voice.disabled`.
+(`TAVRN_VOICE_MAX_PARTICIPANTS`), `409 voice.not_connected` (state without a connection, or a screen publisher
+without its device in the call), `403 voice.stream_forbidden` and `409 voice.screen_active` (screen publishers, §4b),
+`429`, `503 voice.disabled`.
 
 ### 11.2 Ringing
 

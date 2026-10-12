@@ -25,6 +25,16 @@ Changes of the protocol that implementations must follow, newest first. Versions
   `forwarded` and `origin`.
   The reporter is told nothing. Additive: nodes without `reports.v2` ignore the type, `reports.v1` is unchanged.
 
+- **Screen publishers** (`VOICE.md` §4b, §3, §5, §11.1, `ENCRYPTION.md` §5a). A device may add one second LiveKit
+  participant to its voice channel or call that only publishes its screen share, for apps whose WebRTC cannot take
+  the system's screen capture (the Android app): `voice/join` and `call/join` take an optional body
+  `{ "role": "screen" }` and return a token for `<user>/<device>#screen` that publishes `screen_share` and
+  `screen_share_audio` only and never subscribes (`409 voice.not_connected` without the device's own participation,
+  `403 voice.stream_forbidden`, `409 voice.screen_active` for a second one); it counts as its owner (no seat, no
+  limit), is listed right after the owner with `screen_of` = the owner's identity, ends with the owner's
+  participation, and `voice/leave` / `call/leave` with `{ "role": "screen" }` end it alone. It encrypts with the
+  owner's frame key, which the owner's client hands to it over the app's local bridge. Additive: devices are
+  unchanged, `screen_of` is absent for them.
 - **Files channels on external stores only** (`FILES.md` §5, `PROTOCOL.md` §2). A node policy
   (`TAVRN_FILES_INTERNAL=off`) under which files channels keep no files on the node: `files_internal` in `GET /node`
   and `policies.files_internal` in the discovery document; a new files channel has no store (`backend`/`kind`
