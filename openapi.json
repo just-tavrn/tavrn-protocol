@@ -7589,7 +7589,7 @@
         "tags": [
           "calls"
         ],
-        "summary": "Join (answer) a running call.",
+        "summary": "Join (answer) a running call. With `role: \"screen\"` the token is the device's screen publisher's (VOICE.md §4b):\nit needs the device in the call, answers nothing and takes no seat.",
         "operationId": "join",
         "parameters": [
           {
@@ -7601,6 +7601,23 @@
             }
           }
         ],
+        "requestBody": {
+          "description": "Optional: `{ \"role\": \"screen\" }` for the device's screen publisher",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VoiceRoleRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",
@@ -7608,6 +7625,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CallJoin"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -7675,7 +7702,7 @@
         "tags": [
           "calls"
         ],
-        "summary": "Leave the call (this device). The last one to leave ends it.",
+        "summary": "Leave the call (this device, with its screen publisher). The last one to leave ends it. With `role: \"screen\"`\nonly the device's screen publisher leaves (VOICE.md §4b).",
         "operationId": "leave",
         "parameters": [
           {
@@ -7687,9 +7714,36 @@
             }
           }
         ],
+        "requestBody": {
+          "description": "Optional: `{ \"role\": \"screen\" }` ends only the screen publisher",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VoiceRoleRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "204": {
             "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "404": {
             "description": "",
@@ -15506,7 +15560,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Join a voice channel: checks `connect` (or a moderator's move into this channel), the user limit and the node\npolicies and returns a LiveKit token.",
+        "summary": "Join a voice channel: checks `connect` (or a moderator's move into this channel), the user limit and the node\npolicies and returns a LiveKit token. With `role: \"screen\"` the token is the device's screen publisher's\n(VOICE.md §4b): it publishes the screen share only, takes no seat and needs the device in the channel and `stream`.",
         "operationId": "join",
         "parameters": [
           {
@@ -15526,6 +15580,23 @@
             }
           }
         ],
+        "requestBody": {
+          "description": "Optional: `{ \"role\": \"screen\" }` for the device's screen publisher",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VoiceRoleRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",
@@ -15610,7 +15681,7 @@
         "tags": [
           "voice"
         ],
-        "summary": "Leave a voice channel (this device). Always allowed; disconnects the device in LiveKit as well.",
+        "summary": "Leave a voice channel (this device, with its screen publisher). Always allowed; disconnects the device in\nLiveKit as well. With `role: \"screen\"` only the device's screen publisher leaves (VOICE.md §4b).",
         "operationId": "leave",
         "parameters": [
           {
@@ -15630,9 +15701,36 @@
             }
           }
         ],
+        "requestBody": {
+          "description": "Optional: `{ \"role\": \"screen\" }` ends only the screen publisher",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VoiceRoleRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "204": {
             "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "503": {
             "description": "",
@@ -38052,6 +38150,13 @@
             "type": "boolean",
             "description": "Microphone muted by the user (or by a moderator, see `server_muted`)."
           },
+          "screen_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set only for a device's screen publisher (VOICE.md §4b): the identity of the device it belongs to. Clients\nshow it as that participant's stream, not as a participant of its own. Absent for devices."
+          },
           "server_muted": {
             "type": "boolean",
             "description": "Muted by a moderator (`mute_members`); the user cannot unmute and has no microphone grant."
@@ -38068,6 +38173,24 @@
             "type": "string"
           }
         }
+      },
+      "VoiceRole": {
+        "type": "string",
+        "description": "Who joins or leaves: the device itself, or its screen publisher (VOICE.md §4b).",
+        "enum": [
+          "device",
+          "screen"
+        ]
+      },
+      "VoiceRoleRequest": {
+        "type": "object",
+        "description": "Optional body of `voice/join`, `voice/leave`, `call/join` and `call/leave` (no body = the device).",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/VoiceRole"
+          }
+        },
+        "additionalProperties": false
       },
       "VoiceStatePatch": {
         "type": "object",
