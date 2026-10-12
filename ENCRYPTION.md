@@ -731,6 +731,11 @@ same authorization; the group exists before the first voice join, created by the
   index 0). LiveKit derives the AES-GCM frame key from it with its default salt (`LKFrameEncryptionKey`) and key size
   (128 bit); all tavrn clients MUST keep these defaults, so every SDK interoperates. Setting a key with an index makes
   it the sending key; receivers pick the key by the index in each frame.
+- **Screen publishers** (`VOICE.md` §4b): a device that publishes its screen from a native SDK as a second LiveKit
+  participant (`<user>/<device>#screen`) encrypts it with the device's own frame key of the current epoch, at the same
+  key index and with the same key provider settings. The device's client hands every epoch's 32 bytes to its native
+  part over the app's local bridge (never through the node, LiveKit or a network) as soon as it derived them; the
+  screen publisher is no MLS member, derives nothing and never subscribes. Nothing changes for receivers.
 - **When the key changes:** every commit of the channel's group creates a new epoch and therefore a new key:
   adds and removes (a kicked or banned member is removed from the group, `mls.remove_needed`), external joins
   of new devices and self updates. A client SHOULD commit a self update when it joins voice (§4.2), so every voice
