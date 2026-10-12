@@ -13,6 +13,11 @@ Changes of the protocol that implementations must follow, newest first. Versions
   `none` in `GET usage` and `GET backend`, which also carries `internal_allowed`) and answers uploads, new folders
   and `PUT …/files/backend { kind: "internal" }` with `403 files.internal_disabled` until an external store is set.
 
+- **Passkeys in the apps** (`PROTOCOL.md` §5a.4, §2). A node may accept the WebAuthn origins of its own apps
+  (Android: `android:apk-key-hash:<base64url SHA-256 of the signing certificate>`, the certificate also listed in the
+  relying party's `assetlinks.json`) and publishes the accepted origins as `webauthn.origins` (web origin first) in
+  `GET /node` and the discovery document; clients offer in-app passkeys only while their origin is listed. Desktop
+  apps run the ceremony natively with the node's web origin.
 - **Confirmation mail again** (`PROTOCOL.md` §5a.3). `POST /auth/verify-email/resend { account }` sends a new
   confirmation link to an unconfirmed address (always `204`, three mails per account and hour); `POST /auth/verify-email`
   is listed in the route table.

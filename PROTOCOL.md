@@ -56,7 +56,7 @@ detail; this document covers the concepts and rules that span individual routes.
     "files_internal": true
   },
   "directory_listing": true,
-  "webauthn": { "rp_id": "node.example" },
+  "webauthn": { "rp_id": "node.example", "origins": ["https://node.example", "android:apk-key-hash:<base64url>"] },
   "age": { "self_declared": true, "gates": ["adults_only"], "minimum_age": 16 }
 }
 ```
@@ -353,6 +353,29 @@ Secret storage routes: `ENCRYPTION.md` §2.4.
   `/.well-known/tavrn`. Clients that build an assertion themselves (the local secret storage PRF evaluation,
   `ENCRYPTION.md` §2.4, which never involves the node) MUST pass it as `rpId`: without it the browser uses the
   page's host, which differs from the relying party id under delegation, and the assertion fails.
+- **Origins of the node's own apps.** Besides its web origin a node MAY accept the WebAuthn origins of native apps
+  that use passkeys of the same relying party id (reference node: `TAVRN_WEBAUTHN_APP_ORIGINS`, comma-separated). It
+  verifies registrations and assertions against all accepted origins alike (`clientDataJSON.origin` must equal one
+  of them exactly); the relying party id stays the identity domain, so a passkey made in the app works in the
+  browser and the other way round. The node publishes the accepted origins as `webauthn.origins` in
+  `GET /api/v1/node` and in `/.well-known/tavrn`: the web origin first, then the app origins in their configured
+  order. A client that runs WebAuthn under an origin other than the web origin (an app's webview) offers in-app
+  passkeys only while its origin is in that list, and otherwise signs in through the browser (the connect flow of
+  `FEDERATION.md` §8); a node without the field accepts only its web origin.
+  - **Android**: `android:apk-key-hash:<hash>`, `<hash>` = base64url without padding (43 characters) of the
+    SHA-256 of the app's signing certificate (DER). Android's Credential Manager puts this origin into
+    `clientDataJSON` when the app itself requests a passkey (Android 14+; an app's webview cannot, because its
+    WebAuthn checks the relying party id against the page's origin). Android lets the app use the relying party's passkeys
+    only when `https://<rp_id>/.well-known/assetlinks.json` lists the app with
+    `delegate_permission/common.get_login_creds` and the **same** certificate fingerprint (there as colon-separated
+    upper-case hex: `sha256_cert_fingerprints`). Each signing key (release, debug, a store's re-signing key) is
+    its own origin.
+  - **iOS**: reserved (associated domains; not specified yet).
+  - Desktop apps whose webview origin cannot be under the relying party id (for example `https://tauri.localhost`)
+    run the ceremony natively through the operating system's WebAuthn API and put the node's web origin into
+    `clientDataJSON` themselves, as a browser does; they need no entry in `webauthn.origins`. Such an app MUST
+    take that origin from the node it is connected to (the discovery document's `web`), never from page content,
+    and MUST only request relying party ids that the origin's host is equal to or a subdomain of.
 - `options` is the JSON form of `PublicKeyCredentialCreationOptions` / `…RequestOptions` wrapped in
   `{ "publicKey": … }` with binary values in base64url, suitable for
   `PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`. The node adds

@@ -32112,7 +32112,7 @@
           },
           "webauthn": {
             "$ref": "#/components/schemas/WebauthnInfo",
-            "description": "WebAuthn relying party id (`TAVRN_WEBAUTHN_RP_ID`, default the identity domain): clients pass it\nas `rpId` on the assertions they build themselves (PROTOCOL.md §5a.4)."
+            "description": "WebAuthn relying party id (`TAVRN_WEBAUTHN_RP_ID`, default the identity domain), which clients pass\nas `rpId` on the assertions they build themselves, and the accepted origins (web origin first, then the\napps' origins: an app offers in-app passkeys only while its origin is listed), PROTOCOL.md §5a.4."
           }
         }
       },
@@ -37978,13 +37978,22 @@
       },
       "WebauthnInfo": {
         "type": "object",
-        "description": "The WebAuthn relying party id (`TAVRN_WEBAUTHN_RP_ID`, default the identity domain). It may be a parent\ndomain of the web client's host (delegation); clients pass it as `rpId` on assertions they build\nthemselves (the secret storage PRF, PROTOCOL.md §5a.4).",
+        "description": "The WebAuthn relying party of this node (PROTOCOL.md §5a.4).",
         "required": [
-          "rp_id"
+          "rp_id",
+          "origins"
         ],
         "properties": {
+          "origins": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every origin the node accepts in `clientDataJSON`: the web origin first, then the origins of the node's own\napps (`TAVRN_WEBAUTHN_APP_ORIGINS`, e.g. `android:apk-key-hash:<base64url>`). An app offers passkeys in its\nwebview only while its own origin is listed, otherwise it signs in through the browser."
+          },
           "rp_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The relying party id (`TAVRN_WEBAUTHN_RP_ID`, default the identity domain). It may be a parent domain of\nthe web client's host (delegation); clients pass it as `rpId` on assertions they build themselves (the\nsecret storage PRF)."
           }
         }
       },
