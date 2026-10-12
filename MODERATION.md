@@ -123,8 +123,8 @@ resolved_at }` with `source` `user`, `automod` (§2.4) or `forward` (§1.6), `ta
 public users (`target` null for an address this node does not know, `reporter` null for `source: automod` and
 `source: forward`), `conversation_kind` `channel`, `dm` or `group`, `actions` the list of action shortcuts taken
 `[{ action, actor, at, minutes? }]`, `forwarded` `{ node, at, by }` once a node admin forwarded the report (§1.6, `by`
-the admin's address; null otherwise) and `origin` `{ node, report_id, reporter }` for a report another node forwarded
-here (§1.6; null otherwise).
+the admin's address; null otherwise) and `origin` `{ node, report_id, reporter, reported_at }` for a report another
+node forwarded here (§1.6; null otherwise).
 
 **Action shortcuts.** `POST /reports/{id}/actions { action, minutes?, reason?, confirm_token?, resolve? }` runs the
 existing moderation route on the report's target with the caller's permissions, exactly as if the caller had called it
@@ -184,9 +184,9 @@ and stays in the inbox, and moderators keep acting on it here. The reporter is t
 reported user is never told either (§1).
 
 **What is forwarded** (the payload of `report.forward`): the original report's `report_id`, `kind`, `category`,
-`detail`, `created_at`, `message_id` (message reports), `conversation_kind`, the `snapshot` of a plaintext message or
-the `evidence` the reporter released (§1.2), and `reporter`. Room names, room and conversation ids, the reporter's
-address and the moderators' notes and actions are not forwarded.
+`detail`, `created_at`, `message_id` (message reports), the `snapshot` of a plaintext message or the `evidence` the
+reporter released (§1.2), and `reporter`. Room names, room and conversation ids, the reporter's address and the
+moderators' notes and actions are not forwarded.
 
 **The reporter stays pseudonymous to the home node.** `reporter` is an opaque pseudonym (1–64 characters of
 `[A-Za-z0-9_-]`), never the address: stable per reporter and receiving node, so the home node can tell repeated
@@ -212,8 +212,8 @@ the sending node leaves out the oldest context entries of the evidence, never th
 - duplicates by origin node and original report id are accepted (`202`) and change nothing.
 
 The report lands in the node admins' inbox (`GET /admin/reports`) as `source: forward`, `scope: node`, the local user
-as `target`, `reporter: null` and `origin { node, report_id, reporter }` (the sending node, the original id, the
-pseudonym); `node` names the origin, since the reported content lives there: `delete_message` answers `409
+as `target`, `reporter: null` and `origin { node, report_id, reporter, reported_at }` (the sending node, the original
+id, the pseudonym, the original `created_at`); `node` names the origin, since the reported content lives there: `delete_message` answers `409
 report.target_remote`, while the account actions (`ban` as a node ban, `purge`) work as for every node report. It
 sends `report.create` (`source: "forward"`) and the report push to the node admins like a new report (§1.5). Triage,
 deletion and retention (§1.5) are those of every report and independent of the origin's copy; nothing is reported

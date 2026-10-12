@@ -20,8 +20,9 @@ Changes of the protocol that implementations must follow, newest first. Versions
   `409 report.forward_unsupported` when the home node does not announce `reports.v2`). The inbox type
   `report.forward` carries kind, category, detail, the snapshot or the released evidence and a **pseudonym** of the
   reporter (never the address; other authors in the evidence are pseudonymized too). The home node stores it in its
-  admins' inbox as `source: forward` with `origin { node, report_id, reporter }`, deduplicated per origin report and
-  limited per sending domain (`TAVRN_REPORTS_INBOUND_PER_HOUR`); `ModerationReport` gains `forwarded` and `origin`.
+  admins' inbox as `source: forward` with `origin { node, report_id, reporter, reported_at }`, deduplicated per
+  origin report and limited per sending domain (`TAVRN_REPORTS_INBOUND_PER_HOUR`); `ModerationReport` gains
+  `forwarded` and `origin`.
   The reporter is told nothing. Additive: nodes without `reports.v2` ignore the type, `reports.v1` is unchanged.
 
 - **Files channels on external stores only** (`FILES.md` §5, `PROTOCOL.md` §2). A node policy
