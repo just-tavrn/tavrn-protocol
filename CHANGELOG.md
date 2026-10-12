@@ -14,6 +14,17 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Reports v2: forwarding reports to the reported user's home node** (`MODERATION.md` §1.6, `FEDERATION.md` §5.2,
+  capability `reports.v2`, fixes #2). Node admins forward a report about a user of another node with
+  `POST /reports/{report_id}/forward` (idempotent; `400 report.forward_invalid`, `409 report.target_local`,
+  `409 report.forward_unsupported` when the home node does not announce `reports.v2`). The inbox type
+  `report.forward` carries kind, category, detail, the snapshot or the released evidence and a **pseudonym** of the
+  reporter (never the address; other authors in the evidence are pseudonymized too). The home node stores it in its
+  admins' inbox as `source: forward` with `origin { node, report_id, reporter, reported_at }`, deduplicated per
+  origin report and limited per sending domain (`TAVRN_REPORTS_INBOUND_PER_HOUR`); `ModerationReport` gains
+  `forwarded` and `origin`.
+  The reporter is told nothing. Additive: nodes without `reports.v2` ignore the type, `reports.v1` is unchanged.
+
 - **Files channels on external stores only** (`FILES.md` §5, `PROTOCOL.md` §2). A node policy
   (`TAVRN_FILES_INTERNAL=off`) under which files channels keep no files on the node: `files_internal` in `GET /node`
   and `policies.files_internal` in the discovery document; a new files channel has no store (`backend`/`kind`

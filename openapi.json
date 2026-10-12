@@ -12086,6 +12086,91 @@
         ]
       }
     },
+    "/api/v1/reports/{report_id}/forward": {
+      "post": {
+        "tags": [],
+        "summary": "Forward a report to the reported user's home node.",
+        "description": "Node admins only, for reports by users about a user of another node whose home node announces `reports.v2`\n(MODERATION.md §1.6). The node queues `report.forward` with the report's kind, category, text, snapshot or released\nevidence and a pseudonym of the reporter (never the address). Idempotent: a forwarded report answers with its\n`forwarded` unchanged. The reporter is told nothing. `400 report.forward_invalid` (automod entries, room reports,\nforwarded reports), `409 report.target_local`, `409 report.forward_unsupported`.",
+        "operationId": "forward_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/rooms": {
       "get": {
         "tags": [
@@ -31686,6 +31771,17 @@
             ],
             "description": "`reporter` when evidence was released by the reporter."
           },
+          "forwarded": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportForward",
+                "description": "Set once a node admin forwarded the report to the reported user's home node."
+              }
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -31713,6 +31809,17 @@
           "note": {
             "type": "string"
           },
+          "origin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportOrigin",
+                "description": "Set for a report another node forwarded here (`source: forward`)."
+              }
+            ]
+          },
           "reporter": {
             "oneOf": [
               {
@@ -31720,7 +31827,7 @@
               },
               {
                 "$ref": "#/components/schemas/User",
-                "description": "Null for automod entries."
+                "description": "Null for automod entries and forwarded reports."
               }
             ]
           },
@@ -31758,7 +31865,7 @@
           },
           "source": {
             "type": "string",
-            "description": "`user` or `automod`."
+            "description": "`user`, `automod` or `forward` (forwarded by another node)."
           },
           "status": {
             "type": "string",
@@ -34661,6 +34768,28 @@
           }
         }
       },
+      "ReportForward": {
+        "type": "object",
+        "description": "Where and when a report was forwarded (MODERATION.md §1.6).",
+        "required": [
+          "node",
+          "at",
+          "by"
+        ],
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "by": {
+            "type": "string",
+            "description": "The admin who forwarded it (address)."
+          },
+          "node": {
+            "type": "string",
+            "description": "The reported user's home node."
+          }
+        }
+      },
       "ReportList": {
         "type": "object",
         "description": "A page of the inbox.",
@@ -34679,6 +34808,34 @@
             "items": {
               "$ref": "#/components/schemas/ModerationReport"
             }
+          }
+        }
+      },
+      "ReportOrigin": {
+        "type": "object",
+        "description": "The node a forwarded report comes from (`source: forward`, MODERATION.md §1.6).",
+        "required": [
+          "node",
+          "report_id",
+          "reporter",
+          "reported_at"
+        ],
+        "properties": {
+          "node": {
+            "type": "string",
+            "description": "The sending node."
+          },
+          "report_id": {
+            "type": "string",
+            "description": "The report's id on the sending node."
+          },
+          "reported_at": {
+            "type": "string",
+            "description": "When the report was made on the sending node."
+          },
+          "reporter": {
+            "type": "string",
+            "description": "The reporter's pseudonym (stable per reporter for this node, never an address)."
           }
         }
       },

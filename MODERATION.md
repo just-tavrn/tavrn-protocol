@@ -3,9 +3,11 @@
 This document specifies reports with evidence, auto-moderation of unencrypted conversations, the protected entries of
 the welcome channel, room ownership transfer and age gates.
 
-Status: implemented (design note 4.6). Capabilities: `reports.v1` (§1) and `automod.v1` (§2), announced by every node
-that implements them; clients show the "Report" entries and the "Auto-moderation" room settings only for nodes that
-announce them. Everything here is node-local (other nodes never see a report or a rule) except where it says so.
+Status: implemented (design note 4.6). Capabilities: `reports.v1` (§1), `reports.v2` (§1.6) and `automod.v1` (§2),
+announced by every node that implements them; clients show the "Report" entries, the "Forward" action and the
+"Auto-moderation" room settings only for nodes that announce them. Everything here is node-local (other nodes never
+see a report or a rule) except where it says so: a report about a user of another node can be forwarded to that
+user's home node (§1.6).
 
 The moderation tools that existed before (timeouts, kicks, bans, purge, the audit log, the flood detection of §2.1)
 are unchanged; this document adds reports with evidence (§1), content filters for unencrypted conversations (§2),
@@ -65,8 +67,9 @@ channels with fewer or no moderators, would make the inbox and its badge differ 
 and would protect nothing the reporter wanted protected (the reporter chose to release it to the moderators). Rooms
 that need a separate moderation team for a private area use a separate room.
 
-Reports about a **remote user in a local room** stay on the room's node: forwarding a report to the user's home node
-is future work (a later `reports.v2`).
+Reports about a **remote user** (a user of another node in a local room, the author of a DM on another node) stay on
+the node they were sent to; its admins can forward them to the user's home node, whose admins are the ones able to act
+on the account (§1.6).
 
 ### 1.2 Evidence
 
@@ -109,15 +112,19 @@ when the limit is reached as well, so a full limit refuses both.
 | `PATCH /reports/{report_id} { status?, assignee_id?, note? }` | whoever may see it | `status`: `open`, `resolved`, `dismissed`; `assignee_id`: a moderator who may see the report, or null; `note`: the resolution note (at most 2000 characters) → `ModerationReport` |
 | `DELETE /reports/{report_id}` | node admins | deletes the report and its evidence at once → `204` |
 | `POST /reports/{report_id}/actions` | whoever may see it, with the permission the action needs | the action shortcuts below |
+| `POST /reports/{report_id}/forward` | node admins | forwards the report to the reported user's home node (§1.6) → `ModerationReport` |
 
 `status` filters by state (default: all), `limit` 1–100 (default 50), `before` a report id (paging). `ReportList.open`
 counts the open reports of the list's scope (badges). List entries carry `evidence_count` but not the evidence
 itself. A `ModerationReport` is `{ id, source, scope, kind, room_id, room_name, conversation_id, conversation_kind,
 node, message_id, message_exists, target, target_address, reporter, category, detail, snapshot, evidence,
-evidence_count, evidence_source, status, assignee, note, actions, created_at, updated_at, resolved_at }` with
-`target`, `reporter` and `assignee` as public users (`target` null for an address this node does not know, `reporter`
-null for `source: automod`, §2.4), `conversation_kind` `channel`, `dm` or `group`, and `actions` the list of action
-shortcuts taken `[{ action, actor, at, minutes? }]`.
+evidence_count, evidence_source, status, assignee, note, actions, forwarded, origin, created_at, updated_at,
+resolved_at }` with `source` `user`, `automod` (§2.4) or `forward` (§1.6), `target`, `reporter` and `assignee` as
+public users (`target` null for an address this node does not know, `reporter` null for `source: automod` and
+`source: forward`), `conversation_kind` `channel`, `dm` or `group`, `actions` the list of action shortcuts taken
+`[{ action, actor, at, minutes? }]`, `forwarded` `{ node, at, by }` once a node admin forwarded the report (§1.6, `by`
+the admin's address; null otherwise) and `origin` `{ node, report_id, reporter, reported_at }` for a report another
+node forwarded here (§1.6; null otherwise).
 
 **Action shortcuts.** `POST /reports/{id}/actions { action, minutes?, reason?, confirm_token?, resolve? }` runs the
 existing moderation route on the report's target with the caller's permissions, exactly as if the caller had called it
@@ -151,6 +158,66 @@ on another node is `409 report.target_remote`.
 - Resolved and dismissed reports, with their evidence and snapshot, are deleted `TAVRN_REPORTS_RETENTION_DAYS` (default
   90, 1–36500) days after they were closed. Open reports are kept. Deleting a room deletes its reports; an account
   erased after its grace period (`LEGAL.md` §3.2) takes its own reports with it.
+
+### 1.6 Forwarding to the home node (`reports.v2`)
+
+A report about a user of another node reaches the people who moderate the place where it happened, but only the
+admins of the user's **home node** can act on the account (disable it, ban it node-wide, purge it). The admins of the
+node that holds the report can therefore forward it there. Nodes announce `reports.v2` while federation is enabled
+(`FEDERATION.md` §11.4); it adds the route below and the inbox type `report.forward` (`FEDERATION.md` §5.2).
+`reports.v1` is unchanged, and a node without `reports.v2` ignores the type like every unknown inbox type.
+
+**Forwarding.** `POST /reports/{report_id}/forward` (empty body) → `200 ModerationReport` with `forwarded { node, at,
+by }`. Node admins only (`403 auth.node_admin_required`), for a report they can see (`404 report.not_found`):
+
+- only reports by users (`source: user`) about a user (`kind: message` or `user`); automod entries, reports about
+  rooms and reports that were forwarded here are `400 report.forward_invalid`;
+- the reported user must belong to another node (`409 report.target_local`), and that node must announce `reports.v2`
+  in its discovery document (`409 report.forward_unsupported`); the federation checks of `FEDERATION.md` apply
+  (`403 federation.disabled`, `federation.peer_blocked`, `502 federation.peer_unreachable`, …);
+- it is **idempotent**: a report that was forwarded already answers `200` with its `forwarded` unchanged, and nothing
+  is sent again.
+
+The node queues `report.forward` to the user's home node in its federation outbox (retries as in `FEDERATION.md`
+§5.3); `forwarded` records the decision, not the delivery. Forwarding changes nothing else: the report keeps its status
+and stays in the inbox, and moderators keep acting on it here. The reporter is told nothing, on either node; the
+reported user is never told either (§1).
+
+**What is forwarded** (the payload of `report.forward`): the original report's `report_id`, `kind`, `category`,
+`detail`, `created_at`, `message_id` (message reports), the `snapshot` of a plaintext message or the `evidence` the
+reporter released (§1.2), and `reporter`. Room names, room and conversation ids, the reporter's address and the
+moderators' notes and actions are not forwarded.
+
+**The reporter stays pseudonymous to the home node.** `reporter` is an opaque pseudonym (1–64 characters of
+`[A-Za-z0-9_-]`), never the address: stable per reporter and receiving node, so the home node can tell repeated
+reports of one person from reports of many, and unlinkable between receiving nodes (the reference node derives it with
+a keyed hash of its secret, the receiving domain and the address). The home node of the reported user may be run by
+that very user (a one-person node), and the reported user must never learn who reported them (§1). For the same
+reason the authors of evidence entries other than the reported user are replaced by their pseudonyms (the reporter's
+own entries carry the `reporter` pseudonym) and their `device_id` is left out; the reported user's entries keep
+address and device. The text itself is forwarded as released: clients tell the forwarding admin that the home node's
+admins will read the reason, the snapshot and the evidence. When the message would exceed the inbox limit of 64 KiB
+the sending node leaves out the oldest context entries of the evidence, never the reported message.
+
+**Receiving.** The home node checks the message like every inbox message (node token, `FEDERATION.md` §5.1), then:
+
+- `to` is the reported user's address and must be a user of this node (`404 federation.recipient_unknown`), `from`
+  the sending node's domain (`403 federation.type_forbidden` otherwise);
+- the payload is checked like a report (category, `detail` at most 2000 characters, the snapshot and the evidence by
+  the limits of §1.2 with pseudonyms allowed as authors, the reported message part of the evidence; `400
+  federation.envelope_invalid`);
+- at most `TAVRN_REPORTS_INBOUND_PER_HOUR` (default 20) forwarded reports per sending registrable domain (its
+  subdomains share the budget) and five times as many from all domains per hour (`429`, checked before the message
+  counts as received, so the sender's retry brings it later);
+- duplicates by origin node and original report id are accepted (`202`) and change nothing.
+
+The report lands in the node admins' inbox (`GET /admin/reports`) as `source: forward`, `scope: node`, the local user
+as `target`, `reporter: null` and `origin { node, report_id, reporter, reported_at }` (the sending node, the original
+id, the pseudonym, the original `created_at`); `node` names the origin, since the reported content lives there: `delete_message` answers `409
+report.target_remote`, while the account actions (`ban` as a node ban, `purge`) work as for every node report. It
+sends `report.create` (`source: "forward"`) and the report push to the node admins like a new report (§1.5). Triage,
+deletion and retention (§1.5) are those of every report and independent of the origin's copy; nothing is reported
+back to the origin.
 
 ## 2. Auto-moderation (`automod.v1`)
 
@@ -271,6 +338,7 @@ join is visible only to the person refused.
 |---|---|---|
 | `TAVRN_REPORTS_RATE_PER_HOUR` | `10` | reports per user and hour (1–1000) |
 | `TAVRN_REPORTS_RETENTION_DAYS` | `90` | days resolved and dismissed reports are kept (1–36500) |
+| `TAVRN_REPORTS_INBOUND_PER_HOUR` | `20` | reports forwarded by other nodes per sending registrable domain and hour, five times as many in total (1–1000), §1.6 |
 | `TAVRN_AUTOMOD_BURST_LIMIT` | `10` | flood detection, §2.1 (0 = off) |
 | `TAVRN_AUTOMOD_TIMEOUT_MINUTES` | `10` | timeout after a flood |
 | `TAVRN_AUTOMOD_WORDS_FILE` | – | node word list, §2.3 |
