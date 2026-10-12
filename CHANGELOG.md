@@ -5,6 +5,12 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+### Added
+
+- **Confirmation mail again** (`PROTOCOL.md` §5a.3). `POST /auth/verify-email/resend { account }` sends a new
+  confirmation link to an unconfirmed address (always `204`, three mails per account and hour); `POST /auth/verify-email`
+  is listed in the route table.
+
 ### Security
 
 - **Fresh proof for new sessions and login methods** (`PROTOCOL.md` §5c, `FEDERATION.md` §8, `APPLICATIONS.md`

@@ -6725,6 +6725,61 @@
         }
       }
     },
+    "/api/v1/auth/verify-email/resend": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Send the confirmation mail of an unconfirmed email address again.",
+        "description": "The new link replaces the previous one. Always answers 204, so no accounts can be guessed: confirmed, unknown and\ndisabled accounts get no mail. At most three mails per account and hour. A node without SMTP answers\n`503 mail.unavailable`.",
+        "operationId": "resend_verification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/webauthn/credentials": {
       "get": {
         "tags": [
@@ -34691,6 +34746,18 @@
             "type": "integer",
             "format": "int64",
             "description": "All stored reports (kept 180 days)."
+          }
+        }
+      },
+      "ResendVerificationRequest": {
+        "type": "object",
+        "required": [
+          "account"
+        ],
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Username, address (`name@domain`) or email address of the account (at most 320 characters)"
           }
         }
       },
