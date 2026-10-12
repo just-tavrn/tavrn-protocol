@@ -7,6 +7,12 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Files channels on external stores only** (`FILES.md` §5, `PROTOCOL.md` §2). A node policy
+  (`TAVRN_FILES_INTERNAL=off`) under which files channels keep no files on the node: `files_internal` in `GET /node`
+  and `policies.files_internal` in the discovery document; a new files channel has no store (`backend`/`kind`
+  `none` in `GET usage` and `GET backend`, which also carries `internal_allowed`) and answers uploads, new folders
+  and `PUT …/files/backend { kind: "internal" }` with `403 files.internal_disabled` until an external store is set.
+
 - **Confirmation mail again** (`PROTOCOL.md` §5a.3). `POST /auth/verify-email/resend { account }` sends a new
   confirmation link to an unconfirmed address (always `204`, three mails per account and hour); `POST /auth/verify-email`
   is listed in the route table.

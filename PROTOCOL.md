@@ -51,7 +51,9 @@ detail; this document covers the concepts and rules that span individual routes.
     "voice_max_bitrate_kbps": 96,
     "voice_max_participants": 50,
     "screenshare": { "enabled": true, "max_resolution": "1080p", "max_fps": 30 },
-    "camera": { "enabled": true, "max_resolution": "720p", "max_fps": 30 }
+    "camera": { "enabled": true, "max_resolution": "720p", "max_fps": 30 },
+    "preview_auto_max_bytes": 5242880,
+    "files_internal": true
   },
   "directory_listing": true,
   "webauthn": { "rp_id": "node.example" },
@@ -67,7 +69,10 @@ detail; this document covers the concepts and rules that span individual routes.
   node-local and specified in `ENTITLEMENTS.md`; clients read their effective values from
   `GET /users/me/entitlements`, and an attachment whose file retention deleted is listed with `expired: true`.
 - Files channels (channel kind `files`: folders and files instead of messages, end-to-end encrypted by default
-  with `files.e2ee`, optional external WebDAV/S3 storage) are specified in `FILES.md`.
+  with `files.e2ee`, optional external WebDAV/S3 storage) are specified in `FILES.md`. `policies.files_internal`
+  (also `files_internal` in `GET /node`): `false` on a node that keeps no files of files channels itself
+  (`TAVRN_FILES_INTERNAL=off`): a files channel takes uploads only once it has an external store
+  (`403 files.internal_disabled` before, `FILES.md` §5).
 - `web` is the origin of the node's web client (`TAVRN_WEBAUTHN_ORIGIN`, default the public URL). The connect
   flow of `FEDERATION.md` §8 redirects to `<web>/connect`; native apps open the same page with an app session
   (`connect.app`).
