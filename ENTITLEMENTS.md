@@ -30,7 +30,7 @@ Every key is an integer. `0` means **unlimited** unless the rule says otherwise.
 | `sounds.max_personal` | max | user | `TAVRN_SOUNDS_MAX_PERSONAL` (10) | personal sounds (design note 4.13 item 4) |
 | `attachments.retention_days` | shortest non-zero | room | `TAVRN_ATTACHMENT_RETENTION_DAYS` (0 = keep) | housekeeping (§6) |
 | `files_channels.enabled` | flag (0/1) | room | `TAVRN_FILES_CHANNELS` (`on` = 1) | files channels (design note 4.13 item 9) |
-| `files_channels.max_bytes` | max | room | `TAVRN_FILES_CHANNELS_MAX_BYTES` (0) | files channels |
+| `files_channels.max_bytes` | max | room | `TAVRN_FILES_CHANNELS_MAX_BYTES` (0) | files channels on the node's own storage (never external stores, `FILES.md` §4) |
 
 `GET /api/v1/admin/entitlements/keys` lists the keys with rule, scope, largest allowed value and node default.
 Plans and grants may only contain these keys; values are integers from `0` to the key's maximum (e.g.

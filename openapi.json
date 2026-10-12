@@ -25864,6 +25864,7 @@
           "bucket",
           "prefix",
           "encrypt_files",
+          "max_bytes",
           "external_allowed",
           "internal_allowed",
           "private_allowed",
@@ -25894,6 +25895,12 @@
           "kind": {
             "type": "string",
             "description": "`internal`, `webdav` or `s3`; `none` while a node without internal storage has no external store for the\nchannel."
+          },
+          "max_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "External stores: the channel's limit on the store in bytes (0 = unlimited); always 0 for the node's storage.",
+            "minimum": 0
           },
           "password_set": {
             "type": "boolean",
@@ -25955,6 +25962,15 @@
           "kind": {
             "type": "string",
             "description": "`internal`, `webdav` or `s3`."
+          },
+          "max_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "External stores: the channel's limit on the store in bytes (absent or 0 = unlimited, at most 1 PiB). The node\nquota never applies to external stores; the node's own storage takes none (`400 files.backend_invalid`).",
+            "minimum": 0
           },
           "password": {
             "type": [
@@ -29713,7 +29729,7 @@
           "limit_bytes": {
             "type": "integer",
             "format": "int64",
-            "description": "`files_channels.max_bytes` of the room (0 = unlimited)."
+            "description": "The channel's limit (0 = unlimited): on the node's storage `files_channels.max_bytes` of the room, on an\nexternal store the store's own `max_bytes` (FILES.md §4/§5)."
           },
           "max_upload_bytes": {
             "type": "integer",
