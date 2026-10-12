@@ -396,7 +396,10 @@ as `dm_policy = friends`.
 
 T refreshes its mirror when (a) a federation token carries a `pv` greater than the stored
 `profile_version`, (b) the mirror is older than 24 hours and the user is displayed or logs in (background
-refresh, the old mirror stays on failure), (c) a node admin requests it. The response's `address` MUST
+refresh, the old mirror stays on failure), (c) a node admin requests it, (d) a `profile.changed` notification
+of H (§5.2) names a `profile_version` greater than the stored one (background refresh, the old mirror stays on
+failure). Without (d) a change would reach T only with the user's next federated login there, since clients keep
+their federated session for days and request no new federation token in between. The response's `address` MUST
 equal the requested user (otherwise `federation.peer_invalid`). T copies the avatar into its own blob storage
 when `avatar_sha256` changed and serves it like a local avatar, so clients never load avatars from foreign
 nodes (no IP leak, no mixed CSP sources).
@@ -614,6 +617,7 @@ federation.payload_too_large`, checked before reading further):
 | `identity.changed` | the user's home node | user (domain = `iss`) → receiving domain | `{ identity_public_key, identity_reset_at }` | Invalidate and refetch the key cache; WS `identity.changed` (PROTOCOL.md §6) to local friends, DM/group DM co-members and the user's own sessions; `mls.remove_needed` for leaves no longer attested; `system.key_changed { rotated: false }` in the welcome channels of the user's rooms on the receiving node and `key_reset_at` on the user's memberships there (`ENCRYPTION.md` §7b "History after a key reset") |
 | `devices.changed` | the user's home node | user (domain = `iss`) → receiving domain | `{}` | Refetch the key cache; `mls.remove_needed` for leaves of devices that disappeared. Also sent after an identity key rotation (`ENCRYPTION.md` §9a): a refetch that shows another identity key writes `system.key_changed` into the welcome channels of the user's rooms on the receiving node (`rotated` = the document's continuity chain leads from the cached key to the new one) and sends WS `identity.rotated` (or `identity.changed`) to local contacts |
 | `session.revoke` | the user's home node | user (domain = `iss`) → receiving domain | `{ device: id \| null }` | §2.9 |
+| `profile.changed` | the user's home node | user (domain = `iss`) → receiving domain | `{ profile_version }` (integer ≥ 0) | Only for a remote user the receiver already knows (no stub is created) and only when `profile_version` is greater than the mirror's stored version: refresh the mirror in the background (§2.7 (d)), the old mirror stays on failure; otherwise ignored (`202`). Limited per `(iss, user)` (reference node: 10 per 10 minutes); beyond the limit `429` with `Retry-After` before the message counts as received, so the sender's retry (§5.3) brings the change later. After a refresh that changed the mirror, WS `user.update` to the user's rooms and contacts on the receiving node |
 | `node.announce` | the announcing node | domain = `iss` → receiving domain | §7.2 | §7.2 |
 | `ban.notify` | the room's node | room node domain → user | `{ room: { node, id, name }, scope: "room" \| "node" }` | Information only (no enforcement): optional notice to the user, only if the user signed in on the sending node (otherwise dropped silently, `202`); no reason is transmitted |
 | `notify` | the conversation's node | node domain → user | `{ node, conversation_id, room_id, mention: bool }` | Push hint without content: H forwards it as web push (PROTOCOL.md §6d) to the user's devices without a connection and as WS `notify` to the user's connections on H |
@@ -643,6 +647,13 @@ connections as `call.ring { …, via }` in the same way.
 Who sends what:
 - `identity.changed`, `devices.changed`, `session.revoke`: H to every domain in `federation_targets` of the user
   (§2.4) plus the home domains of the user's friends and of members of DMs/group DMs hosted on H.
+- `profile.changed`: H to the domains of `identity.changed` after every change of a user's public profile (§2.7:
+  display name, images, bio, links, DM setting; never the private voice background), with the version current
+  when the message is queued. Bursts are coalesced: H holds the message a few seconds before the first attempt
+  (reference node: 5 seconds) and keeps at most one queued `profile.changed` per user and target; a newer one
+  replaces a queued older one (keeping its due time), so a series of edits leaves as one message with the latest
+  version. Bots are announced with `app.changed` instead. Nodes that do not know the type ignore it (§5.1); their
+  mirrors keep following (a)–(c) of §2.7.
 - `notify`: the conversation's node to the home node of a remote member who has **no open WebSocket** on that
   node, for messages matching the member's notification setting on that node (default: DMs, group DMs and
   mentions) in conversations the member can view (in room channels: `view_channel` at the time of the message,
@@ -680,7 +691,8 @@ exact JSON sent on every attempt.
 
 There is no ordering guarantee. Friend messages for one pair of users are applied only if their `at` is newer
 than the last applied friend message of that pair; key-cache messages always trigger a refetch, so their order
-does not matter; invites are independent.
+does not matter; `profile.changed` compares its version with the mirror's, so an older one arriving late changes
+nothing; invites are independent.
 
 ## 6. Direct messages, group DMs and friends across nodes
 
@@ -1308,7 +1320,8 @@ otherwise.
   `federation.recipient_unknown`. Unknown types are accepted without authority checks. Implemented
   handlers: `session.revoke`, `identity.changed` (mirrors the identity key, refetches the key cache,
   WS `identity.changed`, `mls.remove_needed` for all leaves of the user), `devices.changed` (refetches the
-  key cache, `mls.remove_needed` for vanished devices) and those of steps 3–4 below; `node.announce` is
+  key cache, `mls.remove_needed` for vanished devices), `profile.changed` (a known user and a newer version
+  only; the refresh runs in a background task after the `202`) and those of steps 3–4 below; `node.announce` is
   checked, recorded as seen and ignored until step 6. A revoked device's WebSockets are closed with `4001`.
 - **Outbox**: entries are written right after the change that causes them commits (not in the same
   database transaction); the 7-day session cap bounds a crash in between. A `401` is retried once after
@@ -1321,6 +1334,10 @@ otherwise.
   deletion sends `session.revoke` and `devices.changed`, device attestation `devices.changed`, an identity
   reset `identity.changed`, password change/reset, disabling (also by a node ban) and a second-factor
   reset `session.revoke` with `device: null`.
+  `profile.changed` goes to the same recipients after every change of a user's public profile (the profile
+  routes, `PATCH /users/me` with a public field, the profile clearing of a legal decision); it is queued with
+  `next_at` 5 seconds ahead, and a newer one deletes the queued older one of the same user and target and takes
+  over its `next_at`.
 
 **Steps 3–4 (rooms, keys, friends, DMs across nodes):**
 

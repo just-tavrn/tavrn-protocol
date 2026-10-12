@@ -18,6 +18,13 @@ Changes of the protocol that implementations must follow, newest first. Versions
   relying party's `assetlinks.json`) and publishes the accepted origins as `webauthn.origins` (web origin first) in
   `GET /node` and the discovery document; clients offer in-app passkeys only while their origin is listed. Desktop
   apps run the ceremony natively with the node's web origin.
+- **`profile.changed`** (`FEDERATION.md` §2.7 (d), §5.2, §5.4). After a change of a user's public profile (display
+  name, images, bio, links, DM setting) the home node sends `profile.changed { profile_version }` to the domains of
+  `identity.changed`, coalesced to one queued message per user and target. The receiver refreshes the mirror of a
+  user it knows when the version is newer (rate-limited per sender and user, `429` beyond it), so a changed avatar
+  or name shows on other nodes at once instead of with the next federated login. Additive: nodes that do not know
+  the type ignore it.
+
 - **Confirmation mail again** (`PROTOCOL.md` §5a.3). `POST /auth/verify-email/resend { account }` sends a new
   confirmation link to an unconfirmed address (always `204`, three mails per account and hour); `POST /auth/verify-email`
   is listed in the route table.
