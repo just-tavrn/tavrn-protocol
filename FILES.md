@@ -62,15 +62,15 @@ All under `/api/v1/rooms/{room_id}/channels/{channel_id}/files`; a channel of an
 | `GET records?epoch=&since=&after=&limit=` | `view_channel` | Encrypted channels: entries with a record, ordered by the time the record was written (`record_at`, then id), optionally only of epoch `epoch` and/or written at or after `since` (RFC 3339); cursor `after` = last entry id of the previous page; `limit` 1–200 (default 100) → `{ entries, next_after }`; only records inside the requester's history window (§8.7). For the key checks of history shares and the clients' search sync (`SEARCH.md` §3.6) |
 | `PUT {id}/thumbnail` | own: `attach_files`; others': `manage_files` | Encrypted channels: the client-made thumbnail of a file as ciphertext (§8.3, part `thumbnail`), raw body, at most 1 MiB → `204`; replaces an earlier one |
 | `GET {id}/thumbnail` | `view_channel` | The thumbnail ciphertext (`application/octet-stream`, attachment, `nosniff`); `404 files.no_thumbnail` |
-| `GET usage` | `view_channel` | `{ enabled, used_bytes, limit_bytes, files, folders, max_upload_bytes, backend, backend_host, backend_prefix, encrypt_files, encrypted, can_upload, can_manage, can_configure, allowed_categories, executables_allowed }`; `backend_host` and `backend_prefix` (external stores: the store's host and the object prefix, `""` otherwise) only for members with `manage_channels`, for the deletion dialog (§9) |
-| `GET backend` | `manage_channels` + `manage_files` | `{ kind, url, username, password_set, access_key, secret_key_set, region, bucket, prefix, encrypt_files, external_allowed, private_allowed, has_files, updated_at }`; secrets are never returned |
+| `GET usage` | `view_channel` | `{ enabled, used_bytes, limit_bytes, files, folders, max_upload_bytes, backend, backend_host, backend_prefix, encrypt_files, encrypted, can_upload, can_manage, can_configure, allowed_categories, executables_allowed }`; `backend` is `internal`, `webdav`, `s3` or `none` (a node without internal storage and no external store yet, §5: `can_upload` is `false`); `backend_host` and `backend_prefix` (external stores: the store's host and the object prefix, `""` otherwise) only for members with `manage_channels`, for the deletion dialog (§9) |
+| `GET backend` | `manage_channels` + `manage_files` | `{ kind, url, username, password_set, access_key, secret_key_set, region, bucket, prefix, encrypt_files, external_allowed, internal_allowed, private_allowed, has_files, updated_at }` (`kind` `none` as for `usage`); secrets are never returned |
 | `PUT backend` | `manage_channels` + `manage_files` | See §5; audit log `files.backend` (kind, host, encryption; no credentials) |
 | `POST backend/test` | `manage_channels` + `manage_files` | Body as for PUT (empty secrets use the stored ones) or empty for the stored configuration → `{ ok, kind }` or a problem |
 
 Encrypted channels change some routes (§8.5). Error codes besides the above: `files.not_found`, `files.parent_not_found`, `files.parent_not_folder`,
 `files.is_folder`, `files.cursor_invalid`, `files.search_invalid`, `files.upload_forbidden`,
 `files.manage_forbidden`, `files.too_many_entries` (100 000 entries per channel), `files.disabled`,
-`files.quota_exceeded`, `upload.too_large`, `upload.type_forbidden`, `upload.aborted`, `files.backend_*`, and for
+`files.internal_disabled` (§5), `files.quota_exceeded`, `upload.too_large`, `upload.type_forbidden`, `upload.aborted`, `files.backend_*`, and for
 encrypted channels `files.record_invalid`, `files.id_invalid`, `files.id_taken`, `files.encrypted`,
 `files.search_unavailable`, `files.no_thumbnail`, `files.thumbnail_too_large`, `files.not_encrypted`.
 
@@ -136,6 +136,22 @@ PUT …/files/backend
   user and 10 minutes.
 - With `TAVRN_FILES_EXTERNAL=off` existing external channels answer `403 files.external_disabled` until it is
   switched on again (nothing is deleted).
+- **External stores only** (`TAVRN_FILES_INTERNAL=off`, default `on`; needs `TAVRN_FILES_EXTERNAL=on`): the node
+  keeps no files of files channels, so that large shared folders live on the members' own stores while attachments
+  in chats stay on the node. Clients learn it before the first upload from `files_internal: false` in `GET /node`
+  and in the discovery document (`policies.files_internal`, PROTOCOL.md §2).
+  - A new files channel is created without a store: `GET usage` and `GET backend` name its `backend`/`kind`
+    `none`, `can_upload` is `false`, and uploads and new folders answer `403 files.internal_disabled` until
+    `PUT …/files/backend` names an external store. Clients show "choose a store first" instead of the upload
+    button (with the way to the channel's storage settings for members who may configure it).
+  - `PUT …/files/backend { "kind": "internal" }` and a connection test of `internal` answer
+    `403 files.internal_disabled`; `GET backend` carries `internal_allowed: false`.
+  - Channels that keep files on the node from before the switch keep them: listing, downloads, renames, moves and
+    deletes work as before, new uploads are refused as above, and the channel can move to an external store once
+    it has no files (the switching rule above).
+  - The channel quota (`files_channels.max_bytes`, §4) limits the external stores too, but only when the operator
+    sets it (the default `0` is unlimited): no small quota is needed to keep files off the node. Thumbnails of
+    encrypted channels (§8.3, at most 1 MiB each) are kept on the node as before.
 - FTP/SFTP and consumer clouds are not supported.
 
 ## 6. Housekeeping

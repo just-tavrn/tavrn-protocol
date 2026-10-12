@@ -25865,6 +25865,7 @@
           "prefix",
           "encrypt_files",
           "external_allowed",
+          "internal_allowed",
           "private_allowed",
           "has_files"
         ],
@@ -25886,9 +25887,13 @@
             "type": "boolean",
             "description": "The channel has files (the store can no longer be switched)."
           },
+          "internal_allowed": {
+            "type": "boolean",
+            "description": "The node's own storage may be chosen (`TAVRN_FILES_INTERNAL`); `false`: only external stores."
+          },
           "kind": {
             "type": "string",
-            "description": "`internal`, `webdav` or `s3`."
+            "description": "`internal`, `webdav` or `s3`; `none` while a node without internal storage has no external store for the\nchannel."
           },
           "password_set": {
             "type": "boolean",
@@ -29654,7 +29659,7 @@
           },
           "backend": {
             "type": "string",
-            "description": "`internal`, `webdav` or `s3`."
+            "description": "`internal`, `webdav` or `s3`; `none` on a node without internal storage (`TAVRN_FILES_INTERNAL=off`) while\nthe channel has no external store: no uploads or folders until one is set (FILES.md §5)."
           },
           "backend_host": {
             "type": [
@@ -32012,6 +32017,7 @@
           "voice",
           "preview_auto_max_bytes",
           "message_retention_days",
+          "files_internal",
           "legal",
           "webauthn",
           "age"
@@ -32047,6 +32053,10 @@
           },
           "domain": {
             "type": "string"
+          },
+          "files_internal": {
+            "type": "boolean",
+            "description": "Files channels may keep their files on this node (`TAVRN_FILES_INTERNAL`, FILES.md §5); `false`: a files\nchannel takes uploads only once it has an external store."
           },
           "gif_provider": {
             "type": [
@@ -33301,12 +33311,17 @@
           "voice_max_participants",
           "screenshare",
           "camera",
-          "preview_auto_max_bytes"
+          "preview_auto_max_bytes",
+          "files_internal"
         ],
         "properties": {
           "camera": {
             "$ref": "#/components/schemas/ScreensharePolicy",
             "description": "Webcam sharing (same shape as `screenshare`)."
+          },
+          "files_internal": {
+            "type": "boolean",
+            "description": "Files channels may keep their files on the node (`TAVRN_FILES_INTERNAL`); `false`: a files channel takes\nuploads only once it has an external store (FILES.md §5)."
           },
           "preview_auto_max_bytes": {
             "type": "integer",
