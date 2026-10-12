@@ -625,6 +625,7 @@ federation.payload_too_large`, checked before reading further):
 | `app.uninstall` | the room's node | room node domain → bot address | `{ room: { node, id }, reason }` (`room.node` = `iss`) | H removes the index entry and emits WS `application.uninstall` |
 | `app.changed` | the bot's home node | bot address (domain = `iss`) → receiving domain | `{ application_id, commands_version, deleted }` | Only for a bot the receiver knows as that application: refetch its profile (name, avatar) and, from step 3, the commands; `deleted: true` uninstalls the bot from every local room and disables its stub (installations and logins refused) |
 | `legal.notice` | the node that received a takedown notice | domain = `iss` → receiving domain | `{ case_id, basis, work, explanation, locations: [{ kind, value }], reporter: { name, email, address, phone }, good_faith, accuracy, perjury, signature, submitted_at }` | Opens a case of its own (state `received`, origin `iss` and `case_id` recorded, idempotent per origin case); the fields are checked like the public form (`400 federation.payload_invalid`). No confirmation mail at receipt (the address comes from the sender, which confirmed the notice itself); the reporter hears from the receiver once its admin acts. Accepted even when the receiver's public form is off (`LEGAL.md` §1.5), but only from a node with federation history (users of it known to the receiver for at least a day, receiver users signed in there, or listed in the receiver's directory; else `403 legal.forward_refused`) and at most 10 per sending registrable domain (subdomains share it) and 50 in total per hour (reference node, `TAVRN_LEGAL_NOTICE_INBOUND_PER_HOUR`; `429`), both checked before the message counts as received |
+| `report.forward` | the node holding the report | domain = `iss` → the reported user | `{ report_id, kind, category, detail, created_at, reporter, message_id?, conversation_kind?, snapshot?, evidence? }` (`MODERATION.md` §1.6; `reporter` a pseudonym, never an address) | Only nodes announcing `reports.v2`. Checks the payload like a report (`400 federation.envelope_invalid`), stores it in the node admins' inbox as `source: forward` with `origin { node: iss, report_id, reporter }`, idempotent per `(iss, report_id)`, `report.create` to the node admins; at most `TAVRN_REPORTS_INBOUND_PER_HOUR` per sending registrable domain and five times as many in total per hour (`429`, checked before the message counts as received). Nothing is answered back, the reporter and the reported user are told nothing |
 | `user.deleted` | the user's home node | user (domain = `iss`) → receiving domain | `{ delete_messages: bool }` | The stub is tombstoned like a local deletion (`LEGAL.md` §3.3): memberships, sessions, devices and keys go, messages move to a "Deleted user" tombstone with device ids and signatures stripped, their content and files are deleted too when `delete_messages`; the request is recorded in the audit log (`federation.user_deleted`) and the stub row is removed |
 
 Claims about the receiver's own users: a user address of the receiving node named as the inviter (`from` of
@@ -663,6 +664,8 @@ Who sends what:
 - `ban.notify`: optional, only when the room (or node) setting `notify_bans` is on (default off).
 - `legal.notice`: the admin of a node that received a notice about content hosted elsewhere forwards it to the content's
   node (`POST /admin/legal/notices/{case_id}/actions { action: "forward" }`).
+- `report.forward`: the admin of a node holding a report about a user of another node forwards it to that user's home
+  node (`POST /reports/{report_id}/forward`, `MODERATION.md` §1.6), only when the home node announces `reports.v2`.
 - `user.deleted`: H, when an account is deleted, to the domains of `identity.changed` plus the nodes of the user's
   conversation index (rooms and conversations hosted elsewhere). Compliance cannot be enforced: each node is its
   own controller (`LEGAL.md` §3.3).
@@ -1230,6 +1233,8 @@ results. Never logged: tokens, request bodies, payload contents (room names, mem
   formats) get `federation.v2` and run in parallel for at least 12 months.
 - New inbox types, payload fields and directory fields are compatible additions; receivers ignore unknown ones.
 - `content.signed1` (§10.3) is a client capability.
+- `reports.v2` (`MODERATION.md` §1.6) is announced while federation is enabled: a node accepts `report.forward` and
+  offers the forward route only then.
 - `connect.app` (app sessions of the connect flow, §8 step 3) is announced by every node that implements them,
   independent of `TAVRN_FEDERATION_ENABLED` (the flow serves the node's own users). The session `purpose` and
   `sealed_unlock` are compatible additions to it, without a capability of their own: clients detect them by the

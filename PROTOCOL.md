@@ -130,6 +130,7 @@ Capabilities reserved in v1, and when nodes that implement them announce them:
 | `search.v1` | node-side message search (§7d, `SEARCH.md`) | while `TAVRN_SEARCH_ENABLED` is on |
 | `push.webpush` | web push to browsers (§6d) | while `TAVRN_PUSH` is on |
 | `reports.v1`, `automod.v1` | reports and auto-moderation (`MODERATION.md`) | always |
+| `reports.v2` | forwarding reports about remote users to their home node (`MODERATION.md` §1.6, inbox type `report.forward`) | while `TAVRN_FEDERATION_ENABLED` is on |
 | `threads`, `forum`, `announcement` | threads, forum posts and announcement channels (§7e) | always |
 | `threads.client_ids` | the client-chosen thread id of §7e | always |
 | `voice`, `soundboard` | voice channels and calls (`VOICE.md`), room clips (`VOICE.md` §8) | while `TAVRN_VOICE_ENABLED` is on |
@@ -746,8 +747,8 @@ Event types besides the room and message events:
 | `thread.delete` | room members who can view the channel | `{ room_id, channel_id, id }`: a thread was deleted with its messages (§7e) |
 | `thread.read` | the user (all of their connections) | `ThreadReadState`: the per-thread read marker or the follow state changed (§7e) |
 | `legal.statement` | the uploader | `{ case_id, decision, counter_deadline? }`: a statement of reasons or a decision about the user's content (`LEGAL.md` §1.4); details at `GET /users/me/legal-notices` |
-| `report.create` | the users who may see the report (room moderators, node admins), except the reporter | `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`: a new report in the moderation inbox (`MODERATION.md` §1.5) |
-| `report.update` | the same audience | `{ id, scope, room_id, status }`: a report changed, was acted on or deleted (`status: "deleted"`) |
+| `report.create` | the users who may see the report (room moderators, node admins), except the reporter | `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`: a new report in the moderation inbox (`MODERATION.md` §1.5), also one another node forwarded (`source: "forward"`, `MODERATION.md` §1.6) |
+| `report.update` | the same audience | `{ id, scope, room_id, status }`: a report changed, was acted on, forwarded or deleted (`status: "deleted"`) |
 | `moderation.alert` | the room's moderators (owner, `moderate_members`), for node rules the node admins | `{ room_id, channel_id, user, kind, at, … }`: auto-moderation acted; `kind` `spam` (flood: `deleted`, `timeout_until`) or `content` (`rule`, `scope`, `matched`, `action`), `MODERATION.md` §2 |
 
 ¹ Room channels: all room members who can view the channel (roles, overrides and the age gate of §5e); DMs and
