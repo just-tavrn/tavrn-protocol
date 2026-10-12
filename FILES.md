@@ -63,7 +63,7 @@ All under `/api/v1/rooms/{room_id}/channels/{channel_id}/files`; a channel of an
 | `PUT {id}/thumbnail` | own: `attach_files`; others': `manage_files` | Encrypted channels: the client-made thumbnail of a file as ciphertext (§8.3, part `thumbnail`), raw body, at most 1 MiB → `204`; replaces an earlier one |
 | `GET {id}/thumbnail` | `view_channel` | The thumbnail ciphertext (`application/octet-stream`, attachment, `nosniff`); `404 files.no_thumbnail` |
 | `GET usage` | `view_channel` | `{ enabled, used_bytes, limit_bytes, files, folders, max_upload_bytes, backend, backend_host, backend_prefix, encrypt_files, encrypted, can_upload, can_manage, can_configure, allowed_categories, executables_allowed }`; `backend` is `internal`, `webdav`, `s3` or `none` (a node without internal storage and no external store yet, §5: `can_upload` is `false`); `backend_host` and `backend_prefix` (external stores: the store's host and the object prefix, `""` otherwise) only for members with `manage_channels`, for the deletion dialog (§9) |
-| `GET backend` | `manage_channels` + `manage_files` | `{ kind, url, username, password_set, access_key, secret_key_set, region, bucket, prefix, encrypt_files, external_allowed, internal_allowed, private_allowed, has_files, updated_at }` (`kind` `none` as for `usage`); secrets are never returned |
+| `GET backend` | `manage_channels` + `manage_files` | `{ kind, url, username, password_set, access_key, secret_key_set, region, bucket, prefix, encrypt_files, max_bytes, external_allowed, internal_allowed, private_allowed, has_files, updated_at }` (`kind` `none` as for `usage`); secrets are never returned |
 | `PUT backend` | `manage_channels` + `manage_files` | See §5; audit log `files.backend` (kind, host, encryption; no credentials) |
 | `POST backend/test` | `manage_channels` + `manage_files` | Body as for PUT (empty secrets use the stored ones) or empty for the stored configuration → `{ ok, kind }` or a problem |
 
@@ -86,8 +86,13 @@ backend }` after a backend change. Clients refresh the open folder.
   creating files channels, uploads and new folders with `403 files.disabled`; browsing, downloads, renames and
   deletes keep working.
 - Upload size: the uploader's `upload.max_bytes` (as for attachments) → `413 upload.too_large`.
-- Channel total: `files_channels.max_bytes` of the room (`0` = unlimited) → `413 files.quota_exceeded`. Files
-  channels do not count towards `storage.max_bytes_per_room` (attachments) and are exempt from attachment
+- Channel total → `413 files.quota_exceeded` (`meta: { limit_bytes, used_bytes }`), `GET usage` names it as
+  `limit_bytes` (`0` = unlimited):
+  - on the node's own storage: `files_channels.max_bytes` of the room (entitlement, node default
+    `TAVRN_FILES_CHANNELS_MAX_BYTES`, `0` = unlimited);
+  - on an external store (§5): only the store's own `max_bytes` from the channel's backend settings, set by the
+    members who configure the store. The node quota never applies to storage the node does not keep.
+- Files channels do not count towards `storage.max_bytes_per_room` (attachments) and are exempt from attachment
   retention.
 - Upload categories per role/override and the executable rule (`TAVRN_UPLOAD_ALLOW_EXECUTABLES`) apply as for
   attachments (PROTOCOL.md §7a): the node classifies the first 64 KiB of the stream (content first, then
@@ -102,9 +107,9 @@ channel's files on a WebDAV or S3-compatible store:
 ```json
 PUT …/files/backend
 { "kind": "webdav", "url": "https://cloud.example.com/remote.php/dav/files/me/", "username": "me",
-  "password": "…", "prefix": "tavrn/<channel id>/", "encrypt_files": false }
+  "password": "…", "prefix": "tavrn/<channel id>/", "encrypt_files": false, "max_bytes": 0 }
 { "kind": "s3", "url": "https://s3.eu-central-1.amazonaws.com", "bucket": "team-files", "region": "eu-central-1",
-  "access_key": "…", "secret_key": "…", "prefix": "share/", "encrypt_files": true }
+  "access_key": "…", "secret_key": "…", "prefix": "share/", "encrypt_files": true, "max_bytes": 53687091200 }
 { "kind": "internal" }
 ```
 
@@ -149,9 +154,15 @@ PUT …/files/backend
   - Channels that keep files on the node from before the switch keep them: listing, downloads, renames, moves and
     deletes work as before, new uploads are refused as above, and the channel can move to an external store once
     it has no files (the switching rule above).
-  - The channel quota (`files_channels.max_bytes`, §4) limits the external stores too, but only when the operator
-    sets it (the default `0` is unlimited): no small quota is needed to keep files off the node. Thumbnails of
-    encrypted channels (§8.3, at most 1 MiB each) are kept on the node as before.
+  - The node quota (`files_channels.max_bytes`, §4) does not limit the external stores (each has its own optional
+    `max_bytes`, above). Thumbnails of encrypted channels (§8.3, at most 1 MiB each) are kept on the node as before.
+- `max_bytes` (absent or `0` = unlimited, at most 2^50): the channel's limit on the external store, set with the
+  rest of the backend settings by members with `manage_channels` + `manage_files` and returned by `GET backend`.
+  The node enforces it on the bytes it relays (uploads and, in encrypted channels, the thumbnails it keeps), like
+  the quota of §4 (`413 files.quota_exceeded`), and `GET usage` names it as the channel's `limit_bytes`; it can change
+  at any time (it is not a move of the store). The node's own storage takes none (`{ "kind": "internal",
+  "max_bytes": 5 }` → `400 files.backend_invalid`): it follows `files_channels.max_bytes`, which in turn never
+  limits an external store.
 - FTP/SFTP and consumer clouds are not supported.
 
 ## 6. Housekeeping
@@ -273,7 +284,7 @@ The routes of §3 apply with these differences:
   check the decrypted folder before they upload or rename and number duplicates (`name (2).ext`) themselves.
 - `GET {id}/download` is always `application/octet-stream` with `Content-Disposition: attachment; filename="<id>"`.
 - Thumbnails: `PUT`/`GET {id}/thumbnail` (§3). Thumbnails are always kept in the node's own storage (also for channels
-  on an external store) and count towards the channel's quota; they go with the entry.
+  on an external store) and count towards the channel's limit (§4); they go with the entry.
 - Unencrypted channels answer `GET records` and the thumbnail routes with `400 files.not_encrypted`.
 
 ### 8.6 Clients

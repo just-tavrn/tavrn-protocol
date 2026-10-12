@@ -5,6 +5,13 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+### Changed
+
+- **The node quota of files channels covers the node's own storage only** (`FILES.md` §4, §5, `ENTITLEMENTS.md`).
+  `files_channels.max_bytes` no longer limits channels on external WebDAV/S3 stores. Such a channel has its own
+  optional limit, `max_bytes` in `PUT …/files/backend` (returned by `GET backend`, `0`/absent = unlimited), set by the
+  members who configure the store, enforced with `413 files.quota_exceeded` and named as `limit_bytes` in `GET usage`.
+
 ### Added
 
 - **Files channels on external stores only** (`FILES.md` §5, `PROTOCOL.md` §2). A node policy
