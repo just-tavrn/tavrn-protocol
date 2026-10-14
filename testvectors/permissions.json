@@ -6,7 +6,7 @@
       "member_roles": [], "category_overrides": [], "timed_out": false,
       "channel_overrides": [{ "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 1 }]
     },
-    "expected": "4611686293305294847"
+    "expected": "4611686568183201791"
   },
   {
     "name": "The administrator role beats all overrides",
@@ -15,7 +15,7 @@
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }],
       "channel_overrides": [], "timed_out": false
     },
-    "expected": "4611686293305294847"
+    "expected": "4611686568183201791"
   },
   {
     "name": "Only @everyone, no overrides",
@@ -155,13 +155,13 @@
     "expected": "0"
   },
   {
-    "name": "Bot without a scope list (all scopes) keeps everything except the administrator bit",
+    "name": "Bot without a scope list (all scopes) keeps everything except administrator and restore_history (voice_status included)",
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
       "timed_out": false, "kind": "bot"
     },
-    "expected": "137438953471"
+    "expected": "412316860415"
   },
   {
     "name": "Users are not affected by the no-bots flag",
@@ -188,7 +188,7 @@
       "member_roles": [], "category_overrides": [], "channel_overrides": [],
       "timed_out": false, "kind": "bot", "scopes": ["rooms:manage"]
     },
-    "expected": "42962257793"
+    "expected": "317840164737"
   },
   {
     "name": "Timeout keeps reading, including the history from before the join (read_history)",
@@ -217,7 +217,7 @@
       "member_roles": [], "category_overrides": [], "timed_out": false, "system_channel": true,
       "channel_overrides": []
     },
-    "expected": "4611686293137522581"
+    "expected": "4611686568015429525"
   },
   {
     "name": "System channel: a role allowed to send, attach and pin still cannot",
@@ -440,5 +440,43 @@
       "channel_overrides": [{ "subject_type": "member", "subject_id": "u1", "allow": 137438953472, "deny": 0 }]
     },
     "expected": "1"
+  },
+  {
+    "name": "voice_status (bit 38) is channel-scoped: a channel override grants it alone",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 274877906944, "deny": 0 }]
+    },
+    "expected": "274877906945"
+  },
+  {
+    "name": "voice_status (bit 38) on a role, denied by a category override and not restored by the channel",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 274877906945,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 274877906944 }],
+      "channel_overrides": []
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Bot: rooms:manage covers voice_status (bit 38), the voice scope does not",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 274877906945,
+      "member_roles": [], "timed_out": false, "category_overrides": [], "channel_overrides": [],
+      "kind": "bot", "no_bots": false, "scopes": ["voice"]
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Bot: rooms:manage covers voice_status (bit 38)",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 274877906945,
+      "member_roles": [], "timed_out": false, "category_overrides": [], "channel_overrides": [],
+      "kind": "bot", "no_bots": false, "scopes": ["rooms:manage"]
+    },
+    "expected": "274877906945"
   }
 ]

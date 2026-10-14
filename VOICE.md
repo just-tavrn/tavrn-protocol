@@ -57,6 +57,26 @@ channel whose stored bitrate is above a cap the operator lowered later keeps it 
 settings stay editable. `TAVRN_VOICE_MAX_BITRATE_KBPS` defaults to 192, so every client preset of §4a is reachable;
 operators lower it to save traffic.
 
+## 2a. Channel status
+
+A voice channel carries a **status**: one line of plain text (`status`, at most 128 characters after trimming, no
+control characters, no line breaks; `""` = none) that tells the room what is going on in the channel right now
+("Raid night", "Planning until 9", "AFK, back soon"). It is a field of its own next to the text channels' `topic`:
+`topic` keeps its meaning (a description, up to 1024 characters, `manage_channels`), the status is short, changes
+often and has its own permission, so the two are not merged. The field exists on every channel object (`""` on the
+other kinds; setting it there is refused with `400 channel.status_not_voice`).
+
+- **Changing it:** `PATCH /rooms/{room_id}/channels/{channel_id}` `{ "status": "…" }` needs `voice_status`
+  (`permissions.md` bit 38, evaluated in the channel like every other bit) and nothing else: a request that
+  carries only `status` is open to every member with the bit, in or outside the call, while a request that also
+  changes other fields needs `manage_channels` as before. Without the bit: `403 channel.status_forbidden`. The same
+  rate limit as every other channel update applies. Audit log entry `channel.voice_status` (`meta.status`, the new
+  text, `target` the channel).
+- **Propagation:** the channel object carries `status`; a change reaches the room with `channel.update` (the whole
+  channel, like every other field) and so, over the home node's API, members of other nodes (`FEDERATION.md`).
+- **Clients** show the status under the channel's name in the voice header and in the channel list's tooltip, and
+  let members with the bit edit it in place (Enter saves, Escape cancels, a counter for the 128 characters).
+
 ## 3. Joining
 
 `POST /api/v1/rooms/{room_id}/channels/{channel_id}/voice/join` (no body, or `{ "role": "device" }`; `{ "role":
@@ -288,8 +308,16 @@ nodes, always `false` in calls.
   list (who is in voice where, who streams) without loading each room; `voice.state` keeps it current. Members of
   rooms on other nodes ask each of those nodes with their session there. App tokens need the scope `voice`.
 - **Changes:** WebSocket event `voice.state` to all room members who can view the channel, `data` = `VoiceChannelState`
-  `{ room_id, channel_id, epoch, participants: [VoiceParticipant, …] }`, always the *complete* list of the channel
-  (replace, do not merge; an empty list means the channel is empty).
+  `{ room_id, channel_id, epoch, session_started_at, participants: [VoiceParticipant, …] }`, always the *complete*
+  list of the channel (replace, do not merge; an empty list means the channel is empty).
+- **Session start:** `session_started_at` (RFC 3339, or `null`) is when the current session of the channel began:
+  set when a participant connects to an empty channel, kept while anybody is connected or reconnecting (§5a),
+  whoever that is (the first participant may have left long ago), cleared with the last participant. Clients show
+  a timer from it ("how long has this been going on") that is right for late joiners and for people outside the
+  call. The channel's home node holds it with the participants (in memory, like them: a node restart restarts
+  LiveKit and drops every participant, so there is nothing to persist), and every `VoiceChannelState` (`GET …/voice`,
+  `GET /users/me/voice`, the join answer's state, `voice.state`) carries it. Nodes that do not know the field omit it;
+  clients then show no timer.
 - **Sources of truth:** LiveKit's webhooks (`participant_joined`, `participant_left`,
   `participant_connection_aborted`, `track_published`/`track_unpublished` for `streaming` and `camera`,
   `room_finished`), verified with the node's LiveKit secret, and a reconciliation with LiveKit's room service every
