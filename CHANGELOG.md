@@ -18,6 +18,22 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Polls and date polls** (`PROTOCOL.md` §7g, `ENCRYPTION.md` §5.2, capability `polls.v1`, fixes #35). The
+  content type `poll` (`kind` `choice` with 2–20 options and `max_choices`, or `date` with 1–60 time slots answered
+  `yes`/`maybe`/`no`; `results_visible`, `votes_visible`, both cooperative) is encrypted like any content; the node
+  checks plaintext polls (`400 message.poll_invalid`) and refuses editing them (`400 message.poll_immutable`).
+  Messages carry the plaintext close time `poll_closes_at` (set on create, 1 minute to 1 year ahead; moved earlier
+  only, by the author or `manage_messages`, through `PATCH …/messages/{id} { poll_closes_at }`). Votes are vote
+  records, one per user and poll on the hosting node: `PUT`/`DELETE /conversations/{id}/messages/{message_id}/poll/vote`
+  and `GET …/poll/votes`, content `poll.vote` encrypted and device-signed under the current epoch (plaintext
+  conversations: checked against the poll, optional plaintext signature), bound to the poll by `ctx.poll` and
+  `ctx.poll_hash` (SHA-256 of the poll's JCS form without `ctx`); `409 poll.closed`, `413 poll.vote_too_large`
+  (4 KiB), 10 changes per minute. Events `poll.vote` and `poll.vote.delete`; votes never count as unread or notify
+  and go with their message. New test vectors `testvectors/polls.json` (`poll_vote`).
+- **Permission `create_polls`** (`permissions.md` bit 39): channel-scoped, default of `@everyone`, covered by
+  `messages:write`, granted once to every role and override that allowed `send_messages` (marker
+  `fixup.create_polls`), denied in the welcome channel. The node needs it for plaintext polls and every message with
+  `poll_closes_at`; clients enforce it for encrypted polls. `CHANNEL_SCOPED` is now `927683510783`.
 - **Voice session start** (`VOICE.md` §5, fixes #31): `VoiceChannelState` carries `session_started_at` (RFC 3339 or
   `null`): when the channel's current session began, set with the first connected participant, kept while anybody
   is connected or reconnecting, cleared with the last one. Every voice state (`GET …/voice`, `GET /users/me/voice`,

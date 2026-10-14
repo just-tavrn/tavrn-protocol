@@ -45,11 +45,12 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 36 | `manage_threads` | Rename, archive, lock and delete other people's threads and edit the tags of any forum post (`PROTOCOL.md` §7e). Covered by the app token scope `moderation`. |
 | 37 | `restore_history` | Encrypted channels: decide about requests to restore a member's history after a key reset and send the keys from before the reset (`ENCRYPTION.md` §7b "History after a key reset"). Default: nobody besides the owner and `administrator`; no app-token scope covers it. |
 | 38 | `voice_status` | Set or clear the status text of a voice channel (`VOICE.md` §2a) at any time, through the channel update route without `manage_channels`. Channel-scoped, grantable alone; granted once to every role that held `manage_channels` when it was introduced (marker `fixup.voice_status`). Covered by the app token scope `rooms:manage`. |
+| 39 | `create_polls` | Send polls (`PROTOCOL.md` §7g) together with `send_messages`: plaintext content of type `poll` and any message with a close time (`poll_closes_at`); clients enforce it for encrypted polls, whose type the node cannot see. Voting needs only `view_channel`. Channel-scoped, grantable alone; default for `@everyone`; granted once to every role and override that allowed `send_messages` when it was introduced (marker `fixup.create_polls`). Covered by the app token scope `messages:write`. |
 | 62 | `administrator` | All permissions, overrides are ignored |
 
 Default permissions of `@everyone` in new rooms: `view_channel`, `send_messages`, `attach_files`, `add_reactions`,
 `create_threads`, `create_invites`, `connect`, `speak`, `stream`, `use_camera`, `use_soundboard`, `change_nickname`,
-`use_whiteboard`, `use_external_emojis`, `use_external_sounds`, `read_history`. Migration 0060 added `use_whiteboard` to
+`use_whiteboard`, `use_external_emojis`, `use_external_sounds`, `read_history`, `create_polls`. Migration 0060 added `use_whiteboard` to
 the `@everyone` role of every existing room, so boards keep working where they did; `read_history` is added once to
 the `@everyone` role of every room that existed before it (startup fixup, recorded in `node_settings` so a later
 removal by the room is kept). `manage_applications` (bit 35) replaced `manage_room` as the right to install applications:
@@ -59,6 +60,9 @@ is granted the same way once to every role that held `manage_messages` when it w
 `fixup.manage_threads`), so moderators keep moderating threads. `voice_status` (bit 38) is granted once to every
 role that held `manage_channels` when it was introduced (marker `fixup.voice_status`); rooms may hand it to other
 roles alone (a channel override can grant it too), so people in a voice channel can keep its status current.
+`create_polls` (bit 39) is granted once to every role holding `send_messages` (`@everyone` included) and added to
+the `allow` mask of every override that allows `send_messages` when it was introduced (marker `fixup.create_polls`),
+so whoever could write a message can still send a poll; rooms narrow it afterwards.
 
 `change_nickname` covers the whole per-room profile (nickname, avatar and bio in that room, `PROTOCOL.md` §6b);
 `manage_nicknames` lets moderators change or reset the per-room profiles of members below them.
@@ -73,7 +77,7 @@ input flag `system_channel`):
   for `@everyone`, a role or the member), no missing room-level bit and no timeout can hide the channel or its
   history;
 - `SYSTEM_CHANNEL_DENIED` = `send_messages` | `attach_files` | `create_threads` | `mention_everyone` |
-  `pin_messages` | `use_whiteboard` is removed;
+  `pin_messages` | `use_whiteboard` | `create_polls` is removed;
 - then the bot branch applies as everywhere (a bot in a "no bots" zone still has nothing).
 
 The room cannot switch the channel off (the former setting `welcome_channel_enabled` is gone); reactions follow the
@@ -134,7 +138,7 @@ Overrides (on categories and on channels) may only carry bits that mean somethin
 `PUT /rooms/{room_id}/overrides` whose `allow` or `deny` contains another bit is refused with
 `400 permissions.not_channel_scoped` (`meta.names`: the refused bit names); room-level bits are granted through
 roles only. Reference constant: `CHANNEL_SCOPED` in the node (`tavrn-node`) and in `@tavrn/sdk`, value
-`377927696895`. Clients list only these bits in override editors.
+`927683510783`. Clients list only these bits in override editors.
 
 | Bit | Name |
 |---|---|
@@ -165,6 +169,7 @@ roles only. Reference constant: `CHANNEL_SCOPED` in the node (`tavrn-node`) and 
 | 34 | `read_history` |
 | 36 | `manage_threads` |
 | 38 | `voice_status` |
+| 39 | `create_polls` |
 
 Room-level only (roles, never overrides): `administrator`, `manage_room`, `create_invites`, `kick_members`,
 `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_emojis`, `change_nickname`, `manage_nicknames`,
@@ -254,6 +259,12 @@ closes. Reference: `no_bots_effective` / `noBotsEffective`, vectors in `testvect
 `no_bots` and `scopes` in `testvectors/permissions.json`.
 
 ## Changes
+
+- **2026-10-14, `create_polls` (bit 39)**: polls (`PROTOCOL.md` §7g) have their own permission next to
+  `send_messages`, channel-scoped, not management-class, in the defaults of `@everyone`, covered by
+  `messages:write`, granted once to every role and override that allowed `send_messages` at start (marker
+  `fixup.create_polls`). The node enforces it for plaintext polls and for every message with a close time; clients
+  enforce it for encrypted polls. `CHANNEL_SCOPED` becomes `927683510783`; the shared test vectors cover the bit.
 
 - **2026-10-14, `voice_status` (bit 38)**: the status text of voice channels (`VOICE.md` §2a) has its own
   permission, channel-scoped, not management-class (so `@everyone` may hold it), covered by `rooms:manage`, granted
