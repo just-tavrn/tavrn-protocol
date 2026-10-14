@@ -7,6 +7,7 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Changed
 
+- **Leaf cleanup election** (`ENCRYPTION.md` §4.7): devices that may not commit a removal or are known to be offline do not count for the election, and a voice join never waits for it (the elected device removes at once, others join on the current epoch and clean up in the background).
 - **A secret storage entry marks its passkey as PRF-capable** (`ENCRYPTION.md` §2.4, `PROTOCOL.md` §3.3).
   `PUT /users/me/secret-storage/passkey/{credential_id}` accepts the entry for any credential of the user and sets
   `prf_supported`; the `409 secret_storage.prf_unsupported` refusal is gone. Authenticators that announce the PRF only
