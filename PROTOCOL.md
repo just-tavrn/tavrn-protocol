@@ -382,7 +382,8 @@ Secret storage routes: `ENCRYPTION.md` §2.4.
   `PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`. The node adds
   `extensions.prf.eval.first` (the secret storage PRF input, `ENCRYPTION.md` §2.4). `response` is
   `PublicKeyCredential.toJSON()`; clients MUST remove `clientExtensionResults.prf.results` first.
-  `clientExtensionResults.prf.enabled` at registration sets `prf_supported`.
+  `clientExtensionResults.prf.enabled` at registration sets `prf_supported`; a stored secret storage
+  entry for the credential (`ENCRYPTION.md` §2.4) sets it as well.
 - Challenges are stored on the node, expire after 5 minutes and are consumed by the first finish
   attempt, successful or not. A second-factor challenge belongs to the user of the pre-auth token it
   was started with.

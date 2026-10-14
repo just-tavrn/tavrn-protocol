@@ -225,8 +225,10 @@ method. Unwrapping fails (`decryption_failed`) for a wrong key, account or metho
   that the node stores verbatim (clients MAY record e.g. the client version; nothing secret). The node
   checks that `wrapped` is exactly 61 bytes with version `0x01` (`400 secret_storage.invalid`), the
   params (`400 secret_storage.params_invalid`, `413 secret_storage.params_too_large`), that the
-  credential belongs to the user (`404 webauthn.not_found`) and supports PRF
-  (`409 secret_storage.prf_unsupported`), and rate-limits writes (`429`).
+  credential belongs to the user (`404 webauthn.not_found`), and rate-limits writes (`429`). The
+  entry is the proof that the credential's PRF works: storing it marks the credential as
+  `prf_supported`, also when its registration did not announce the extension (some platform
+  authenticators report it only at assertion time, or gain it with a system update).
 - `DELETE /api/v1/users/me/secret-storage/passkey/{credential_id}` → `204` (`404
   secret_storage.not_found`). Deleting the WebAuthn credential deletes its entry as well; the identity
   reset (§9) deletes all entries. There is no password entry and no route for one.
