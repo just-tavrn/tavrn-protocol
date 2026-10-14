@@ -22,8 +22,9 @@ Changes of the protocol that implementations must follow, newest first. Versions
   content type `poll` (`kind` `choice` with 2–20 options and `max_choices`, or `date` with 1–60 time slots answered
   `yes`/`maybe`/`no`; `results_visible`, `votes_visible`, both cooperative) is encrypted like any content; the node
   checks plaintext polls (`400 message.poll_invalid`) and refuses editing them (`400 message.poll_immutable`).
-  Messages carry the plaintext close time `poll_closes_at` (set on create, 1 minute to 1 year ahead; moved earlier
-  only, by the author or `manage_messages`, through `PATCH …/messages/{id} { poll_closes_at }`). Votes are vote
+  Messages carry the plaintext close time `poll_closes_at` (set on create, 1 minute to 1 year ahead; through `PATCH
+  …/messages/{id} { poll_closes_at }` the author or `manage_messages` closes a poll now, also one without a close
+  time, or moves its close time earlier, never later). Votes are vote
   records, one per user and poll on the hosting node: `PUT`/`DELETE /conversations/{id}/messages/{message_id}/poll/vote`
   and `GET …/poll/votes`, content `poll.vote` encrypted and device-signed under the current epoch (plaintext
   conversations: checked against the poll, optional plaintext signature), bound to the poll by `ctx.poll` and

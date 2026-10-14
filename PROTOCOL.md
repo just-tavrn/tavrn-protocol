@@ -1584,16 +1584,18 @@ poll with a close time). It is plaintext so that the node can refuse late votes:
 - `POST …/messages { …, poll_closes_at? }` sets it (any content type): an RFC 3339 time with offset at least one
   minute and at most one year after the node's clock (`400 message.poll_closes_invalid`), stored and returned in
   UTC. It needs `create_polls` (below; `403 message.poll_forbidden`).
-- **Closing early**: `PATCH …/messages/{message_id} { poll_closes_at }` (without `content`) moves it to an earlier
-  time: the author or a member with `manage_messages` (`403 message.not_author` otherwise; not in a timeout, `403
-  member.timed_out`), only when the message has a close time that has not passed (`400 message.poll_closes_invalid` for a message without one, `409
-  poll.closed` once it passed), only earlier than the current value and not more than one minute before the node's
-  clock (`400 message.poll_closes_invalid`); the node stores the later of the given time and its clock, so no vote it
-  already accepted lies after the close. A close time never moves later and never goes back to null. The edit does
-  not change `edited_at`. Closing someone else's poll is audit-logged in rooms (`message.poll_close`). Event
-  `message.update`. A `PATCH` with `content` follows the normal edit rules (author only) and may carry
-  `poll_closes_at` with the same rules.
-- Polls without `poll_closes_at` stay open until the message is deleted.
+- **Closing early**: `PATCH …/messages/{message_id} { poll_closes_at }` (without `content`): the author or a member
+  with `manage_messages` (`403 message.not_author` otherwise; not in a timeout, `403 member.timed_out`). A time not
+  after the node's clock closes the poll now, also a poll created without a close time; the node then stores its own
+  clock, so no vote it already accepted lies after the close. A later time only moves an existing close time earlier
+  (`400 message.poll_closes_invalid` for a time not earlier than the current one, and for any future time on a
+  message without a close time: a poll without an end stays without one until it is closed). A passed close time is
+  final (`409 poll.closed`); a close time never moves later and never goes back to null. The edit does not change
+  `edited_at`. Closing someone else's poll is audit-logged in rooms (`message.poll_close`). Event `message.update`. A
+  `PATCH` with `content` follows the normal edit rules (author only) and may carry `poll_closes_at` with the same
+  rules. The node cannot tell an encrypted poll from another message: closing any message only gives it a close time
+  after which its votes are refused.
+- Polls without `poll_closes_at` stay open until they are closed or the message is deleted.
 
 **Vote records.**
 
