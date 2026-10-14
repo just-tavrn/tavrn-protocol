@@ -600,11 +600,14 @@ of such a device stay unverifiable.
 Removals name each leaf by identity **and** signature key, so a leaf that names a genuine device with another key is
 removed while the genuine leaf stays.
 
-Cleanup runs when a conversation is opened, when a voice channel is joined (before the self update that renews the
-voice key), on `mls.remove_needed` and after (re)connecting when the node lists pending removals of own leaves.
-One cleanup runs per conversation at a time. To avoid competing commits, the lowest device id among the online
-devices that may commit the removal tries first (voice: the participants; otherwise every valid leaf); every other
-device waits 10 seconds and tries only if the leaf is still there. An epoch conflict is retried after the missing
+Cleanup runs when a conversation is opened, when a voice channel is joined, on `mls.remove_needed` and after
+(re)connecting when the node lists pending removals of own leaves. One cleanup runs per conversation at a time. To
+avoid competing commits, the lowest device id among the online devices that may commit the removal tries first
+(voice: the participants; otherwise every valid leaf; a device that may not commit one of the removals, or that the
+client knows to be offline, does not count); every other device waits 10 seconds and tries only if the leaf is still
+there. A voice join never waits for that election: the joining device removes at once when it is the elected one,
+otherwise it joins on the current epoch (the self update that renews the voice key follows) and the cleanup runs in
+the background after the join, so a removal may land after the join's commit. An epoch conflict is retried after the missing
 commits, at most three times with backoff; a leaf the node refused is not tried again in that session. The ghost
 warning tells a deleted device whose removal is pending ("device was removed, cleanup pending") apart from a
 genuinely unknown device and disappears with the leaf.
