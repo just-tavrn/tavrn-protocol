@@ -28770,7 +28770,7 @@
           },
           "key": {
             "type": "string",
-            "description": "account, profile, devices, sessions, rooms, conversations, friends, blocks, messages, encrypted_messages,\nattachments, reactions, personal_emojis, personal_sounds, whiteboards, applications, audit_log,\nlegal_notices, terms_acceptances"
+            "description": "account, profile, devices, sessions, rooms, conversations, friends, blocks, messages, encrypted_messages,\nattachments, reactions, poll_votes, personal_emojis, personal_sounds, whiteboards, applications, audit_log,\nlegal_notices, terms_acceptances"
           },
           "since": {
             "type": [
