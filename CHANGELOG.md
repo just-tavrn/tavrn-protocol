@@ -7,6 +7,10 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Changed
 
+- **A secret storage entry marks its passkey as PRF-capable** (`ENCRYPTION.md` §2.4, `PROTOCOL.md` §3.3).
+  `PUT /users/me/secret-storage/passkey/{credential_id}` accepts the entry for any credential of the user and sets
+  `prf_supported`; the `409 secret_storage.prf_unsupported` refusal is gone. Authenticators that announce the PRF only
+  at assertion time (or gain it with a system update) can unlock messages without re-registration.
 - **The node quota of files channels covers the node's own storage only** (`FILES.md` §4, §5, `ENTITLEMENTS.md`).
   `files_channels.max_bytes` no longer limits channels on external WebDAV/S3 stores. Such a channel has its own
   optional limit, `max_bytes` in `PUT …/files/backend` (returned by `GET backend`, `0`/absent = unlimited), set by the

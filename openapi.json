@@ -23436,7 +23436,7 @@
         "tags": [
           "secret_storage"
         ],
-        "summary": "Stores or replaces the entry of a PRF-capable WebAuthn credential of the user (needs a reauth token).",
+        "summary": "Stores or replaces the entry of a WebAuthn credential of the user and marks the credential as PRF-capable: the\nentry (a wrap under the credential's PRF output) proves the extension works even when the registration did not\nannounce it (needs a reauth token).",
         "operationId": "put_passkey",
         "parameters": [
           {
@@ -23483,16 +23483,6 @@
             }
           },
           "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
             "description": "",
             "content": {
               "application/json": {
