@@ -44,6 +44,7 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 35 | `manage_applications` | Install and remove applications (bots) in the room and edit the room's command settings (`APPLICATIONS.md` §4.2, §4.3, §5.3). The managed role of an installation additionally needs `manage_roles`, and the bot never gets more than the installer holds. Covered by the app token scope `rooms:manage`; bots still cannot install bots. |
 | 36 | `manage_threads` | Rename, archive, lock and delete other people's threads and edit the tags of any forum post (`PROTOCOL.md` §7e). Covered by the app token scope `moderation`. |
 | 37 | `restore_history` | Encrypted channels: decide about requests to restore a member's history after a key reset and send the keys from before the reset (`ENCRYPTION.md` §7b "History after a key reset"). Default: nobody besides the owner and `administrator`; no app-token scope covers it. |
+| 38 | `voice_status` | Set or clear the status text of a voice channel (`VOICE.md` §2a) at any time, through the channel update route without `manage_channels`. Channel-scoped, grantable alone; granted once to every role that held `manage_channels` when it was introduced (marker `fixup.voice_status`). Covered by the app token scope `rooms:manage`. |
 | 62 | `administrator` | All permissions, overrides are ignored |
 
 Default permissions of `@everyone` in new rooms: `view_channel`, `send_messages`, `attach_files`, `add_reactions`,
@@ -55,7 +56,9 @@ removal by the room is kept). `manage_applications` (bit 35) replaced `manage_ro
 a startup fixup grants it once to every role that held `manage_room` when the bit was introduced (marker
 `fixup.manage_applications`), so nobody loses the ability; rooms may narrow it afterwards. `manage_threads` (bit 36)
 is granted the same way once to every role that held `manage_messages` when it was introduced (marker
-`fixup.manage_threads`), so moderators keep moderating threads.
+`fixup.manage_threads`), so moderators keep moderating threads. `voice_status` (bit 38) is granted once to every
+role that held `manage_channels` when it was introduced (marker `fixup.voice_status`); rooms may hand it to other
+roles alone (a channel override can grant it too), so people in a voice channel can keep its status current.
 
 `change_nickname` covers the whole per-room profile (nickname, avatar and bio in that room, `PROTOCOL.md` §6b);
 `manage_nicknames` lets moderators change or reset the per-room profiles of members below them.
@@ -131,7 +134,7 @@ Overrides (on categories and on channels) may only carry bits that mean somethin
 `PUT /rooms/{room_id}/overrides` whose `allow` or `deny` contains another bit is refused with
 `400 permissions.not_channel_scoped` (`meta.names`: the refused bit names); room-level bits are granted through
 roles only. Reference constant: `CHANNEL_SCOPED` in the node (`tavrn-node`) and in `@tavrn/sdk`, value
-`103049789951`. Clients list only these bits in override editors.
+`377927696895`. Clients list only these bits in override editors.
 
 | Bit | Name |
 |---|---|
@@ -161,6 +164,7 @@ roles only. Reference constant: `CHANNEL_SCOPED` in the node (`tavrn-node`) and 
 | 33 | `manage_files` |
 | 34 | `read_history` |
 | 36 | `manage_threads` |
+| 38 | `voice_status` |
 
 Room-level only (roles, never overrides): `administrator`, `manage_room`, `create_invites`, `kick_members`,
 `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_emojis`, `change_nickname`, `manage_nicknames`,
@@ -250,6 +254,11 @@ closes. Reference: `no_bots_effective` / `noBotsEffective`, vectors in `testvect
 `no_bots` and `scopes` in `testvectors/permissions.json`.
 
 ## Changes
+
+- **2026-10-14, `voice_status` (bit 38)**: the status text of voice channels (`VOICE.md` §2a) has its own
+  permission, channel-scoped, not management-class (so `@everyone` may hold it), covered by `rooms:manage`, granted
+  once to every role with `manage_channels` at start (marker `fixup.voice_status`). `CHANNEL_SCOPED` becomes
+  `377927696895`; the shared test vectors cover the bit.
 
 - **2026-10-11, moved participations**: a member moved into a voice channel by a moderator with `move_members`
   holds `view_channel`, `read_history` and `connect` there while the moved participation lasts ("Evaluation"

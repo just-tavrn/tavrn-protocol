@@ -13212,7 +13212,7 @@
         "tags": [
           "channels"
         ],
-        "summary": "Update a channel (`manage_channels`). Moving it out of its category copies the category's overrides into the\nchannel; moving it into a category that grants more needs `manage_roles` there (protocol permissions.md \"Moving\nchannels\").",
+        "summary": "Update a channel (`manage_channels`). Moving it out of its category copies the category's overrides into the\nchannel; moving it into a category that grants more needs `manage_roles` there (protocol permissions.md \"Moving\nchannels\"). A request that carries only `status` sets a voice channel's status line and needs `voice_status`\nin the channel instead (VOICE.md §2a).",
         "operationId": "update_channel",
         "parameters": [
           {
@@ -26704,6 +26704,10 @@
             "type": "integer",
             "format": "int64"
           },
+          "status": {
+            "type": "string",
+            "description": "Voice channels: one line of plain text about what is going on (at most 128 characters, `\"\"` = none;\nVOICE.md §2a), set by members with `voice_status`. Always `\"\"` on other kinds."
+          },
           "system_name": {
             "type": [
               "string",
@@ -36856,6 +36860,13 @@
             ],
             "format": "int64"
           },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Voice channels: the status line (plain text, at most 128 characters after trimming, `\"\"` clears it;\nVOICE.md §2a). Needs `voice_status` in the channel instead of `manage_channels` when it is the only field\n(`403 channel.status_forbidden`); refused on other kinds (`400 channel.status_not_voice`). Audited as\n`channel.voice_status`."
+          },
           "sync_with_category": {
             "type": [
               "boolean",
@@ -37938,6 +37949,13 @@
           },
           "room_id": {
             "type": "string"
+          },
+          "session_started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the current session began (RFC 3339; VOICE.md §5): set with the first connected participant, kept\nwhile anybody is connected or reconnecting, `null` while the channel is empty. Clients show a timer from it."
           }
         }
       },
@@ -38035,6 +38053,13 @@
           },
           "room_id": {
             "type": "string"
+          },
+          "session_started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the channel's current session began (VOICE.md §5; `null` while nobody is connected yet, this device\nincluded: its own connection starts the session)."
           },
           "token": {
             "type": "string",

@@ -18,6 +18,16 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Voice session start** (`VOICE.md` §5, fixes #31): `VoiceChannelState` carries `session_started_at` (RFC 3339 or
+  `null`): when the channel's current session began, set with the first connected participant, kept while anybody
+  is connected or reconnecting, cleared with the last one. Every voice state (`GET …/voice`, `GET /users/me/voice`,
+  the join answer, `voice.state`) carries it; clients show a session timer that is right for late joiners.
+- **Voice channel status** (`VOICE.md` §2a, `permissions.md` bit 38, fixes #32): voice channels carry `status`
+  (plain text, at most 128 characters, `""` = none) next to the text channels' `topic`. Members with the new
+  channel-scoped permission `voice_status` change it at any time with `PATCH …/channels/{id}` `{ status }` without
+  `manage_channels` (`403 channel.status_forbidden` without the bit, `400 channel.status_not_voice` on other
+  kinds); audit `channel.voice_status`, event `channel.update`. The bit is granted once to every role with
+  `manage_channels`; `CHANNEL_SCOPED` is now `377927696895` and the shared vectors cover the bit.
 - **Reports v2: forwarding reports to the reported user's home node** (`MODERATION.md` §1.6, `FEDERATION.md` §5.2,
   capability `reports.v2`, fixes #2). Node admins forward a report about a user of another node with
   `POST /reports/{report_id}/forward` (idempotent; `400 report.forward_invalid`, `409 report.target_local`,
