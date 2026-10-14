@@ -18,10 +18,10 @@ The reference implementations live in their own repositories:
 
 | Document | Contents |
 |---|---|
-| [`PROTOCOL.md`](PROTOCOL.md) | The core: identities and addresses, discovery (`/.well-known/tavrn`), capabilities, API conventions, tokens and authentication, date of birth and age gates (`age.v1`), realtime events and who receives them, presence, profiles, notifications and web push, the message envelope, uploads, threads and forums, message retention, DMs, permissions overview |
+| [`PROTOCOL.md`](PROTOCOL.md) | The core: identities and addresses, discovery (`/.well-known/tavrn`), capabilities, API conventions, tokens and authentication, date of birth and age gates (`age.v1`), realtime events and who receives them, presence, profiles, notifications and web push, the message envelope, uploads, threads and forums, polls and date polls (`polls.v1`), message retention, DMs, permissions overview |
 | [`FEDERATION.md`](FEDERATION.md) | How nodes find, authenticate and trust each other: node keys, federation tokens, inbox and outbox, remote rooms, friends and DMs across nodes, directory, signing in with an account of another node (also from native apps, `connect.app`), conformance, identity verification |
 | [`ENCRYPTION.md`](ENCRYPTION.md) | End-to-end encryption (`e2ee.mls1`): master secret and key file, devices and their share keys, MLS groups, content and file encryption, backups, history for new members (`history.shares2`) and its restore after a key reset (`history.restore`), secret storage, identity reset and rotation |
-| [`VOICE.md`](VOICE.md) | Voice, video and screen sharing (`voice`, `screenshare`, `soundboard`): limits, join flow, quality presets, presence, moderation and moved participations, the encrypted media frames, soundboard, connectivity, calls in DMs |
+| [`VOICE.md`](VOICE.md) | Voice, video and screen sharing (`voice`, `screenshare`, `soundboard`): limits, the channel status, join flow, quality presets, screen publishers of native apps, presence and the session start, moderation and moved participations, the encrypted media frames, soundboard, connectivity, calls in DMs |
 | [`WHITEBOARD.md`](WHITEBOARD.md) | The shared whiteboard built on encrypted ephemeral events |
 | [`APPLICATIONS.md`](APPLICATIONS.md) | Applications and bots (`apps.v1`), slash commands (`commands.v1`), webhooks and event subscriptions (`webhooks.v1`), rich presence, single sign-on (`sso.oidc`) |
 | [`SEARCH.md`](SEARCH.md) | Message search (`search.v1`): the node index for plaintext and the client-side index for encrypted messages and files |
@@ -48,7 +48,7 @@ as `org.example.feature`.
 The capabilities defined today, by document:
 
 - `PROTOCOL.md`: `content.v1`, `reactions`, `attachments`, `pins`, `emojis`, `gifs`, `unfurl`, `push.webpush`,
-  `threads`, `forum`, `announcement`, `threads.client_ids`, `age.v1`;
+  `threads`, `forum`, `announcement`, `threads.client_ids`, `age.v1`, `polls.v1`;
 - `ENCRYPTION.md`: `e2ee.mls1`, `history.shares2`, `history.restore`;
 - `FEDERATION.md`: `federation`, `federation.v1`, `connect.app`, and the client capability `content.signed1`;
 - `VOICE.md`: `voice`, `screenshare`, `soundboard`;
