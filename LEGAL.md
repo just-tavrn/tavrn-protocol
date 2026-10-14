@@ -175,7 +175,8 @@ the node.
 `GET /users/me/export` (reauth token): a JSON archive (`format: "tavrn.export.v1"`): account, profile, notification
 settings, devices, sessions (times only), second factors (kinds and names only), single sign-on links, rooms with
 roles, rooms owned, conversations with their members' addresses, friends, friend requests, blocks, attachments
-(metadata; names only from unencrypted conversations), reactions, personal emojis, sounds and whiteboards (names),
+(metadata; names only from unencrypted conversations), reactions, poll votes (`PROTOCOL.md` §7g; the vote object
+from unencrypted conversations, metadata only for encrypted ones), personal emojis, sounds and whiteboards (names),
 applications, terms acceptances, the account's node-level audit entries and entries naming it, notices about its
 content (no reporter data), shared nodes, retention, and the messages it wrote (plaintext content; encrypted ones as
 metadata). Never in it: password hash, TOTP secret, recovery codes, passkey keys, refresh tokens, secret storage and

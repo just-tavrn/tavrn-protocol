@@ -139,6 +139,7 @@ Capabilities reserved in v1, and when nodes that implement them announce them:
 | `history.shares2` | history shares sealed to each recipient device, device share keys (`ENCRYPTION.md` §3.1, §7b "Format v2") | always |
 | `files.e2ee` | end-to-end encrypted files channels (`FILES.md` §8) | always |
 | `age.v1` | date of birth, private age status and age gates (§5e) | always |
+| `polls.v1` | polls and date polls with vote records and the plaintext close time (§7g) | always |
 | `content.signed1` | the client signs its plaintext messages (below) | never: a client capability |
 
 Custom capabilities of third-party clients carry a reverse-domain prefix (for example `org.example.feature`).
@@ -670,7 +671,7 @@ room and channel settings, and never show another user's age or status.
 
 Events are addressed to a room, to users (all their connections) or to devices (only the connection of that
 device). Room events that concern a channel (`message.*`, reactions and pins as `message.update`, `typing`,
-`thread.*`, `voice.state`, `files.*`, `mls.*`, `history.pending`, `message.redact`, …: every event whose `data`
+`thread.*`, `poll.*`, `voice.state`, `files.*`, `mls.*`, `history.pending`, `message.redact`, …: every event whose `data`
 names a `conversation_id` or `channel_id` of the room, directly or in an embedded `thread` or `message`) reach only
 **all room members who can view the channel** at delivery time: `view_channel` after roles and overrides
 (`permissions.md`) and the age gate of §5e; a change of roles, overrides or membership applies to the next event.
@@ -747,6 +748,8 @@ Event types besides the room and message events:
 | `thread.create`, `thread.update` | room members who can view the channel | `{ room_id, thread }`: a thread was started, or its title, tags, archive or lock state or its counters changed (§7e) |
 | `thread.delete` | room members who can view the channel | `{ room_id, channel_id, id }`: a thread was deleted with its messages (§7e) |
 | `thread.read` | the user (all of their connections) | `ThreadReadState`: the per-thread read marker or the follow state changed (§7e) |
+| `poll.vote` | conversation audience¹ | `PollVote` `{ conversation_id, message_id, user, user_id, device_id, epoch, content, signature, created_at, updated_at }`: a member voted or changed their vote (§7g) |
+| `poll.vote.delete` | conversation audience¹ | `{ room_id, conversation_id, message_id, user, user_id }`: a member retracted their vote (§7g) |
 | `legal.statement` | the uploader | `{ case_id, decision, counter_deadline? }`: a statement of reasons or a decision about the user's content (`LEGAL.md` §1.4); details at `GET /users/me/legal-notices` |
 | `report.create` | the users who may see the report (room moderators, node admins), except the reporter | `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`: a new report in the moderation inbox (`MODERATION.md` §1.5), also one another node forwarded (`source: "forward"`, `MODERATION.md` §1.6) |
 | `report.update` | the same audience | `{ id, scope, room_id, status }`: a report changed, was acted on, forwarded or deleted (`status: "deleted"`) |
@@ -1059,6 +1062,7 @@ Every message consists of an envelope (readable by the node) and content (opaque
   "attachments": [{ "id": "01J…", "name": "image.png", "mime": "image/png", "size": 12345, "sha256": "…" }],
   "reactions": [{ "emoji": "👍", "count": 2, "me": true }],
   "pinned": false,
+  "poll_closes_at": null,
   "epoch": 42,
   "content": "<base64url: ciphertext>",
   "signature": null
@@ -1072,6 +1076,7 @@ Every message consists of an envelope (readable by the node) and content (opaque
 - `encrypted = false`: `content` is the JSON content object in plaintext. Only allowed in channels whose
   `encrypted` flag is `false`. The node rejects plaintext in encrypted channels and ciphertext in unencrypted
   channels with `message.encryption_mismatch`.
+- `poll_closes_at`: the plaintext close time of a poll (§7g), null otherwise.
 - `thread_id` names the thread the message belongs to (§7e), null for messages of the channel itself. A message
   that started a thread carries the summary `thread` of that thread (absent otherwise).
 - `author_kind` is the author's `kind` (`user`, `bot`, `webhook`, …) so every client can show the BOT or WEBHOOK
@@ -1130,7 +1135,8 @@ and show links with their full host. Unknown embed fields are ignored.
 
 Reserved `type` values: `text`, `action`, `system.join`, `system.leave`, `system.key_changed`, `system.bot_added`, `system.bot_removed`, `system.pin`, `system.encryption_changed`, `system.history_restored`, `system.history_restore_denied`,
 `command.args` (encrypted command arguments, `APPLICATIONS.md` §5.8: `{ type, command, nonce, issued_at, args }`,
-only ever inside `args_ciphertext` of an invocation, never as a message), `poll` (later). Unknown types are shown by clients as "Your client cannot display this message". `action`
+only ever inside `args_ciphertext` of an invocation, never as a message), `poll` (§7g), `poll.vote` (only inside a
+vote record of §7g, never as a message). Unknown types are shown by clients as "Your client cannot display this message". `action`
 (`{ "type": "action", "body": "waves" }`, `/me`) follows the rules of `text` and is rendered in italics after the
 author's name.
 
@@ -1508,7 +1514,7 @@ on another thread of the same channel; clients treat titles as display text only
 
 A node may delete old messages (`TAVRN_RETENTION_DAYS`, default `0` = keep forever, at most 36500): its hourly
 housekeeping deletes messages of the channels, DMs and group DMs it hosts, encrypted or not, once they are older than
-the retention of their conversation, together with their attachments, reactions, pins and search entries; threads
+the retention of their conversation, together with their attachments, reactions, poll votes (§7g), pins and search entries; threads
 count their messages again (§7e).
 
 - A room may set a **shorter** retention for its channels: `PATCH /rooms/{room_id} { message_retention_days }`
@@ -1522,6 +1528,163 @@ count their messages again (§7e).
   (`ENTITLEMENTS.md` §6) is separate and may delete files earlier.
 - `GET /node` names the node value as `message_retention_days` (clients show it next to the room setting); the
   account's data summary (`LEGAL.md` §3.1, `GET /users/me/data`) as `retention.message_retention_days`.
+
+## 7g. Polls (`polls.v1`)
+
+Nodes announce the capability `polls.v1` when they implement this section. A **poll** is an ordinary message
+(§7) whose content object has `type = "poll"`: encrypted like any content in encrypted conversations
+(`ENCRYPTION.md` §5.2), plaintext elsewhere. Polls work in text, announcement and forum channels, in threads, in DMs
+and group DMs, for members of other nodes (their federated session, as for reactions) and for bots. Votes are not
+messages: every member keeps at most one **vote record** per poll on the node hosting the conversation, encrypted
+and device-signed like content, so votes never clutter the history, never count as unread and never notify.
+
+**Two kinds.** `choice` polls offer options of which a voter picks one or up to `max_choices`; `date` polls ("find
+a date") offer time slots that every voter answers with `yes`, `maybe` or `no`.
+
+**Poll content.**
+
+```json
+{ "type": "poll", "kind": "choice", "question": "Where do we meet?",
+  "options": [{ "id": "a", "label": "Kitchen" }, { "id": "b", "label": "Garden" }],
+  "max_choices": 1, "results_visible": "always", "votes_visible": "public",
+  "ctx": { "thread_id": null, "reply_to": null } }
+```
+
+```json
+{ "type": "poll", "kind": "date", "question": "Team dinner?",
+  "slots": [{ "id": "s1", "start": "2026-11-06T19:00:00+01:00", "end": "2026-11-06T22:00:00+01:00" },
+            { "id": "s2", "start": "2026-11-07T00:00:00+01:00", "all_day": true }],
+  "results_visible": "after_vote", "votes_visible": "hidden_until_close" }
+```
+
+- `question`: 1–300 characters after trimming (plain text, no Markdown).
+- `kind = "choice"`: `options`, 2–20 entries `{ id, label }`: `id` 1–32 characters out of `A–Z a–z 0–9 _ -`,
+  unique within the poll; `label` 1–100 characters after trimming. `max_choices`: an integer from 1 to the number of
+  options (1 = single choice).
+- `kind = "date"`: `slots`, 1–60 entries `{ id, start, end?, all_day? }`: `id` as for options and unique; `start` and
+  `end` RFC 3339 date-times **with** an offset (`Z` or `±hh:mm`, never a floating local time), `end` later than
+  `start`; `all_day: true` marks a whole day (`start` is that day's midnight in the creator's zone, `end` is then
+  absent or the next midnight). Clients render slots in the viewer's time zone and show the creator's on hover.
+  `max_choices` is absent.
+- `results_visible`: `always`, `after_vote` (a member sees the results once they voted) or `after_close`.
+  `votes_visible`: `public` (who voted for what) or `hidden_until_close` (counts only until the close).
+- `ctx`: the signed context of every encrypted message (`ENCRYPTION.md` §5.2).
+- There is no `closed` field: closing is the plaintext close time below. Unknown fields are ignored.
+
+The node checks the shape of plaintext polls (`400 message.poll_invalid`); clients check every poll after
+decrypting and show one that breaks these rules like an unknown type. **Polls cannot be edited**: clients offer no
+edit, and the node refuses content edits of plaintext polls and edits that turn a plaintext message into a poll
+(`400 message.poll_immutable`). An edited encrypted poll (the node cannot tell) changes its hash, so every vote cast
+before the edit no longer matches (below) and is shown as "voted on an earlier version", never counted.
+
+**Close time (plaintext).** Messages carry `poll_closes_at` (RFC 3339 or null; null on every message that is no
+poll with a close time). It is plaintext so that the node can refuse late votes: the node learns when a poll closes
+(not that a message is a poll in encrypted conversations, although a close time hints at it).
+
+- `POST …/messages { …, poll_closes_at? }` sets it (any content type): an RFC 3339 time with offset at least one
+  minute and at most one year after the node's clock (`400 message.poll_closes_invalid`), stored and returned in
+  UTC. It needs `create_polls` (below; `403 message.poll_forbidden`).
+- **Closing early**: `PATCH …/messages/{message_id} { poll_closes_at }` (without `content`): the author or a member
+  with `manage_messages` (`403 message.not_author` otherwise; not in a timeout, `403 member.timed_out`). A time not
+  after the node's clock closes the poll now, also a poll created without a close time; the node then stores its own
+  clock, so no vote it already accepted lies after the close. A later time only moves an existing close time earlier
+  (`400 message.poll_closes_invalid` for a time not earlier than the current one, and for any future time on a
+  message without a close time: a poll without an end stays without one until it is closed). A passed close time is
+  final (`409 poll.closed`); a close time never moves later and never goes back to null. The edit does not change
+  `edited_at`. Closing someone else's poll is audit-logged in rooms (`message.poll_close`). Event `message.update`. A
+  `PATCH` with `content` follows the normal edit rules (author only) and may carry `poll_closes_at` with the same
+  rules. The node cannot tell an encrypted poll from another message: closing any message only gives it a close time
+  after which its votes are refused.
+- Polls without `poll_closes_at` stay open until they are closed or the message is deleted.
+
+**Vote records.**
+
+- `PUT /conversations/{id}/messages/{message_id}/poll/vote { content, epoch?, signature? }` → `200 PollVote`:
+  creates or replaces the caller's vote on that message (one record per user and poll; the last device to vote
+  wins and becomes the record's `device_id`). Event `poll.vote` with the record.
+- `DELETE /conversations/{id}/messages/{message_id}/poll/vote` → `204`: retracts it (`404 poll.vote_not_found`
+  without one). Event `poll.vote.delete { room_id, conversation_id, message_id, user, user_id }`.
+- `GET /conversations/{id}/messages/{message_id}/poll/votes` → `{ items: [PollVote] }`, oldest first, every vote
+  of the poll (at most one per member, no paging).
+- `PollVote` = `{ conversation_id, message_id, user, user_id, device_id, epoch, content, signature, created_at,
+  updated_at }`: `user` the voter's address, `epoch` and a ciphertext `content` in encrypted conversations, the
+  content object and an optional plaintext `signature` otherwise.
+
+**Vote content** (the JSON object inside the record):
+
+```json
+{ "type": "poll.vote", "choices": ["a"], "voted_at": "2026-11-01T18:00:00Z",
+  "ctx": { "poll": "01J…", "poll_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" } }
+```
+
+- `choices` (choice polls): 1 to `max_choices` distinct option ids of the poll. `answers` (date polls): an object
+  that maps slot ids of the poll to `yes`, `maybe` or `no` (slots left out count as unanswered). `voted_at`: the
+  voter's clock (RFC 3339), informational.
+- `ctx.poll`: the poll's message id; `ctx.poll_hash`: lowercase hex SHA-256 of the RFC 8785 (JCS) serialization of
+  the poll's content object **without its `ctx` member** (as clients hold it after decrypting, `ENCRYPTION.md`
+  §5.2). Both bind the vote to exactly this poll in this form (test vector `poll_vote` in
+  `testvectors/polls.json`).
+- Encrypted conversations: `content` is content format 1 (`ENCRYPTION.md` §5.2) under the conversation's current
+  epoch (`epoch` required), encrypted and signed by the voting device; the node applies the checks of §5.3
+  (`message.ciphertext_invalid`, `message.epoch_mismatch`, `message.epoch_unknown`, `409 mls.epoch_stale`,
+  `e2ee.device_not_attested`) and refuses `signature` (`400 message.signature_invalid`).
+- Plaintext conversations: `content` is the vote object; the node checks its shape against the poll (the message
+  must be a plaintext poll, `400 poll.not_a_poll`; choices, answers, `ctx.poll` and `ctx.poll_hash` must match it,
+  `400 poll.vote_invalid`) and takes an optional `signature`: the device signature of `FEDERATION.md` §10.3 over the
+  conversation, the voter as author, the device, empty `reply_to` and `thread_id`, no `@everyone`, no mentions, no
+  attachments and the JCS form of the vote object (80 bytes base64url, `400 message.signature_invalid`).
+- Node checks for `PUT` and `DELETE`: room membership and `view_channel` in room channels (`403 room.not_member`,
+  `403 channel.view_forbidden`), membership in DMs and group DMs (`404 conversation.not_found`; blocked DMs and
+  pending message requests as for messages, §8a); no timeout (`403 member.timed_out`); the message exists in this
+  conversation and inside the requester's history window (`ENCRYPTION.md` §7b; `404 message.not_found`), is no
+  system message (`400 poll.not_a_poll`) and its `poll_closes_at`, if set, has not passed (`409 poll.closed`, also
+  for retracting); the content is at most 4 KiB (`413 poll.vote_too_large`); at most 10 vote changes (`PUT` and
+  `DELETE`) per user and minute (`429`). `GET` needs what reading the message needs (`view_channel`, the history
+  window). Voting needs no permission bit beyond `view_channel`: everybody who may read a poll may answer it.
+  Bots vote with `messages:write` and read votes with `messages:read` (`APPLICATIONS.md` §2.4).
+- Votes go with their message: deleting, purging or expiring a message (§7f) deletes its votes; the welcome
+  channel holds no polls. They go with their voter's account too (`LEGAL.md` §3.2) and are part of the account's
+  data summary and export (`poll_votes`, `LEGAL.md` §3.1).
+
+**Receivers** (clients and bots) count a vote only when all of these hold; anything else is left out of the
+results:
+
+1. the record verifies: encrypted content decrypts and verifies against the voter's attested device like a message
+   (`ENCRYPTION.md` §5.2, its author is the record's `user`, the device its `device_id`), plaintext content carries a
+   valid signature or is shown as unverified like an unsigned message (`FEDERATION.md` §10.3);
+2. its `type` is `poll.vote`, `ctx.poll` names the poll the client renders and `ctx.poll_hash` equals the hash of
+   the poll as the client holds it; a different hash is shown as "voted on an earlier version" (never counted);
+3. the choices or answers fit the poll (unknown ids, too many choices: not counted);
+4. `updated_at` is not later than `poll_closes_at` (the node refuses late votes; clients still check);
+5. at most one vote per member counts (the node keeps one record per user; a client that sees several takes the
+   newest `updated_at`).
+
+**Visibility flags are cooperative.** `results_visible` and `votes_visible` live inside the (encrypted) poll and
+are honoured by the clients: every member who can read the vote records can technically decrypt every vote, so a
+modified client can peek at results before voting or before the close, and at who voted for what while votes are
+"hidden until close". Clients name the option honestly ("Hidden until the poll closes", not "anonymous"). True
+anonymity towards members would need an unlinkable signature scheme and is not part of `polls.v1`.
+
+**Late joiners.** A member who joined after the poll reads it with the epoch's content key from a history share
+(`ENCRYPTION.md` §7b) when the channel's policy reaches back that far; their own vote goes out under the current
+epoch, and votes cast in epochs they cannot decrypt are left out of their results. When the poll itself cannot be
+decrypted the client shows "poll from before you joined" with the number of vote records only.
+
+**Permissions** (`permissions.md`): `create_polls` (bit 39, channel-scoped, granted to `@everyone` in new rooms)
+together with `send_messages` sends a poll. The node enforces it where it can see what is sent: for plaintext
+content of `type = "poll"` (`403 message.poll_forbidden`) and for every message with `poll_closes_at`, encrypted or
+not. It cannot see the type of encrypted content: in encrypted conversations clients enforce the bit for polls
+without a close time (a member without it can still send an encrypted poll with a modified client, which behaves
+like any message: other clients render it). DMs and group DMs have no permission bits; every member may send polls
+there.
+
+**Privacy.** The node never sees questions, options, slots or choices in encrypted conversations. It sees who voted
+on which message and when, how often a vote changed, the ciphertext sizes and the close time, as it sees reactions.
+It cannot forge, move or reassign a vote (the signature and `ctx` bind it to the voter, the conversation, the epoch
+and the poll); like messages, it could withhold a vote or serve an older one of the same voter.
+
+**Events** (conversation audience¹ of §6): `poll.vote` (data: the `PollVote`) and `poll.vote.delete`. Bots receive
+both with `messages:read`. Neither counts towards unread or mention counts, sends `notify` hints or web pushes.
 
 ## 8. Encryption marker (mandatory for all clients)
 

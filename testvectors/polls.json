@@ -1,0 +1,55 @@
+{
+  "description": "Reference values for the polls of PROTOCOL.md §7g. Binary values are base64url without padding; keys and devices are those of encryption.json (content, device_attestation).",
+  "poll_vote": {
+    "description": "Poll votes of PROTOCOL.md §7g: poll_hash is the lowercase hex SHA-256 of the JCS form of the poll content without its ctx member. The encrypted vote is content format 1 (§5.2) under content_key and opens with the device key of device_attestation; the plaintext vote of the date poll carries the plaintext signature of FEDERATION.md §10.3 with empty reply_to and thread_id, no mentions and no attachments.",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "epoch": 42,
+    "author": "alice@node.example",
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "content_key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8",
+    "poll_message_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VP1",
+    "poll_input": "{\"type\": \"poll\", \"kind\": \"choice\", \"question\": \"Where do we meet? ☕\", \"options\": [{\"id\": \"a\", \"label\": \"Kitchen\"}, {\"id\": \"b\", \"label\": \"Garden\"}, {\"id\": \"c\", \"label\": \"Café\"}], \"max_choices\": 2, \"results_visible\": \"after_vote\", \"votes_visible\": \"public\", \"ctx\": {\"thread_id\": null, \"reply_to\": null}}",
+    "poll_jcs": "{\"kind\":\"choice\",\"max_choices\":2,\"options\":[{\"id\":\"a\",\"label\":\"Kitchen\"},{\"id\":\"b\",\"label\":\"Garden\"},{\"id\":\"c\",\"label\":\"Café\"}],\"question\":\"Where do we meet? ☕\",\"results_visible\":\"after_vote\",\"type\":\"poll\",\"votes_visible\":\"public\"}",
+    "poll_hash": "bc33d871f546a8123a2f618edcf02da8d7b9e4b786155a7a2f0542ed7d647608",
+    "vote_json": "{\"choices\":[\"a\",\"c\"],\"ctx\":{\"poll\":\"01J9ZK3G5M8Q2W4E6R8T0Y2VP1\",\"poll_hash\":\"bc33d871f546a8123a2f618edcf02da8d7b9e4b786155a7a2f0542ed7d647608\"},\"type\":\"poll.vote\",\"voted_at\":\"2026-11-01T18:00:00Z\"}",
+    "vote_nonce": "kJGSk5SVlpeYmZqb",
+    "vote_content": "AQAAAAAAAAAqkJGSk5SVlpeYmZqbJj4g8I225m3y5WGlI42O6dt0ACCMrIZuQQUOE39uzi-P2817PL8KDvlIGpzO6hLioPrQnq1JkEXceEP7ihWoZMfvq6NHoGYRfdWJ4jNg3go84UWwh0D-LaQZVjcnd3uA7JlVHIb60lwczfgLL4rSlFzwaD-5OyY3qkG4NMprHDhBTWl-m3a20SMTUCv-SKbhFgXzUMCuR4m4ZMbf78zzu6gLPVpmuqAdVMQGGpW4MXL8-CH-4FUjho7YWckhOTStjY6U3CacNpLxezTau1U3jEzMoUpWS5432IbzbYOJ84liHAvhIkC8Bvbhv-bW6KglIvjZWV-mh2Fj8Hiu6__4rYD0C6uSCHcdZXIDvRctZ_FtQ4TxUA",
+    "date_poll": {
+      "type": "poll",
+      "kind": "date",
+      "question": "Team dinner?",
+      "slots": [
+        {
+          "id": "s1",
+          "start": "2026-11-06T19:00:00+01:00",
+          "end": "2026-11-06T22:00:00+01:00"
+        },
+        {
+          "id": "s2",
+          "start": "2026-11-07T00:00:00+01:00",
+          "all_day": true
+        }
+      ],
+      "results_visible": "always",
+      "votes_visible": "hidden_until_close"
+    },
+    "date_poll_hash": "ccff69b3546ea04789963f937e015e3678bd40750813e6863f05ea652f77cdfe",
+    "plaintext_conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V09",
+    "plaintext_vote": {
+      "type": "poll.vote",
+      "answers": {
+        "s1": "yes",
+        "s2": "maybe"
+      },
+      "voted_at": "2026-11-01T18:05:00+01:00",
+      "ctx": {
+        "poll": "01J9ZK3G5M8Q2W4E6R8T0Y2VP2",
+        "poll_hash": "ccff69b3546ea04789963f937e015e3678bd40750813e6863f05ea652f77cdfe"
+      }
+    },
+    "plaintext_vote_jcs": "{\"answers\":{\"s1\":\"yes\",\"s2\":\"maybe\"},\"ctx\":{\"poll\":\"01J9ZK3G5M8Q2W4E6R8T0Y2VP2\",\"poll_hash\":\"ccff69b3546ea04789963f937e015e3678bd40750813e6863f05ea652f77cdfe\"},\"type\":\"poll.vote\",\"voted_at\":\"2026-11-01T18:05:00+01:00\"}",
+    "plaintext_nonce": "oKGio6SlpqeoqaqrrK2urw",
+    "plaintext_signed": "dGF2cm4gcGxhaW50ZXh0IHNpZ25hdHVyZSB2MQAAJ25vZGUuZXhhbXBsZS8wMUo5WkszRzVNOFEyVzRFNlI4VDBZMlYwOQASYWxpY2VAbm9kZS5leGFtcGxlABowMUo5WkszRzVNOFEyVzRFNlI4VDBZMlZBMQAAAAAAAAAAAKChoqOkpaanqKmqq6ytrq8AAADaeyJhbnN3ZXJzIjp7InMxIjoieWVzIiwiczIiOiJtYXliZSJ9LCJjdHgiOnsicG9sbCI6IjAxSjlaSzNHNU04UTJXNEU2UjhUMFkyVlAyIiwicG9sbF9oYXNoIjoiY2NmZjY5YjM1NDZlYTA0Nzg5OTYzZjkzN2UwMTVlMzY3OGJkNDA3NTA4MTNlNjg2M2YwNWVhNjUyZjc3Y2RmZSJ9LCJ0eXBlIjoicG9sbC52b3RlIiwidm90ZWRfYXQiOiIyMDI2LTExLTAxVDE4OjA1OjAwKzAxOjAwIn0",
+    "plaintext_signature": "oKGio6SlpqeoqaqrrK2ur-mZcjEDVJCfuo3uStRCIgnvLk9bOmUhM3n3LlZF-wF2dOZp7nR7js88totne4u6lLqZ8I2sjzfUPgOj5ZqHsw8"
+  }
+}

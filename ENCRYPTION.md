@@ -655,6 +655,17 @@ signature  = Ed25519-Sign(device key, "tavrn content signature v1" || 0x00 || aa
   PROTOCOL.md §7e). Receivers compare it with the thread whose title they render; a different value or a malformed
   `ctx` is `envelope_mismatch` (shown like any title that cannot be read), so the node cannot swap encrypted titles
   between threads. A title without `ctx` (older clients, nodes without client ids) is accepted as before.
+- **Poll votes** (`PROTOCOL.md` §7g) are vote records, not messages: content format 1 of `{ "type": "poll.vote",
+  "choices" | "answers", "voted_at", "ctx": { "poll": "<message id>", "poll_hash": "<hex>" } }` under the current
+  epoch, `author` the voter and `device_id` the voting device (the record's `user` and `device_id`). `ctx` has
+  exactly these two fields (strings) and replaces the message context: `poll` binds the vote to the poll message,
+  `poll_hash` (lowercase hex SHA-256 of the RFC 8785 (JCS) form of the poll's content object without its `ctx`
+  member) to the poll's exact content, so an edited poll leaves earlier votes visibly stale. Receivers compare
+  `poll` with the message whose votes they load (a different value or a malformed `ctx` is `envelope_mismatch`, the
+  vote is not counted) and the hash with the poll they render. Content of `type = "poll.vote"` is never shown as a
+  message, and a vote record whose content has another `type` is `invalid`: the node cannot serve one as the other.
+  Test vector: `poll_vote` in `testvectors/polls.json` (the poll, its JCS form and hash, an encrypted vote and a
+  plaintext signed vote).
 - Senders always use the current epoch of their local group. Before encrypting, the client processes the handshake log
   (§4.3); when that fails (network error, a node error), it does **not** send: the composer shows the error and offers
   to retry, so a message never goes out under an epoch that removed members may still hold. The ghost check (§4.6) runs
@@ -682,8 +693,8 @@ newer than the group's current epoch, that the sending device is attested (§3.1
 (`tavrn_crypto::content_header`). The plaintext/ciphertext rules of PROTOCOL.md §7 stay unchanged.
 
 The node accepts new content (messages and their edits, thread titles, interaction responses, records of files
-channels) only under the group's **current** epoch, or under the epoch before it within 60 seconds after the commit
-that ended that epoch (content that was encrypted while the commit was on its way). Older content is refused with
+channels, poll votes) only under the group's **current** epoch, or under the epoch before it within 60 seconds after
+the commit that ended that epoch (content that was encrypted while the commit was on its way). Older content is refused with
 `409 mls.epoch_stale` (`meta.epoch` = the current epoch), a newer epoch with `400 message.epoch_unknown` as before. A
 client that gets `mls.epoch_stale` processes the missing commits and encrypts again. This bounds how long a removed
 member's key (the epoch before its removal) can still be used to post, and keeps a lagging client from writing under
@@ -702,8 +713,9 @@ keys that new members cannot read.
 - New members cannot read messages from before their join, unless the channel's history policy lets members
   share older keys with them (§7b); removed members cannot read messages after their removal.
 - The node sees metadata: conversation, author, device, timestamps, epoch, ciphertext sizes, `mentions`
-  (deliberately plaintext, PROTOCOL.md §7), reactions, pins, reply and thread references, attachment
-  count, sizes and ciphertext hashes, membership changes (commits are public messages), the URLs of link
+  (deliberately plaintext, PROTOCOL.md §7), reactions, poll votes (who voted on which message and when, their
+  ciphertext sizes) and poll close times, pins, reply and thread references, attachment count, sizes and ciphertext
+  hashes, membership changes (commits are public messages), the URLs of link
   previews, which are fetched only when the user enables them, and the size and update times of the user's trust
   record (§7), which grow with the number of contacts.
 - Every message of an encrypted conversation is encrypted by its sender. A plaintext message there (other than the

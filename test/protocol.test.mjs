@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createDecipheriv, createHash, createPrivateKey, createPublicKey, verify } from "node:crypto";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path) => JSON.parse(readFileSync(join(root, path), "utf8"));
@@ -68,7 +69,7 @@ test("case lists have a unique name, an input and an expected value", () => {
 });
 
 test("reference value files carry a description", () => {
-  for (const file of ["testvectors/encryption.json", "testvectors/federation.json", "testvectors/federation_node.json"]) {
+  for (const file of ["testvectors/encryption.json", "testvectors/federation.json", "testvectors/federation_node.json", "testvectors/polls.json"]) {
     const doc = read(file);
     assert.equal(typeof doc.description, "string", `${file} has no description`);
     assert.ok(Object.keys(doc).length > 1, `${file} has no values`);
@@ -89,4 +90,61 @@ test("package exports and files exist", () => {
   for (const pattern of pkg.files) {
     if (!pattern.includes("*")) assert.ok(existsSync(join(root, pattern)), `files entry ${pattern} is missing`);
   }
+});
+
+// RFC 8785 for the values of the poll vectors (strings, integers, booleans, null, arrays, objects).
+function jcs(v) {
+  if (v === null || typeof v !== "object") return JSON.stringify(v);
+  if (Array.isArray(v)) return `[${v.map(jcs).join(",")}]`;
+  return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${jcs(v[k])}`).join(",")}}`;
+}
+const b64 = (s) => Buffer.from(s, "base64url");
+const str16 = (s) => { const b = Buffer.from(s, "utf8"); const l = Buffer.alloc(2); l.writeUInt16BE(b.length); return Buffer.concat([l, b]); };
+const u64 = (n) => { const b = Buffer.alloc(8); b.writeBigUInt64BE(BigInt(n)); return b; };
+
+test("polls.json: the poll hash, the encrypted vote and the signed plaintext vote are consistent", () => {
+  const v = read("testvectors/polls.json").poll_vote;
+  const enc = read("testvectors/encryption.json");
+  // The hash covers the JCS form of the poll without ctx.
+  const { ctx: _ctx, ...poll } = JSON.parse(v.poll_input);
+  assert.equal(jcs(poll), v.poll_jcs);
+  assert.equal(createHash("sha256").update(v.poll_jcs, "utf8").digest("hex"), v.poll_hash);
+  assert.equal(createHash("sha256").update(jcs(v.date_poll), "utf8").digest("hex"), v.date_poll_hash);
+  // The device key of encryption.json (device_attestation) signs both votes.
+  const seed = b64(enc.device_attestation.device_secret_key);
+  const priv = createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), seed]), format: "der", type: "pkcs8" });
+  const pub = createPublicKey(priv);
+  assert.equal(pub.export({ format: "der", type: "spki" }).subarray(12).toString("base64url"), enc.device_attestation.device_public_key);
+  // Encrypted vote: content format 1 of ENCRYPTION.md §5.2.
+  const raw = b64(v.vote_content);
+  assert.equal(raw[0], 1);
+  assert.equal(Number(raw.readBigUInt64BE(1)), v.epoch);
+  const nonce = raw.subarray(9, 21);
+  assert.equal(nonce.toString("base64url"), v.vote_nonce);
+  const aad = Buffer.concat([Buffer.from([1]), str16(v.conversation), u64(v.epoch), str16(v.author), str16(v.device_id)]);
+  const body = raw.subarray(21, raw.length - 16);
+  const d = createDecipheriv("aes-256-gcm", b64(v.content_key), nonce);
+  d.setAAD(aad);
+  d.setAuthTag(raw.subarray(raw.length - 16));
+  const plain = Buffer.concat([d.update(body), d.final()]);
+  const json = plain.subarray(64).toString("utf8");
+  assert.equal(json, v.vote_json);
+  assert.ok(verify(null, Buffer.concat([Buffer.from("tavrn content signature v1\0"), aad, nonce, Buffer.from(json)]), pub, plain.subarray(0, 64)));
+  const vote = JSON.parse(json);
+  assert.deepEqual(vote.ctx, { poll: v.poll_message_id, poll_hash: v.poll_hash });
+  assert.equal(vote.type, "poll.vote");
+  // Plaintext vote: FEDERATION.md §10.3 with empty reply_to/thread_id, no mentions, no attachments.
+  assert.equal(jcs(v.plaintext_vote), v.plaintext_vote_jcs);
+  assert.equal(v.plaintext_vote.ctx.poll_hash, v.date_poll_hash);
+  const content = Buffer.from(v.plaintext_vote_jcs, "utf8");
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(content.length);
+  const signed = Buffer.concat([
+    Buffer.from("tavrn plaintext signature v1\0"), str16(v.plaintext_conversation), str16(v.author), str16(v.device_id),
+    str16(""), str16(""), Buffer.from([0]), Buffer.from([0, 0]), Buffer.from([0, 0]), b64(v.plaintext_nonce), len, content,
+  ]);
+  assert.equal(signed.toString("base64url"), v.plaintext_signed);
+  const sig = b64(v.plaintext_signature);
+  assert.equal(sig.subarray(0, 16).toString("base64url"), v.plaintext_nonce);
+  assert.ok(verify(null, signed, pub, sig.subarray(16)));
 });

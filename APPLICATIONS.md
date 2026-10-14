@@ -266,8 +266,8 @@ ALWAYS    = view_channel | change_nickname
 
 | Scope | Permission bits it unlocks | Routes and events it unlocks (beyond the always-allowed set) |
 |---|---|---|
-| `messages:read` | `read_history` | `GET …/messages`, pins, attachment downloads, search, received history keys (`GET`/`DELETE …/history-keys`, `GET …/history-pending`); events `message.*`, `typing`, `read.update`, `history.*` |
-| `messages:write` | `send_messages`, `attach_files`, `add_reactions`, `mention_everyone`, `create_threads`, `pin_messages`, `use_external_emojis` | create/edit/delete own messages, reactions, uploads, pins, typing, read markers, `ephemeral` type `cursor` |
+| `messages:read` | `read_history` | `GET …/messages`, pins, attachment downloads, search, received history keys (`GET`/`DELETE …/history-keys`, `GET …/history-pending`), poll votes (`GET …/poll/votes`); events `message.*`, `typing`, `read.update`, `history.*`, `poll.*` |
+| `messages:write` | `send_messages`, `attach_files`, `add_reactions`, `mention_everyone`, `create_threads`, `pin_messages`, `use_external_emojis`, `create_polls` | create/edit/delete own messages, reactions, uploads, pins, typing, read markers, `ephemeral` type `cursor`, voting (`PUT`/`DELETE …/poll/vote`) |
 | `members:read` | – | `GET /rooms/{id}/members`, `GET /presence`; events `member.*`, `presence.update`, `user.update` |
 | `moderation` | `manage_messages`, `kick_members`, `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_nicknames`, `mute_members`, `move_members`, `manage_threads` | kicks, bans, timeouts, purge (with preview), audit log, voice mute/move/disconnect |
 | `rooms:manage` | `manage_room`, `manage_channels`, `manage_roles`, `create_invites`, `manage_emojis`, `manage_files`, `manage_applications` | room, category, channel, role, override, emoji, soundboard and invite management (installing applications and the room's command settings stay closed to app tokens, §4.2) |
@@ -1482,7 +1482,7 @@ settings tab and "no bots" toggles. Where the reference node deviates from or re
   closed. The WebSocket operations `typing` and `ack` need `messages:write`.
 - **Event filter** (§2.6): `room.*` (except `room.invite`), `channel.*`, `category.*`, `role.*`, `mls.*`,
   `application.*`, `override.update`, `identity.changed`, `devices.changed` always; `message.*`, `reaction.*`,
-  `pin.*`, `emoji.*`, `conversation.*` (except `conversation.invite`), `typing`, `read.update` and `ephemeral`
+  `pin.*`, `poll.*`, `emoji.*`, `conversation.*` (except `conversation.invite`), `typing`, `read.update` and `ephemeral`
   type `cursor` with `messages:read`; `member.*`, `presence.*`, `user.update` with `members:read`; `voice.*`,
   `call.*`, `soundboard.*` with `voice`; `whiteboard.*` and `ephemeral` type `whiteboard.*` with `whiteboard`;
   `command.*` with `commands`; everything else (friends, notifications, invites) is dropped.

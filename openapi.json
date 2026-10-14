@@ -9156,6 +9156,262 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/poll/vote": {
+      "put": {
+        "tags": [
+          "polls"
+        ],
+        "summary": "Cast or change a vote.",
+        "description": "Creates or replaces the caller's vote on a poll (PROTOCOL.md §7g): one record per user and poll, the last device to vote wins. Encrypted conversations take content format 1 under the current epoch (the checks of ENCRYPTION.md §5.3); plaintext conversations take the vote object, checked against the poll, and an optional device signature. Needs membership and `view_channel`; refused after the poll's close time (`409 poll.closed`); at most 10 vote changes per user and minute. Event `poll.vote`.",
+        "operationId": "put_poll_vote",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PollVoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollVote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "polls"
+        ],
+        "summary": "Retract a vote.",
+        "description": "Retracts the caller's vote on a poll (PROTOCOL.md §7g), until the poll's close time (`409 poll.closed`); `404 poll.vote_not_found` without a vote. Counts towards the 10 vote changes per user and minute. Event `poll.vote.delete`.",
+        "operationId": "delete_poll_vote",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/poll/votes": {
+      "get": {
+        "tags": [
+          "polls"
+        ],
+        "summary": "The votes of a poll.",
+        "description": "Every vote record of a poll (PROTOCOL.md §7g), oldest first, at most one per member; no paging. Needs what reading the message needs (`view_channel`, the history window of ENCRYPTION.md §7b). Clients verify each record against the voter's device and the poll before counting it.",
+        "operationId": "list_poll_votes",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollVoteList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/reactions/{emoji}": {
       "put": {
         "tags": [
@@ -28070,6 +28326,13 @@
           "mentions_everyone": {
             "type": "boolean"
           },
+          "poll_closes_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Close time of a poll (PROTOCOL.md §7g): RFC 3339 with an offset, 1 minute to 1 year ahead, any content. Needs\n`create_polls`; the node refuses votes after it."
+          },
           "reply_to_id": {
             "type": [
               "string",
@@ -28507,7 +28770,7 @@
           },
           "key": {
             "type": "string",
-            "description": "account, profile, devices, sessions, rooms, conversations, friends, blocks, messages, encrypted_messages,\nattachments, reactions, personal_emojis, personal_sounds, whiteboards, applications, audit_log,\nlegal_notices, terms_acceptances"
+            "description": "account, profile, devices, sessions, rooms, conversations, friends, blocks, messages, encrypted_messages,\nattachments, reactions, poll_votes, personal_emojis, personal_sounds, whiteboards, applications, audit_log,\nlegal_notices, terms_acceptances"
           },
           "since": {
             "type": [
@@ -29124,11 +29387,10 @@
       },
       "EditMessageRequest": {
         "type": "object",
-        "required": [
-          "content"
-        ],
         "properties": {
-          "content": {},
+          "content": {
+            "description": "The new content; absent when the request only closes a poll early (`poll_closes_at`)."
+          },
           "epoch": {
             "type": [
               "integer",
@@ -29145,6 +29407,13 @@
           },
           "mentions_everyone": {
             "type": "boolean"
+          },
+          "poll_closes_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Close a poll early (PROTOCOL.md §7g): a time not after the node's clock closes it now (also a poll without a\nclose time); a later time only moves an existing close time earlier. Without `content` the author or a member\nwith `manage_messages` may send it; a close time never moves later and a poll without one never gets a future\none."
           },
           "signature": {
             "type": [
@@ -31636,6 +31905,13 @@
           "pinned": {
             "type": "boolean"
           },
+          "poll_closes_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Plaintext close time of a poll (PROTOCOL.md §7g), null otherwise: the node refuses votes after it."
+          },
           "reactions": {
             "type": "array",
             "items": {
@@ -33568,6 +33844,106 @@
             "format": "int32",
             "description": "Participants per voice channel at most.",
             "minimum": 0
+          }
+        }
+      },
+      "PollVote": {
+        "type": "object",
+        "description": "A member's vote on a poll (PROTOCOL.md §7g).",
+        "required": [
+          "conversation_id",
+          "message_id",
+          "user",
+          "user_id",
+          "content",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "content": {
+            "description": "Encrypted: content format 1 (base64url, ENCRYPTION.md §5.2) of the `poll.vote` object. Plaintext: the\n`poll.vote` object."
+          },
+          "conversation_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "device_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The device that voted last (public device id)."
+          },
+          "epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Encrypted conversations: the MLS epoch of `content`."
+          },
+          "message_id": {
+            "type": "string"
+          },
+          "signature": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Plaintext only: the voting device's signature (FEDERATION.md §10.3), as sent."
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string",
+            "description": "The voter, `username@domain`."
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PollVoteList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PollVote"
+            },
+            "description": "Every vote of the poll, oldest first (at most one per member)."
+          }
+        }
+      },
+      "PollVoteRequest": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "description": "Encrypted conversations: content format 1 (base64url) of the `poll.vote` object under the current epoch.\nPlaintext conversations: the `poll.vote` object. At most 4 KiB."
+          },
+          "epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "MLS epoch of `content` (encrypted only)."
+          },
+          "signature": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Plaintext only: device signature `base64url(nonce(16) || Ed25519 signature(64))` (FEDERATION.md §10.3) with\nempty reply and thread, no mentions and no attachments."
           }
         }
       },
