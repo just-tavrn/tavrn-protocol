@@ -29413,7 +29413,7 @@
               "string",
               "null"
             ],
-            "description": "Close a poll early (PROTOCOL.md §7g): a time earlier than the current close time and not more than a minute\nin the past (the node stores the later of it and its clock). Without `content` the author or a member with\n`manage_messages` may send it; it never moves later and a message without a close time gets none."
+            "description": "Close a poll early (PROTOCOL.md §7g): a time not after the node's clock closes it now (also a poll without a\nclose time); a later time only moves an existing close time earlier. Without `content` the author or a member\nwith `manage_messages` may send it; a close time never moves later and a poll without one never gets a future\none."
           },
           "signature": {
             "type": [
