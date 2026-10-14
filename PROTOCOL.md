@@ -1585,8 +1585,8 @@ poll with a close time). It is plaintext so that the node can refuse late votes:
   minute and at most one year after the node's clock (`400 message.poll_closes_invalid`), stored and returned in
   UTC. It needs `create_polls` (below; `403 message.poll_forbidden`).
 - **Closing early**: `PATCH …/messages/{message_id} { poll_closes_at }` (without `content`) moves it to an earlier
-  time: the author or a member with `manage_messages` (`403 message.not_author` otherwise), only when the message
-  has a close time that has not passed (`400 message.poll_closes_invalid` for a message without one, `409
+  time: the author or a member with `manage_messages` (`403 message.not_author` otherwise; not in a timeout, `403
+  member.timed_out`), only when the message has a close time that has not passed (`400 message.poll_closes_invalid` for a message without one, `409
   poll.closed` once it passed), only earlier than the current value and not more than one minute before the node's
   clock (`400 message.poll_closes_invalid`); the node stores the later of the given time and its clock, so no vote it
   already accepted lies after the close. A close time never moves later and never goes back to null. The edit does
@@ -1641,7 +1641,8 @@ poll with a close time). It is plaintext so that the node can refuse late votes:
   window). Voting needs no permission bit beyond `view_channel`: everybody who may read a poll may answer it.
   Bots vote with `messages:write` and read votes with `messages:read` (`APPLICATIONS.md` §2.4).
 - Votes go with their message: deleting, purging or expiring a message (§7f) deletes its votes; the welcome
-  channel holds no polls.
+  channel holds no polls. They go with their voter's account too (`LEGAL.md` §3.2) and are part of the account's
+  data summary and export (`poll_votes`, `LEGAL.md` §3.1).
 
 **Receivers** (clients and bots) count a vote only when all of these hold; anything else is left out of the
 results:
