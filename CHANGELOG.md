@@ -19,6 +19,13 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Reaction events name the change and the reactor; reactors route** (`PROTOCOL.md` §6, §7 "Reactions",
+  `APPLICATIONS.md` §2.6, fixes #43). A `message.update` caused by a reaction change carries `reaction: { emoji, user,
+  user_id, added }` and is sent only when the reactions changed; its audience is unchanged (the conversation audience,
+  bots with `messages:read`), and clients may show who reacted. `GET /conversations/{id}/messages/{message_id}/reactions/{emoji}?after=&limit=`
+  → `{ items: [{ user, user_id, created_at }], next }` lists the reactors (oldest first, at most 100 per page, the
+  message's read rules, `400 reaction.cursor_invalid`). Message events carry no per-viewer state: `reactions[].me` is
+  `false` in `message.create` and `message.update`; HTTP responses keep the caller's flags.
 - **Entitlement `files_channels.internal`** (`ENTITLEMENTS.md` §1, §3, `FILES.md` §5, tavrn-node#64). A room key
   with the new rule *setting* (`0`/`1`; a value set by the room owner's or the room's grants wins over the node
   default `TAVRN_FILES_INTERNAL`, in both directions): a plan or override can allow the node's own storage for the

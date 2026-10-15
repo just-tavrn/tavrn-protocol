@@ -766,6 +766,18 @@ group DMs: their members. `message.create`, `message.update` and
 ² Room channels: only the members who may view the channel (roles, overrides and the age gate of §5e); DMs and group DMs: the members
 who accepted them.
 
+**Message events carry no per-viewer state.** `message.create` and `message.update` reach many viewers, so the
+message in their `data` has `reactions[].me = false` throughout; only HTTP responses (the lists, a single message,
+the answer to the caller's own reaction, edit or pin) carry the caller's `me` flags. Clients keep their own flags from
+their own requests and responses and never take `me` from an event. A `message.update` caused by a reaction change
+additionally names the change: `"reaction": { "emoji": "👍", "user": "alice@node.example", "user_id": "01J…",
+"added": true }` (`user` the reactor's address, `user_id` its id on the hosting node, `added` false for a removal);
+the field is absent on every other `message.update` (edits, pins, a poll's close). The node sends such an event only
+when the reactions changed (adding an existing reaction or removing a missing one sends none). Its audience is the
+conversation audience¹ (bots: `messages:read`), like the counts: anyone who sees a message may learn who reacted to
+it, and clients MAY show the reactors (§7 "Reactions"). Members of other nodes react through their federated session
+on the hosting node; their events have the same shape.
+
 **Ephemeral events (design note 4.10, normative: `WHITEBOARD.md` §2).** `POST /conversations/{id}/ephemeral
 { type, content, session? }` sends a short-lived event to the conversation: `type` is `cursor` or
 `whiteboard.<name>` (`[a-z_]{1,32}`), `content` is encrypted exactly like message content in encrypted
@@ -1124,6 +1136,23 @@ Every message consists of an envelope (readable by the node) and content (opaque
   (`403 message.mention_role_forbidden`). Role mentions count as mentions for every member holding the role.
 - Attachment blobs are uploaded first (`POST …/uploads`) and bound to the message on send. In encrypted
   channels the client encrypts the file with a random key and carries key and hash inside the encrypted content.
+
+**Reactions.** `reactions` lists each emoji of a message once, in the order of its first reaction, with `count` and
+`me` (whether the caller reacted with it; always `false` in events, §6). Reactions are plaintext metadata in every
+conversation, encrypted or not: the node knows who reacted with what.
+
+- `PUT /conversations/{conversation_id}/messages/{message_id}/reactions/{emoji}` (also under
+  `/rooms/{room_id}/channels/{channel_id}/messages/…`) adds the caller's reaction (`add_reactions`, `400
+  reaction.invalid`, `403 emoji.external_forbidden`), `DELETE` the same path removes it; both answer `200 Message`
+  with the caller's `me` flags and are idempotent. The event is `message.update` with the `reaction` field (§6).
+  `emoji` is a path segment: clients percent-encode it (`%F0%9F%91%8D`, `%3Cname%3AID%3E` for custom emoji tokens).
+- `GET /conversations/{conversation_id}/messages/{message_id}/reactions/{emoji}?after=&limit=` → `200 { items:
+  [{ user, user_id, created_at }], next }`: who reacted with `emoji`, oldest reaction first (ties by `user_id`).
+  `limit` 1–100 (default 50); `next` is an opaque cursor, passed as `after` for the next page (null on the last page;
+  `400 reaction.cursor_invalid` for a malformed one). Needs what reading the message needs (`view_channel`, the
+  history window of `ENCRYPTION.md` §7b, `404 message.not_found` otherwise; bots `messages:read`); an emoji nobody
+  reacted with lists no one. Clients use it to show the reactors of a chip (on hover, focus or long press, lazily);
+  bots to list the reactors of messages older than their connection.
 
 Content object (after decryption or in plaintext):
 
