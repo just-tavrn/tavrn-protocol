@@ -1246,6 +1246,15 @@ desktop workflow action website settingcontent-ms; and executable content types 
 Content or extension alone is enough (`setup.png` with an `MZ` header is an executable, so is `photo.exe`).
 They are refused unless the node sets `TAVRN_UPLOAD_ALLOW_EXECUTABLES=true` **and** the member may upload `other`.
 
+The magic bytes the table refers to, in the order they are checked: executables (`MZ`, `\x7fELF`, `#!`,
+`\xCA\xFE\xBA\xBE`, `dex\n`, the four Mach-O magics, the Windows shortcut header, `CD001` at offset 0x8001, 0x8801 or
+0x9001, `koly`), then images, audio, video, PDF and SVG markup, ZIP containers (an archive unless the extension is a
+`documents` one such as `docx`) and the other archive formats. Content decides before the extension, the extension
+before the type; a file without a recognized signature falls back to its extension, then to its type. The test
+vectors `testvectors/upload_categories.json` pin these rules (name, type and first bytes → category and executable
+flag); a client that classifies without the content (no first bytes at hand) uses the same table without the first
+step.
+
 **SVG (design note 4.12)** can carry scripts, so it is a `documents` upload, never an image: by content (markup that
 starts with `<` and contains `<svg` in the first KiB), by extension (`svg`, `svgz`) or by type. The node stores a
 plaintext SVG as `image/svg+xml` whatever type was declared and serves it, like every blob, only with

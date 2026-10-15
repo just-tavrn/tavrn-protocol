@@ -69,10 +69,25 @@ test("case lists have a unique name, an input and an expected value", () => {
 });
 
 test("reference value files carry a description", () => {
-  for (const file of ["testvectors/encryption.json", "testvectors/federation.json", "testvectors/federation_node.json", "testvectors/polls.json", "testvectors/components.json"]) {
+  for (const file of ["testvectors/encryption.json", "testvectors/federation.json", "testvectors/federation_node.json", "testvectors/polls.json", "testvectors/components.json", "testvectors/upload_categories.json"]) {
     const doc = read(file);
     assert.equal(typeof doc.description, "string", `${file} has no description`);
     assert.ok(Object.keys(doc).length > 1, `${file} has no values`);
+  }
+});
+
+test("upload category cases are complete and use the category names of §7a", () => {
+  const categories = new Set(["images", "audio", "video", "documents", "archives", "other"]);
+  const names = new Set();
+  for (const c of read("testvectors/upload_categories.json").cases) {
+    assert.ok(!names.has(c.name), `duplicate case name ${c.name}`);
+    names.add(c.name);
+    assert.equal(typeof c.file_name, "string", c.name);
+    assert.equal(typeof c.mime, "string", c.name);
+    assert.ok(c.head_hex === null || /^([0-9a-f]{2})+$/.test(c.head_hex), `${c.name}: head_hex`);
+    assert.ok(categories.has(c.category), `${c.name}: category`);
+    assert.equal(typeof c.executable, "boolean", c.name);
+    if (c.executable) assert.equal(c.category, "other", `${c.name}: executables are other`);
   }
 });
 

@@ -19,6 +19,10 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Test vectors for upload categories** (`PROTOCOL.md` §7a, `testvectors/upload_categories.json`): the category and
+  the executable flag of a file from its name, its declared type and its first bytes, with the order of the magic-byte
+  checks spelled out. Clients that declare the category of encrypted uploads run them; the node classifies plaintext
+  uploads by the same cases.
 - **Reaction events name the change and the reactor; reactors route** (`PROTOCOL.md` §6, §7 "Reactions",
   `APPLICATIONS.md` §2.6, fixes #43). A `message.update` caused by a reaction change carries `reaction: { emoji, user,
   user_id, added }` and is sent only when the reactions changed; its audience is unchanged (the conversation audience,

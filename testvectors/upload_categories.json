@@ -1,0 +1,373 @@
+{
+  "description": "Upload categories (PROTOCOL.md section 7a): the category and the executable flag of a file from its name, its declared Content-Type and, where head_hex is not null, its first bytes. Clients classify encrypted uploads with these rules and declare the result in Tavrn-Upload-Category ('executable' when executable is true); the node classifies plaintext uploads the same way.",
+  "cases": [
+    {
+      "name": "By extension: an image",
+      "file_name": "photo.png",
+      "mime": "",
+      "head_hex": null,
+      "category": "images",
+      "executable": false
+    },
+    {
+      "name": "Extensions are case-insensitive",
+      "file_name": "Song.MP3",
+      "mime": "",
+      "head_hex": null,
+      "category": "audio",
+      "executable": false
+    },
+    {
+      "name": "By extension: a video",
+      "file_name": "clip.webm",
+      "mime": "",
+      "head_hex": null,
+      "category": "video",
+      "executable": false
+    },
+    {
+      "name": "By extension: a document",
+      "file_name": "report.pdf",
+      "mime": "",
+      "head_hex": null,
+      "category": "documents",
+      "executable": false
+    },
+    {
+      "name": "SVG is a document, never an image (extension)",
+      "file_name": "drawing.svg",
+      "mime": "image/png",
+      "head_hex": null,
+      "category": "documents",
+      "executable": false
+    },
+    {
+      "name": "SVG is a document, never an image (type)",
+      "file_name": "logo",
+      "mime": "image/svg+xml",
+      "head_hex": null,
+      "category": "documents",
+      "executable": false
+    },
+    {
+      "name": "SVG is a document, never an image (content, case and BOM ignored)",
+      "file_name": "picture",
+      "mime": "",
+      "head_hex": "efbbbf20203c3f786d6c2076657273696f6e3d22312e30223f3e0a3c53564720786d6c6e733d22687474703a2f2f7777772e77332e6f72672f323030302f737667223e3c2f5356473e",
+      "category": "documents",
+      "executable": false
+    },
+    {
+      "name": "Only the last extension counts",
+      "file_name": "backup.tar.gz",
+      "mime": "",
+      "head_hex": null,
+      "category": "archives",
+      "executable": false
+    },
+    {
+      "name": "Archive extensions include lzma",
+      "file_name": "a.lzma",
+      "mime": "",
+      "head_hex": null,
+      "category": "archives",
+      "executable": false
+    },
+    {
+      "name": "Archive extensions include tbz2",
+      "file_name": "a.tbz2",
+      "mime": "",
+      "head_hex": null,
+      "category": "archives",
+      "executable": false
+    },
+    {
+      "name": "No extension: the type decides, parameters ignored",
+      "file_name": "notes",
+      "mime": "Text/Plain; charset=utf-8",
+      "head_hex": null,
+      "category": "documents",
+      "executable": false
+    },
+    {
+      "name": "Office documents by type",
+      "file_name": "letter",
+      "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "head_hex": null,
+      "category": "documents",
+      "executable": false
+    },
+    {
+      "name": "Archives by type",
+      "file_name": "bundle.xyz",
+      "mime": "application/zip",
+      "head_hex": null,
+      "category": "archives",
+      "executable": false
+    },
+    {
+      "name": "Unknown extension and type",
+      "file_name": "unknown.xyz",
+      "mime": "",
+      "head_hex": null,
+      "category": "other",
+      "executable": false
+    },
+    {
+      "name": "The extension wins over the type",
+      "file_name": "movie.mov",
+      "mime": "application/pdf",
+      "head_hex": null,
+      "category": "video",
+      "executable": false
+    },
+    {
+      "name": "Dangerous extension",
+      "file_name": "setup.exe",
+      "mime": "",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Dangerous extensions are case-insensitive",
+      "file_name": "SCRIPT.PS1",
+      "mime": "",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "bin is a dangerous extension",
+      "file_name": "data.bin",
+      "mime": "application/octet-stream",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "A dangerous extension wins over a harmless type",
+      "file_name": "photo.exe",
+      "mime": "image/png",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Trailing dots and spaces are ignored",
+      "file_name": "evil.exe. ",
+      "mime": "",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Scripts by extension",
+      "file_name": "app.js",
+      "mime": "",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Macro documents are executables",
+      "file_name": "budget.xlsm",
+      "mime": "",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Multi-part dangerous extension",
+      "file_name": "x.settingcontent-ms",
+      "mime": "",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Executable type",
+      "file_name": "readme",
+      "mime": "application/javascript",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Executable type, case-insensitive, with parameters",
+      "file_name": "tool",
+      "mime": "Application/X-MSDownload; foo=bar",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "A dangerous type wins over an image extension",
+      "file_name": "x.jpeg",
+      "mime": "application/x-sh",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "A leading dot is no extension",
+      "file_name": ".bashrc",
+      "mime": "",
+      "head_hex": null,
+      "category": "other",
+      "executable": false
+    },
+    {
+      "name": "An extension longer than 24 characters is ignored",
+      "file_name": "a.abcdefghijklmnopqrstuvwxyz",
+      "mime": "image/png",
+      "head_hex": null,
+      "category": "images",
+      "executable": false
+    },
+    {
+      "name": "Content first: an image named .txt",
+      "file_name": "image.txt",
+      "mime": "text/plain",
+      "head_hex": "89504e470d0a1a0a0000000000000000",
+      "category": "images",
+      "executable": false
+    },
+    {
+      "name": "Content: a Windows executable named .png",
+      "file_name": "photo.png",
+      "mime": "image/png",
+      "head_hex": "4d5a90000300",
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Content: a script without extension",
+      "file_name": "run",
+      "mime": "",
+      "head_hex": "23212f62696e2f73680a6563686f2068690a",
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Content: an ELF binary",
+      "file_name": "tool",
+      "mime": "",
+      "head_hex": "7f454c4602010100",
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Content: a ZIP container is an archive",
+      "file_name": "files.zip",
+      "mime": "",
+      "head_hex": "504b03041400140014001400",
+      "category": "archives",
+      "executable": false
+    },
+    {
+      "name": "Content: a ZIP container with a document extension",
+      "file_name": "letter.docx",
+      "mime": "",
+      "head_hex": "504b03041400140014001400",
+      "category": "documents",
+      "executable": false
+    },
+    {
+      "name": "Content: a ZIP container with an app extension is an executable",
+      "file_name": "game.apk",
+      "mime": "",
+      "head_hex": "504b03041400140014001400",
+      "category": "other",
+      "executable": true
+    },
+    {
+      "name": "Content: a ZIP container with an image extension is an archive",
+      "file_name": "photo.png",
+      "mime": "",
+      "head_hex": "504b03041400140014001400",
+      "category": "archives",
+      "executable": false
+    },
+    {
+      "name": "Content: Ogg Vorbis is audio",
+      "file_name": "sound.ogv",
+      "mime": "",
+      "head_hex": "4f67675300000000000000000000000000000000000000000000000001766f726269730000000000000000",
+      "category": "audio",
+      "executable": false
+    },
+    {
+      "name": "Content: Ogg Theora is video",
+      "file_name": "sound.ogg",
+      "mime": "",
+      "head_hex": "4f676753000000000000000000000000000000000000000000000000807468656f72610000000000000000",
+      "category": "video",
+      "executable": false
+    },
+    {
+      "name": "Content: PDF",
+      "file_name": "scan",
+      "mime": "",
+      "head_hex": "255044462d312e370a",
+      "category": "documents",
+      "executable": false
+    },
+    {
+      "name": "Content: gzip",
+      "file_name": "logs",
+      "mime": "",
+      "head_hex": "1f8b0800",
+      "category": "archives",
+      "executable": false
+    },
+    {
+      "name": "Content: tar (ustar at offset 257)",
+      "file_name": "backup",
+      "mime": "",
+      "head_hex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007573746172003030",
+      "category": "archives",
+      "executable": false
+    },
+    {
+      "name": "Content: MP3 frame sync",
+      "file_name": "track",
+      "mime": "",
+      "head_hex": "fffb906400",
+      "category": "audio",
+      "executable": false
+    },
+    {
+      "name": "Content: ISO base media is video unless it is HEIC or M4A",
+      "file_name": "movie",
+      "mime": "",
+      "head_hex": "00000018667479706d703432",
+      "category": "video",
+      "executable": false
+    },
+    {
+      "name": "Content: HEIC is an image",
+      "file_name": "IMG_0001",
+      "mime": "",
+      "head_hex": "000000186674797068656963",
+      "category": "images",
+      "executable": false
+    },
+    {
+      "name": "Content: M4A is audio",
+      "file_name": "voice",
+      "mime": "",
+      "head_hex": "00000018667479704d344120",
+      "category": "audio",
+      "executable": false
+    },
+    {
+      "name": "Unknown content: the extension decides",
+      "file_name": "notes.md",
+      "mime": "",
+      "head_hex": "232068656c6c6f0a",
+      "category": "documents",
+      "executable": false
+    }
+  ]
+}
