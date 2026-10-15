@@ -230,10 +230,13 @@ moderators' notes and actions are not forwarded.
 reports of one person from reports of many, and unlinkable between receiving nodes (the reference node derives it with
 a keyed hash of its secret, the receiving domain and the address). The home node of the reported user may be run by
 that very user (a one-person node), and the reported user must never learn who reported them (§1). For the same
-reason the authors of evidence entries other than the reported user are replaced by their pseudonyms (the reporter's
-own entries carry the `reporter` pseudonym) and their `device_id` is left out; the reported user's entries keep
-address and device. The text itself is forwarded as released: clients tell the forwarding admin that the home node's
-admins will read the reason, the snapshot and the evidence. When the message would exceed the inbox limit of 64 KiB
+reason the authors of evidence entries and of the snapshot other than the reported user are replaced by pseudonyms
+of this report only (stable within the report, never the `reporter` pseudonym, so the reporter's own entries look
+like everybody else's), and their `message_id` and `device_id` are left out (a message id would let a member of the
+conversation look the author up); the reported user's entries keep address, message id and device. The text itself
+is forwarded as released, with its time: a member of the conversation may still recognise a message by its content,
+so clients tell the forwarding admin that the home node's admins will read the reason, the snapshot and the
+evidence, and that released context of a small conversation can point to its author. When the message would exceed the inbox limit of 64 KiB
 the sending node leaves out the oldest context entries of the evidence, never the reported message.
 
 **Receiving.** The home node checks the message like every inbox message (node token, `FEDERATION.md` §5.1), then:

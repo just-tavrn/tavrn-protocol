@@ -130,6 +130,14 @@
       "executable": true
     },
     {
+      "name": "Compiled help runs code: dangerous whatever the declared type",
+      "file_name": "help.chm",
+      "mime": "image/png",
+      "head_hex": null,
+      "category": "other",
+      "executable": true
+    },
+    {
       "name": "Dangerous extensions are case-insensitive",
       "file_name": "SCRIPT.PS1",
       "mime": "",

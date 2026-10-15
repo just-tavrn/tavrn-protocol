@@ -119,8 +119,12 @@ backend }` after a backend change. Clients refresh the open folder.
   retention.
 - Upload categories per role/override and the executable rule (`TAVRN_UPLOAD_ALLOW_EXECUTABLES`) apply as for
   attachments (PROTOCOL.md §7a): the node classifies the first 64 KiB of the stream (content first, then
-  name, then type). SVG content is stored as `image/svg+xml` and only ever downloaded.
-- The size limits are enforced while streaming; a refused or aborted upload leaves nothing behind.
+  name, then type). SVG content is stored as `image/svg+xml` and only ever downloaded. A rename (`PATCH` with a new
+  `name`, unencrypted channels) is classified the same way from the new name and the stored type and refused with
+  `403 upload.type_forbidden` where an upload under that name would be, so a rename cannot turn a document into an
+  executable or into a category the member may not upload.
+- The size limits are enforced while streaming; a refused or aborted upload leaves nothing behind. The channel
+  total counts uploads still in progress: parallel uploads share what is left of it.
 
 ## 5. External storage
 

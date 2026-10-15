@@ -236,6 +236,11 @@ Blocking a domain on H also means H refuses federation tokens for it, so H's use
 blocked node (clients show "Your home node does not federate with x.example"). Blocked domains are never
 passed on in the directory (§7).
 
+Outbound requests include everything a node sends or fetches on its own: outbox deliveries (§5.3), profile and
+image mirroring (§2.7), key refreshes, claims and application documents. Outbox entries for a domain that fails
+steps 1–3 are dropped as undeliverable when they come due, also those queued before the ban or block. Only the
+conformance checks of §9, which decide automatic blocks and their end, still reach blocked peers.
+
 ## 2. Tokens and federated sessions
 
 ### 2.1 Common JWT rules
@@ -370,7 +375,10 @@ token. Profile fields are a mirror. Extra state lives in `remote_users`:
 - Remote users are addressed by **address** across nodes. Their user ULID is node-local and differs on every
   node; clients MUST NOT compare user ids of different nodes.
 - Quotas: at most `TAVRN_FEDERATION_MAX_REMOTE_USERS` remote users in total and
-  `TAVRN_FEDERATION_MAX_REMOTE_USERS_PER_DOMAIN` per home domain.
+  `TAVRN_FEDERATION_MAX_REMOTE_USERS_PER_DOMAIN` per home domain. Stubs that an inbound message creates (the
+  sender of a `friend.request`) may fill the total only up to a reserve kept for federated logins (reference
+  node: a tenth of the total, at least one row), so that requests in invented names cannot lock out the users of
+  other nodes.
 - Housekeeping: a remote user without session, membership, friendship, conversation, ban or authored
   message for 90 days (`TAVRN_FEDERATION_REMOTE_USER_RETENTION_DAYS`) is deleted.
 - Disabling a remote user on T (node admin) works like for local users and only affects T.
@@ -744,7 +752,10 @@ remote party as a stub user).
 
 - `POST /users/me/friends/requests { user: "bob@b.example" }` on A stores an outgoing request and queues
   `friend.request { request_id }`. B stores the incoming request (remembering A's `request_id`) and emits
-  `friend.request`; blocked senders are dropped silently.
+  `friend.request`; blocked senders are dropped silently. New incoming requests are limited per sending node and
+  recipient (reference node: 10 per hour, as for invitations, and at most 20 pending requests from users of one
+  node per recipient); requests beyond that are dropped silently. Senders that already have a request or a
+  friendship with the recipient are not limited.
 - Accepting on B stores the friendship and queues `friend.accept { request_id }`; A stores the friendship.
   Crossing requests: when a node receives `friend.request` while it has an outgoing request to the same user,
   both become friends and it answers with `friend.accept` (as the local rule of PROTOCOL.md §8a).

@@ -5,6 +5,22 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+### Security
+
+- **Outbound requests honour the domain policy** (`FEDERATION.md` §1.5): outbox entries, profile and image mirroring
+  and application documents no longer reach a banned or blocked domain; queued entries are dropped as undeliverable.
+- **The KeyPackage claim budget of a requesting node** (`ENCRYPTION.md` §3.2) exempts only related requesters that
+  node can speak for; users of third nodes count against its budget.
+- **Inbound friend requests are limited** per sending node and recipient, and their stubs leave a reserve of the
+  remote-user quota for federated logins (`FEDERATION.md` §2.6, §6.2).
+- **Forwarded reports** (`MODERATION.md` §1.6): evidence authors other than the reported user get pseudonyms of the
+  report only, never the reporter's, and lose their message ids.
+- **Files channels** (`FILES.md` §4): a rename is classified like an upload; uploads in progress count towards the
+  channel total.
+- **More dangerous extensions** (`PROTOCOL.md` §7a): compiled help, click-once and web-query files, search and
+  library connectors, diagnostic packages and further Windows script and installer types are flagged as executables
+  (new test vector `help.chm`; clients extend their lists).
+
 ### Changed
 
 - **The DM list and the message requests can be paged** (`PROTOCOL.md` §8a). `GET /conversations` and `GET
