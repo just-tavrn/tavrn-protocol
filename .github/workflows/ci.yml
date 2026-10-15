@@ -55,3 +55,9 @@ jobs:
   gitleaks:
     if: ${{ vars.CI_ENABLED == 'true' }}
     uses: just-tavrn/.github/.github/workflows/gitleaks.yml@main
+
+  shared-scripts:
+    # The copies of the organization's shared scripts (SPDX check, publication check, labels, JS licenses) are the
+    # source in just-tavrn/.github apart from their SPDX line (its docs/GITHUB.md "Shared scripts").
+    if: ${{ vars.CI_ENABLED == 'true' }}
+    uses: just-tavrn/.github/.github/workflows/shared-scripts.yml@main

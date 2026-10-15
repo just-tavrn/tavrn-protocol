@@ -7,7 +7,7 @@ private; nothing runs on GitHub until `CI_ENABLED` is set.
 
 - Default branch `main`, squash merges allowed, branches deleted after merge.
 - Issues on, wiki off, projects off.
-- Labels from `scripts/github-labels.sh` (rerun it after editing the list; it is idempotent).
+- Labels from `scripts/github-labels.sh`: the common set plus `scripts/labels.txt` (rerun it after editing the list; it is idempotent).
 
 ## Variables (Settings → Secrets and variables → Actions → Variables)
 
