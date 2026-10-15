@@ -23,6 +23,9 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Changed
 
+- **Room rules are Markdown** (`PROTOCOL.md` §6b "Room rules"): a room's `rules` are a Markdown subset like `bio`,
+  rendered and sanitized by clients without images or embeds; clients without a renderer show the text as is. The
+  join routes' `accept_rules` requirement is spelled out. Prose only, no schema change.
 - **Remote users and logins get a share of their domain's budget** (`FEDERATION.md` §3.2, §11.1): a remote user's
   requests and a federated login count against a per-user (and per-address) share first, and attempts the share
   refuses do not count for the domain, so one account cannot lock the other users of its domain out. A rate-limited
