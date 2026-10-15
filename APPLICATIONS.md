@@ -1023,9 +1023,9 @@ interaction.expired` (after its `expires_at`), `409 interaction.already_submitte
 once). The caller must still be able to use the origin (`use_components` for a component, `send_messages` for a
 command; the application still installed, as in §5.10.2 check 2 or §5.5 check 2). In unencrypted conversations
 `values` maps input `custom_id`s to strings and is checked against the definition the node kept (an unknown input,
-a missing required input, an empty required value, a value outside `min_length`–`max_length` or not a string: `400
+a missing required input, an empty or whitespace-only required value, a value outside `min_length`–`max_length` or not a string: `400
 interaction.values_invalid` with `meta.path` = `"values"` or `"values.<input custom_id>"`; optional inputs may be
-absent or empty); `values_ciphertext` and `epoch` must be null. In encrypted conversations `values` must be null and
+absent, empty or blank, and then have no length check); `values_ciphertext` and `epoch` must be null. In encrypted conversations `values` must be null and
 the client sends, encrypted like §5.10.2,
 
 ```json
