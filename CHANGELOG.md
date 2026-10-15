@@ -23,6 +23,18 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Changed
 
+- **Remote users and logins get a share of their domain's budget** (`FEDERATION.md` §3.2, §11.1): a remote user's
+  requests and a federated login count against a per-user (and per-address) share first, and attempts the share
+  refuses do not count for the domain, so one account cannot lock the other users of its domain out. A rate-limited
+  WebSocket hello closes with `4002 rate_limited`, never `4001`.
+- **Auto-moderation follows the hierarchy** (`MODERATION.md` §2.2): `delete` and `timeout` rules act only on members
+  ranked below the member who last saved the rules; interaction replies and follow-ups are checked like other
+  messages; auto-moderation timeouts are announced with `member.update`; a message needing more matching work than
+  the node allows is refused with `403 automod.blocked`.
+- **Moderation bots never see reports about their owner** or the owner's other bots (`MODERATION.md` §1.4a).
+- **One node holds at most 500 entries of a bot's install index** (`APPLICATIONS.md` §4.5).
+- **A keys document stays within the clients' limits** (`ENCRYPTION.md` §3): at most 100 devices per account (`403
+  auth.device_limit` at a login beyond it), 1000 retired entries and 100 continuity statements (`409 e2ee.rotation_limit`).
 - **The DM list and the message requests can be paged** (`PROTOCOL.md` §8a). `GET /conversations` and `GET
   /conversations/requests` accept `limit` (1–200) and `before` (the sort key of the last item: `last_message_id`, else
   the id, for the DM list; the conversation id for the requests). Without `limit` both return the whole list as
