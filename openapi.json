@@ -12524,7 +12524,7 @@
       "get": {
         "tags": [],
         "summary": "One report with its evidence.",
-        "description": "For node admins, and for the room's moderators (`moderate_members`) when the report is about the room's content\nand not about themselves. Everybody else gets `404 report.not_found`.",
+        "description": "For node admins, and for the room's moderators (`moderate_members`) when the report is about the room's content\nand not about themselves. Everybody else gets `404 report.not_found`. Moderation bots (scope `moderation`,\n`moderate_members` in the room) get the room's reports as `AppReport`: metadata only, no detail, snapshot,\nevidence, note or actions, the reporter as a pseudonym (MODERATION.md §1.4a).",
         "operationId": "get_report",
         "parameters": [
           {
@@ -12538,11 +12538,21 @@
         ],
         "responses": {
           "200": {
+            "description": "`ModerationReport`, or `AppReport` for app tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportView"
+                }
+              }
+            }
+          },
+          "403": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ModerationReport"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -19111,7 +19121,7 @@
       "get": {
         "tags": [],
         "summary": "The room's reports, newest first.",
-        "description": "`moderate_members` (owners and node admins too). Moderators never see reports about themselves; reports about\nthe owner go to the node admins only. List entries leave the evidence out (`evidence_count`).",
+        "description": "`moderate_members` (owners and node admins too). Moderators never see reports about themselves; reports about\nthe owner go to the node admins only. List entries leave the evidence out (`evidence_count`). Moderation bots\n(scope `moderation`, `moderate_members`) read the same list as `AppReportList`: metadata only, the reporter as a\npseudonym (MODERATION.md §1.4a).",
         "operationId": "room_reports",
         "parameters": [
           {
@@ -19174,11 +19184,11 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "`ReportList`, or `AppReportList` for app tokens",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReportList"
+                  "$ref": "#/components/schemas/ReportListView"
                 }
               }
             }
@@ -26158,6 +26168,148 @@
           "tier": {
             "type": "string",
             "description": "`adult` (18 or older), `minor` (younger) or `unknown` (no date of birth yet). `unknown` counts as `minor`."
+          }
+        }
+      },
+      "AppReport": {
+        "type": "object",
+        "description": "A report as a moderation bot sees it (MODERATION.md §1.4a): metadata only, the reporter as a pseudonym.",
+        "required": [
+          "id",
+          "source",
+          "scope",
+          "kind",
+          "message_exists",
+          "target_address",
+          "category",
+          "evidence_count",
+          "action_count",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "action_count": {
+            "type": "integer",
+            "description": "How many action shortcuts were taken.",
+            "minimum": 0
+          },
+          "category": {
+            "type": "string"
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "conversation_kind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`channel` (null when unknown here)."
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "description": "How many messages the reporter released (never the messages).",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`message`, `user` or `room`."
+          },
+          "message_exists": {
+            "type": "boolean",
+            "description": "The reported message still exists on this node."
+          },
+          "message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The reported message (its content is not part of the report for bots)."
+          },
+          "reporter": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A pseudonym of the reporter (MODERATION.md §1.6 format), stable per reporter, bot and room, never the address;\nnull for automod entries."
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "description": "Always `room`: bots see the room's reports only."
+          },
+          "source": {
+            "type": "string",
+            "description": "`user` or `automod`."
+          },
+          "status": {
+            "type": "string",
+            "description": "`open`, `resolved` or `dismissed`."
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/User",
+                "description": "The reported user (null for an address this node does not know)."
+              }
+            ]
+          },
+          "target_address": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "AppReportList": {
+        "type": "object",
+        "description": "A page of the inbox for a moderation bot.",
+        "required": [
+          "reports",
+          "open"
+        ],
+        "properties": {
+          "open": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Open reports of the room the bot may see (badges), whatever the filters."
+          },
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppReport"
+            }
           }
         }
       },
@@ -35849,6 +36001,17 @@
           }
         }
       },
+      "ReportListView": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ReportList"
+          },
+          {
+            "$ref": "#/components/schemas/AppReportList"
+          }
+        ],
+        "description": "A page of the inbox: `ReportList` for people, `AppReportList` for app tokens (MODERATION.md §1.4a)."
+      },
       "ReportOrigin": {
         "type": "object",
         "description": "The node a forwarded report comes from (`source: forward`, MODERATION.md §1.6).",
@@ -35974,6 +36137,17 @@
             "description": "All stored reports (kept 180 days)."
           }
         }
+      },
+      "ReportView": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ModerationReport"
+          },
+          {
+            "$ref": "#/components/schemas/AppReport"
+          }
+        ],
+        "description": "One report: the full `ModerationReport` for people, the reduced `AppReport` for app tokens (MODERATION.md §1.4a)."
       },
       "ResendVerificationRequest": {
         "type": "object",
