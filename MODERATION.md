@@ -17,8 +17,8 @@ the protection of the welcome channel's entries (§3) and the transfer of a room
 
 A report tells the people who moderate a place that something there breaks its rules. Any authenticated user can
 report: local users and users of other nodes with a federated session on the node (`FEDERATION.md` §2.5), never bots
-(`403 report.bot_forbidden`, app tokens never reach the routes, `APPLICATIONS.md` §2.5). Reports are never
-anonymous: moderators see who reported. The reported user is never told that, or by whom, they were reported.
+(`403 report.bot_forbidden`, app tokens never reach the route, `APPLICATIONS.md` §2.5). Moderation bots may read the
+room's inbox, metadata only (§1.4a). Reports are never anonymous: moderators see who reported. The reported user is never told that, or by whom, they were reported.
 
 ### 1.1 Targets and routing
 
@@ -106,9 +106,9 @@ when the limit is reached as well, so a full limit refuses both.
 
 | Route | Who | |
 |---|---|---|
-| `GET /rooms/{room_id}/reports?status=&limit=&before=` | `moderate_members` (owner, node admins) | the room's reports (`scope: room`), newest first → `ReportList { reports, open }` |
+| `GET /rooms/{room_id}/reports?status=&limit=&before=` | `moderate_members` (owner, node admins; bots read-only, §1.4a) | the room's reports (`scope: room`), newest first → `ReportList { reports, open }` |
 | `GET /admin/reports?status=&scope=&limit=&before=` | node admins | every report of the node (`scope` filters `room` or `node`) → `ReportList` |
-| `GET /reports/{report_id}` | whoever may see it | one report with its evidence |
+| `GET /reports/{report_id}` | whoever may see it (bots: §1.4a) | one report with its evidence |
 | `PATCH /reports/{report_id} { status?, assignee_id?, note? }` | whoever may see it | `status`: `open`, `resolved`, `dismissed`; `assignee_id`: a moderator who may see the report, or null; `note`: the resolution note (at most 2000 characters) → `ModerationReport` |
 | `DELETE /reports/{report_id}` | node admins | deletes the report and its evidence at once → `204` |
 | `POST /reports/{report_id}/actions` | whoever may see it, with the permission the action needs | the action shortcuts below |
@@ -145,10 +145,47 @@ answer is `ReportActionResult { report, purge }` (`purge` = the `PurgeResponse` 
 fit the report is `400 report.action_invalid` (no message, no user, `timeout` outside a room, …); the target being
 on another node is `409 report.target_remote`.
 
+### 1.4a Moderation bots (read-only)
+
+A bot with the app token scope `moderation` (`APPLICATIONS.md` §2.4) that holds `moderate_members` in a room reads
+that room's inbox, so it can triage reports (a summary in a moderators' channel, an escalation after several reports
+about one user). It reads; it never writes:
+
+- `GET /rooms/{room_id}/reports?status=&limit=&before=` → `AppReportList { reports, open }` and `GET /reports/{report_id}`
+  → `AppReport`, with the parameters and paging of §1.4, for the room's reports (`scope: room`) only and with the rules
+  of every moderator: never reports about the bot itself, never reports about the room's owner (those are `scope:
+  node`). Node reports, reports of other rooms and the admin inbox answer as for everyone who may not see them (`404
+  report.not_found`; `/admin/*` is closed to app tokens). Without `moderation` the route table refuses (`403
+  app.scope_missing`); without `moderate_members`, also in a "no bots" room (`APPLICATIONS.md` §3.5), the list is `403
+  report.view_forbidden` and a report `404 report.not_found`.
+- Creating reports, triage (`PATCH /reports/{id}`), the action shortcuts, forwarding and deleting stay closed to bots
+  (`403 app.bot_forbidden` from the route table; the handlers refuse bots with `403 report.bot_forbidden` as well).
+  Acting stays with people, so a leaked bot token cannot close reports about itself or its owner.
+
+**Metadata only.** An app token always gets the reduced shape `AppReport { id, source, scope, kind, room_id,
+room_name, conversation_id, conversation_kind, message_id, message_exists, target, target_address, reporter, category,
+evidence_count, action_count, status, created_at, updated_at, resolved_at }`, never a `ModerationReport`. `detail`,
+`snapshot`, `evidence`, `note`, `assignee`, `actions`, `forwarded` and `origin` are left out: the reporter released the
+reason and the content to the room's moderators (§1.2), not to programs. A bot that may read the channel
+(`messages:read`) can fetch the reported message by `message_id` under its own access rules, like any other message.
+`target` is the reported user as a public user (null for an address this node does not know), `action_count` the
+number of action shortcuts taken.
+
+`reporter` is never the reporter's address but a pseudonym of the format of §1.6 (1–64 characters of
+`[A-Za-z0-9_-]`): stable per reporter, bot and room, so the bot can tell repeated reports of one person from reports
+of many, and unlinkable between bots, between rooms and to the pseudonyms of forwarded reports (the reference node
+uses the keyed hash of §1.6 with the bot's address and the room id in place of the receiving node); null for
+`source: automod`.
+
+The events of §1.5 reach these bots as well (`report.create`, `report.update` of the room, with `moderation` in the
+token's scopes, `APPLICATIONS.md` §2.6), in the shape every moderator gets: neither carries a detail, evidence or the
+reporter. Web pushes of reports never go to bots.
+
 ### 1.5 Events and retention
 
 - `report.create` `{ report: { id, scope, source, kind, room_id, room_name, conversation_id, category, created_at } }`
-  goes to the online users who may see the report, except the reporter (no detail, no evidence). Clients refresh their
+  goes to the online users who may see the report, except the reporter (no detail, no evidence, no reporter), and to
+  the moderation bots of the room (§1.4a). Clients refresh their
   inbox badge and may show "New report in \<room>" through their normal notification path (the user's notification
   settings apply). Those without an open connection get a web push of type `report` with the report's kind and room
   only (`PROTOCOL.md` §6d), unless they turned the notification setting `reports` off (`PROTOCOL.md` §6c, default
