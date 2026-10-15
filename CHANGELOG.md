@@ -19,6 +19,13 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Entitlement `files_channels.internal`** (`ENTITLEMENTS.md` §1, §3, `FILES.md` §5, tavrn-node#64). A room key
+  with the new rule *setting* (`0`/`1`; a value set by the room owner's or the room's grants wins over the node
+  default `TAVRN_FILES_INTERNAL`, in both directions): a plan or override can allow the node's own storage for the
+  files channels of some owners' rooms on a node with external stores only, or take it away on a node that keeps
+  files. `GET …/files/usage` gains `internal_allowed` (the room's effective value), `GET …/files/backend` reports the
+  same value in `internal_allowed`, and `backend: "none"`, `403 files.internal_disabled` follow it; `files_internal`
+  in `GET /node` and the discovery document stays the node default.
 - **Polls and date polls** (`PROTOCOL.md` §7g, `ENCRYPTION.md` §5.2, capability `polls.v1`, fixes #35). The
   content type `poll` (`kind` `choice` with 2–20 options and `max_choices`, or `date` with 1–60 time slots answered
   `yes`/`maybe`/`no`; `results_visible`, `votes_visible`, both cooperative) is encrypted like any content; the node

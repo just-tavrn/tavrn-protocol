@@ -31,10 +31,12 @@ Every key is an integer. `0` means **unlimited** unless the rule says otherwise.
 | `attachments.retention_days` | shortest non-zero | room | `TAVRN_ATTACHMENT_RETENTION_DAYS` (0 = keep) | housekeeping (§6) |
 | `files_channels.enabled` | flag (0/1) | room | `TAVRN_FILES_CHANNELS` (`on` = 1) | files channels (design note 4.13 item 9) |
 | `files_channels.max_bytes` | max | room | `TAVRN_FILES_CHANNELS_MAX_BYTES` (0) | files channels on the node's own storage (never external stores, `FILES.md` §4) |
+| `files_channels.internal` | setting (0/1) | room | `TAVRN_FILES_INTERNAL` (`on` = 1) | files channels on the node's own storage: `PUT …/files/backend { "kind": "internal" }`, uploads and new folders → `403 files.internal_disabled` (`FILES.md` §5) |
 
 `GET /api/v1/admin/entitlements/keys` lists the keys with rule, scope, largest allowed value and node default.
 Plans and grants may only contain these keys; values are integers from `0` to the key's maximum (e.g.
-`upload.max_bytes` ≤ 1 TiB, `stream.max_height` ≤ 4320, `files_channels.enabled` ≤ 1). Anything else is
+`upload.max_bytes` ≤ 1 TiB, `stream.max_height` ≤ 4320, `files_channels.enabled` and `files_channels.internal`
+≤ 1). Anything else is
 refused with `400 entitlements.invalid_limits`.
 
 ## 2. Plans and grants
@@ -61,6 +63,10 @@ refused with `400 entitlements.invalid_limits`.
   grants. `0` (unlimited) beats every number. A grant only ever extends: a grant with a lower value than the node
   default changes nothing.
 - **flag** (`files_channels.enabled`): `0`/`1`, the highest wins (here `0` means *off*, not unlimited).
+- **setting** (`files_channels.internal`): `0`/`1`; the value the grants set wins over the node default, in both
+  directions: `1` allows the node's own storage in the owner's rooms on a node with `TAVRN_FILES_INTERNAL=off`,
+  `0` takes it away on a node where it is on. Grants that do not name the key leave the node default; when several
+  active grants name it, `1` wins. Node admins get no exception (it is a room key).
 - **shortest non-zero** (`attachments.retention_days`, the one exception): the smallest non-zero value among
   the node default, the room's grants and the room's own setting (`attachment_retention_days`, §6). A room can
   only **shorten** the node's retention, never extend it; user grants play no part. `0` everywhere = keep.
