@@ -30550,18 +30550,18 @@
               "string",
               "null"
             ],
-            "description": "Members with `manage_channels`: the external store's host (`\"\"` for the node's storage), for the deletion\ndialog (FILES.md §9); `null` for everybody else."
+            "description": "Members with `manage_channels`: the external store's host (`\"\"` for the node's storage), for the deletion\ndialog (FILES.md §9); `null` for everybody else and always for bots."
           },
           "backend_prefix": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Members with `manage_channels`: the object prefix on the external store (`\"\"` for the node's storage)."
+            "description": "Members with `manage_channels`: the object prefix on the external store (`\"\"` for the node's storage); `null`\nfor everybody else and always for bots."
           },
           "can_configure": {
             "type": "boolean",
-            "description": "The requester may configure the storage backend."
+            "description": "The requester may configure the storage backend (never a bot: the backend routes are closed to app tokens)."
           },
           "can_manage": {
             "type": "boolean",
