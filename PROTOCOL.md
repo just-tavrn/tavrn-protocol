@@ -945,6 +945,13 @@ profile"); they belong to the membership and are deleted (files included) when i
   `403 room.not_member`, `403 member.nickname_forbidden`, `400 validation.length`, `400 profile.bio_too_long`,
   the media errors above.
 
+**Room rules.** A room's `rules` (`PATCH /rooms/{id} { rules }` with `manage_room`, at most 10,000 characters,
+`""` removes them; part of the room detail and of the public invite preview `GET /invites/{code}`) are a Markdown
+subset like `bio`: rendered and sanitized by clients; no images or embeds; clients without a renderer show the text
+as is. While a room has rules, `POST /rooms/{room_id}/join` and `POST /invites/{code}/join` need `{ "accept_rules":
+true }` (`403 room.rules_not_accepted` otherwise), so clients show the rendered rules with an explicit acceptance
+before the user joins.
+
 ## 6c. Notification settings (design note 4.11)
 
 `GET /users/me/notification-settings` → `NotificationSettings`, also returned as `notification_settings` by
