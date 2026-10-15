@@ -7,6 +7,11 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Changed
 
+- **The DM list and the message requests can be paged** (`PROTOCOL.md` §8a). `GET /conversations` and `GET
+  /conversations/requests` accept `limit` (1–200) and `before` (the sort key of the last item: `last_message_id`, else
+  the id, for the DM list; the conversation id for the requests). Without `limit` both return the whole list as
+  before; the responses stay plain arrays. The requests are ordered newest first by conversation id.
+
 - **Leaf cleanup election** (`ENCRYPTION.md` §4.7): devices that may not commit a removal or are known to be offline do not count for the election, and a voice join never waits for it (the elected device removes at once, others join on the current epoch and clean up in the background).
 - **A secret storage entry marks its passkey as PRF-capable** (`ENCRYPTION.md` §2.4, `PROTOCOL.md` §3.3).
   `PUT /users/me/secret-storage/passkey/{credential_id}` accepts the entry for any credential of the user and sets
