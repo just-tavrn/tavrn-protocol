@@ -32,6 +32,14 @@ Changes of the protocol that implementations must follow, newest first. Versions
   prefix. Events `files.update` and `files.backend` reach bots with `messages:read`. "No bots" zones and
   `bots_allowed` apply unchanged; in encrypted channels the bot encrypts records and chunks itself (§8). Compatible:
   a bot without the scopes sees no change.
+- **Moderation bots read the room's report inbox, metadata only** (`MODERATION.md` §1.4a, §1.5, `APPLICATIONS.md`
+  §2.4–§2.6, fixes #45). App tokens with the existing scope `moderation` that hold `moderate_members` in a room may
+  call `GET /rooms/{room_id}/reports` → `AppReportList` and `GET /reports/{report_id}` → `AppReport` for the room's
+  reports (`scope: room`; never about the bot itself or the room's owner) and receive `report.create` and
+  `report.update` of that room. `AppReport` carries kind, category, target, status, counts, timestamps and the
+  reported message's id, never `detail`, `snapshot`, `evidence`, `note`, `assignee` or the actions; `reporter` is a
+  pseudonym in the format of the forwarded reports (§1.6), stable per reporter, bot and room, never the address.
+  Creating, triage, action shortcuts, forwarding and deleting stay closed to bots. No new scope, no new consent line.
 
 - **Reaction events name the change and the reactor; reactors route** (`PROTOCOL.md` §6, §7 "Reactions",
   `APPLICATIONS.md` §2.6, fixes #43). A `message.update` caused by a reaction change carries `reaction: { emoji, user,

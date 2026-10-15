@@ -269,7 +269,7 @@ ALWAYS    = view_channel | change_nickname
 | `messages:read` | `read_history` | `GET …/messages`, pins, attachment downloads, search, received history keys (`GET`/`DELETE …/history-keys`, `GET …/history-pending`), poll votes (`GET …/poll/votes`), files channel reads (listings, entries, downloads, thumbnails, records, own entries, usage; `FILES.md` §3); events `message.*`, `typing`, `read.update`, `history.*`, `poll.*`, `files.update`, `files.backend` |
 | `messages:write` | `send_messages`, `attach_files`, `add_reactions`, `mention_everyone`, `create_threads`, `pin_messages`, `use_external_emojis`, `create_polls` | create/edit/delete own messages, reactions, uploads, pins, typing, read markers, `ephemeral` type `cursor`, voting (`PUT`/`DELETE …/poll/vote`), files channel writes (folders, uploads, rename/move/delete, thumbnails; `FILES.md` §3) |
 | `members:read` | – | `GET /rooms/{id}/members`, `GET /presence`; events `member.*`, `presence.update`, `user.update` |
-| `moderation` | `manage_messages`, `kick_members`, `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_nicknames`, `mute_members`, `move_members`, `manage_threads` | kicks, bans, timeouts, purge (with preview), audit log, voice mute/move/disconnect |
+| `moderation` | `manage_messages`, `kick_members`, `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_nicknames`, `mute_members`, `move_members`, `manage_threads` | kicks, bans, timeouts, purge (with preview), audit log, voice mute/move/disconnect, the room's report inbox read-only and metadata only (`GET /rooms/{id}/reports`, `GET /reports/{id}`, `MODERATION.md` §1.4a); events `report.create`, `report.update` |
 | `rooms:manage` | `manage_room`, `manage_channels`, `manage_roles`, `create_invites`, `manage_emojis`, `manage_files`, `manage_applications`, `voice_status` | room, category, channel, role, override, emoji, soundboard and invite management, the status of voice channels (`VOICE.md` §2a); with `messages:write`, others' entries in files channels (installing applications, the room's command settings and the storage backend of files channels stay closed to app tokens, §4.2, `FILES.md` §3) |
 | `voice` | `connect`, `speak`, `stream`, `use_camera`, `use_soundboard`, `use_external_sounds`, `priority_speaker` | `voice/join`, voice state, soundboard; event `voice.state`, `voice.move` |
 | `whiteboard` | `use_whiteboard`, `manage_whiteboard` | `ephemeral` types `whiteboard.*`; event `whiteboard.session` |
@@ -308,7 +308,11 @@ Explicitly never in the table: password, second factor, WebAuthn, secret storage
 `PATCH /users/me`, profile images, the whiteboard scene library, friends and blocks, the invite list, account
 invites, `POST /rooms`, `POST /rooms/{id}/join`, `POST /invites/{code}/join`, `/auth/connect/*`, directory reports,
 the owner routes of §1.6/§2.2, `/admin/*`, the storage backend of files channels (`…/files/backend`,
-`…/files/backend/test`), and `POST /conversations` with `kind = group`. Adding a bot to a group
+`…/files/backend/test`), and `POST /conversations` with `kind = group`. Of the reports of
+`MODERATION.md` §1 only the two reads of a room's inbox are in the table (`GET /rooms/{room_id}/reports` and
+`GET /reports/{report_id}`, scope `moderation`, the reduced `AppReport` shape of `MODERATION.md` §1.4a);
+`POST /reports`, `PATCH` and `DELETE /reports/{report_id}`, `POST /reports/{report_id}/actions` and
+`POST /reports/{report_id}/forward` stay out. Adding a bot to a group
 DM is refused as well (`400 app.bot_forbidden`): bots live in rooms and 1:1 DMs only.
 
 Bot DMs follow `PROTOCOL.md` §8a: the owner always gets a normal conversation, everyone else a message request
@@ -325,6 +329,9 @@ does not cover is dropped, never truncated. A revoked, reset or expired token cl
 Reactions reach bots with `messages:read` as `message.update` carrying the `reaction` field (`PROTOCOL.md` §6 "Message
 events carry no per-viewer state": emoji, reactor, added or removed); `GET …/messages/{message_id}/reactions/{emoji}`
 (`PROTOCOL.md` §7 "Reactions", `messages:read`) lists the reactors of older messages.
+`report.create` and `report.update` (`MODERATION.md` §1.5) reach bots with `moderation` that hold `moderate_members`
+in the report's room, for the room's reports only (`MODERATION.md` §1.4a), with the payloads every moderator gets:
+they name the report, its room, kind, category and status, never the detail, the evidence or the reporter.
 
 ### 2.7 Rate limits
 
