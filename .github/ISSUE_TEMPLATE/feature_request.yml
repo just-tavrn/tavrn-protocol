@@ -1,6 +1,6 @@
 name: Protocol proposal
 description: Propose a new feature, capability or a change to the protocol
-labels: [enhancement, triage]
+labels: [enhancement, needs-triage]
 body:
   - type: textarea
     id: problem

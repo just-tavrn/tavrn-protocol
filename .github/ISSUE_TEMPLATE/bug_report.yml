@@ -1,6 +1,6 @@
 name: Specification error
 description: A contradiction, ambiguity, mistake or a wrong test vector in the specification
-labels: [bug, triage]
+labels: [bug, needs-triage]
 body:
   - type: input
     id: location
