@@ -13,6 +13,14 @@ Changes of the protocol that implementations must follow, newest first. Versions
   before; the responses stay plain arrays. The requests are ordered newest first by conversation id.
 - **Anonymous `GET /rooms/discover` may be rate-limited** per client address (`FEDERATION.md` §7, `429`; the
   reference node allows 120 per minute, as for the directory reads).
+- **Clarified: the history window covers pins and reactions** (`ENCRYPTION.md` §7b). Reaction, reactor, pin and unpin
+  routes answer `404 message.not_found` for an encrypted message outside the requester's window, and `GET …/pins`
+  lists only pinned messages inside it, as a page of messages does.
+- **WebSocket close code `1013`** (`PROTOCOL.md` §6): a temporary problem of the node (e.g. `db.unavailable` as the
+  reason) closes with `1013` "try again later"; clients reconnect with backoff and keep the session. Before, nodes could
+  close such cases with `4001`, which clients answer with a refresh and then the end of the session.
+- **Clarified: malformed input and `request_id`** (`PROTOCOL.md` §4): `400 request.invalid_json`,
+  `413 request.too_large` and `400 request.invalid_query` on every route; `request_id` equals `X-Request-Id`.
 
 - **Leaf cleanup election** (`ENCRYPTION.md` §4.7): devices that may not commit a removal or are known to be offline do not count for the election, and a voice join never waits for it (the elected device removes at once, others join on the current epoch and clean up in the background).
 - **A secret storage entry marks its passkey as PRF-capable** (`ENCRYPTION.md` §2.4, `PROTOCOL.md` §3.3).

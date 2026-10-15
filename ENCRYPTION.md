@@ -944,7 +944,9 @@ the history starts at their join whatever the policy says. Two layers apply the 
    and the bit allow (window start = the room membership's `joined_at`, minus `n` days for `days:<n>`, none for
    `all`; a re-join starts a new window). Owners and administrators follow the same rule: it is about keys, not
    trust. Plaintext messages are never cut. DMs are not cut (both participants are members from the start);
-   group DM members always start at their own join (`since_join`, no shares).
+   group DM members always start at their own join (`since_join`, no shares). The same window applies wherever the
+   node serves or acts on a single encrypted message: a message outside it is `404 message.not_found` for reactions,
+   reactors, pins and unpins, and `GET …/pins` lists only pinned messages inside it.
 2. **Clients.** A sharing client applies the same window before it sends keys, and a recipient can only check a
    key against messages its node serves it (below), so a key outside the window is never accepted.
 

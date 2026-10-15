@@ -184,6 +184,9 @@ Compatibility rules:
 
 `code` is stable and machine-readable (`<area>.<error>`); `title`/`detail` are for humans and may be
 localized (`Accept-Language`). Clients should map known codes to their own translations and fall back to `detail`.
+`request_id` is the id the response also carries in `X-Request-Id`; users quote it when they report an error. A body
+that is not the expected JSON is `400 request.invalid_json` (`413 request.too_large` above the route's size limit) and
+a query string that does not parse is `400 request.invalid_query`, on every route.
 
 ### 4.1 Commands (client registry, design note 4.11)
 
@@ -667,7 +670,7 @@ room and channel settings, and never show another user's age or status.
    `too_many_connections`). The node re-checks the session at every heartbeat and closes with `4001` once it has
    ended (§5b).
 5. Heartbeat: the node sends `ping` every 30 s, the client answers `pong`; two missed answers close the connection.
-6. Close code `4000` means "node restarting, reconnect immediately", `4001` "token invalid or session ended", `4002` "protocol version not supported" (or the reason given, e.g. `too_many_connections`, `rate_limited`), `4004` "replaced by a newer connection of the same app token, do not reconnect" (`APPLICATIONS.md` §2.6).
+6. Close code `4000` means "node restarting, reconnect immediately", `4001` "token invalid or session ended", `4002` "protocol version not supported" (or the reason given, e.g. `too_many_connections`, `rate_limited`), `4004` "replaced by a newer connection of the same app token, do not reconnect" (`APPLICATIONS.md` §2.6), `1013` "try again later": a temporary problem of the node (the reason is an error code such as `db.unavailable`), the token and session are fine; reconnect with the usual backoff, without a refresh. Only `4001` says anything about the token.
 7. App tokens (`APPLICATIONS.md` §2.6): `ready` also carries `application_id`; at most two connections per token;
    events are filtered by the token's scopes (an event a scope does not cover is dropped); a revoked, reset or
    expired token closes the connection with `4001`.
