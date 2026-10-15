@@ -154,7 +154,8 @@ about one user). It reads; it never writes:
 - `GET /rooms/{room_id}/reports?status=&limit=&before=` → `AppReportList { reports, open }` and `GET /reports/{report_id}`
   → `AppReport`, with the parameters and paging of §1.4, for the room's reports (`scope: room`) only and with the rules
   of every moderator: never reports about the bot itself, never reports about the room's owner (those are `scope:
-  node`). Node reports, reports of other rooms and the admin inbox answer as for everyone who may not see them (`404
+  node`), and never reports about the bot's owner or the owner's other bots (as its owner would not see them; also
+  no `report.*` events about them). Node reports, reports of other rooms and the admin inbox answer as for everyone who may not see them (`404
   report.not_found`; `/admin/*` is closed to app tokens). Without `moderation` the route table refuses (`403
   app.scope_missing`); without `moderate_members`, also in a "no bots" room (`APPLICATIONS.md` §3.5), the list is `403
   report.view_forbidden` and a report `404 report.not_found`.
@@ -300,7 +301,11 @@ is case-insensitive on the NFKC form of the text, with whitespace runs folded to
 What is checked: on send **and** edit, the text fields of the content (`body`, embed and link preview texts and URLs;
 not the GIF of the configured provider) and the file names of the message's attachments. Owners and node admins are
 exempt from room rules, as are members holding an exempt role and messages in exempt channels; webhooks and system
-messages are not checked.
+messages are not checked. A bot's interaction replies and follow-ups (`APPLICATIONS.md` §5.7) are checked like its
+other messages. `delete` and `timeout` rules act only on members ranked below the member who last saved the rules
+(their highest role at that time; the owner and node admins outrank everyone), as that member's own moderation
+would (`permissions.md` "Hierarchy"); `block` rules apply to everyone not exempt. Nodes bound the matching work per
+message; a message that would need more than any ordinary one is refused like a `block` hit (`403 automod.blocked`).
 
 Actions of the first matching rule (rules are checked in their order):
 
@@ -308,7 +313,8 @@ Actions of the first matching rule (rules are checked in their order):
   stored. Clients show the error in the composer, naming the rule.
 - `delete`: the message is accepted (`201`) but never shown to anyone else: the node deletes it right away and sends
   only `message.delete` (an edit: the message is deleted).
-- `timeout`: like `delete`, and the author gets a timeout of `timeout_minutes`.
+- `timeout`: like `delete`, and the author gets a timeout of `timeout_minutes`, announced with `member.update` as a
+  moderator's timeout is (also the timeout of the flood limit, §2.1).
 
 ### 2.3 Node rules (operator)
 

@@ -1858,7 +1858,8 @@ refines §1.8 and §4:
   federation.type_forbidden` otherwise, counted as a conformance violation) with `room.node` = `iss` (`400
   federation.envelope_invalid`); recipients that are no bot of this node, or a bot whose application is disabled,
   get `404 federation.recipient_unknown`. Unknown uninstall reasons are stored as `removed`. An application's index holds
-  at most 10 000 entries; further `app.install` messages are accepted and ignored.
+  at most 10 000 entries, at most 500 of them from one node; further `app.install` messages are accepted and ignored
+  (an entry the node already has is refreshed).
 - **Admin routes and codes beyond §4.4.** `PATCH /admin/applications/{id}` answers `204` and is audited as
   `admin.app_disable` `{ application, disabled }`; disabling closes the bot's WebSockets and ends its federated
   sessions. `POST /admin/applications/blocks` answers `201 ApplicationBlock`, refuses malformed addresses (`400

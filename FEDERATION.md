@@ -468,7 +468,7 @@ In addition to the existing room rules (join mode, invite validity, room bans, r
 node applies to remote users: the domain policy (§1.5) at federated login; node-level bans of the address,
 its domain and (bots) the owner; room bans of the address, its domain and (bots) the owner; "no bots" zones
 (design note 4.7); the per-domain rate limits of §11.1 (`TAVRN_FEDERATION_RATE_API` counts all API requests of
-remote users of one domain).
+remote users of one domain, after each user's own share: one account cannot use up its domain's budget).
 
 ### 3.3 Domain bans
 
@@ -1186,7 +1186,7 @@ signature = base64url( nonce(16) || Ed25519-Sign(device key, signed) )
 | Replay | `jti` per issuer until `exp + 5 min`; inbox ids 7 days; message ids older than 7 days refused |
 | Lifetimes | federation token ≤ 10 min, node token ≤ 5 min, federated session ≤ 7 days (access 1 h), listing 48 h, `.well-known` cache 5 min – 1 h, key cache 1 h (stale ≤ 24 h only for MLS checks) |
 | Sizes | inbox body 64 KiB, `.well-known` 64 KiB, profile 16 KiB, keys 256 KiB, claim 512 KiB, avatar 1 MiB, directory page 1 MiB, index 512 KiB / 2000 entries |
-| Rate limits per remote domain | federated logins `TAVRN_FEDERATION_RATE_LOGINS` (60/min), inbox `TAVRN_FEDERATION_RATE_INBOX` (300/min), API requests of its users `TAVRN_FEDERATION_RATE_API` (3000/min), KeyPackage claims per requesting node `TAVRN_FEDERATION_RATE_CLAIMS` (120/min); charged after the signature check, per client address before it (§1.5); per-user limits as for local users |
+| Rate limits per remote domain | federated logins `TAVRN_FEDERATION_RATE_LOGINS` (60/min), inbox `TAVRN_FEDERATION_RATE_INBOX` (300/min), API requests of its users `TAVRN_FEDERATION_RATE_API` (3000/min), KeyPackage claims per requesting node `TAVRN_FEDERATION_RATE_CLAIMS` (120/min); charged after the signature check, per client address before it (§1.5); per-user limits as for local users. One remote user, and one client address, get a share only (the reference node: `TAVRN_FEDERATION_RATE_API_PER_USER`, 600/min, and a quarter of the logins), charged before the domain's budget, so attempts the share refuses do not count for the domain |
 | Quotas | `TAVRN_FEDERATION_MAX_REMOTE_USERS` (10000), `…_PER_DOMAIN` (1000), `TAVRN_DIRECTORY_MAX_ROOMS` (5000), known nodes 10000 |
 | Outbox | retries 1 m, 5 m, 30 m, 2 h, 12 h, then 12-hourly; give up after 3 days |
 
@@ -1380,7 +1380,8 @@ otherwise.
   everything else is `502 federation.peer_unreachable`. The S2S claim body is at most 4 KiB;
   `federation.claim_refused` applies when `user` blocked a `requester` the home node knows.
 - **Admission**: `TAVRN_FEDERATION_RATE_API` (default 3000) counts every authenticated request and WebSocket
-  hello of a remote user per home domain; `TAVRN_FEDERATION_RATE_CLAIMS` (default 120) every S2S claim per
+  hello of a remote user per home domain, after the user's own share (`TAVRN_FEDERATION_RATE_API_PER_USER`, default
+  600; a rate-limited hello closes with `4002 rate_limited`, not `4001`); `TAVRN_FEDERATION_RATE_CLAIMS` (default 120) every S2S claim per
   requesting node. Every request of a remote user also checks node bans of its address and domain. A node
   ban of a remote address or domain ends the federated sessions of the affected users and removes them from
   all rooms (`member.leave` with `banned: true`, `mls.remove_needed`). A room domain ban removes every member
