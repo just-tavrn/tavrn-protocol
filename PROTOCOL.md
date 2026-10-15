@@ -1244,7 +1244,8 @@ scripts, Java classes, Windows shortcuts and ISO 9660/DMG images by content; the
 appxbundle bat cmd com pif scr cpl hta reg lnk url inf ps1 psm1 psd1 vbs vbe js jse mjs wsf wsh wsc sct jar class
 apk aab xapk ipa dmg pkg mpkg app command sh bash zsh csh ksh fish run bin elf deb rpm snap flatpakref appimage iso
 img vhd vhdx xll docm xlsm pptm dotm xltm potm ppam xlam gadget msc application scf dll sys drv ocx py pyw pl rb php
-desktop workflow action website settingcontent-ms; and executable content types (`application/x-msdownload`,
+desktop workflow action website settingcontent-ms chm hlp jnlp appref-ms library-ms searchconnector-ms diagcab msu mst
+ps1xml vb ws xbap ade adp mde shb shs iqy slk; and executable content types (`application/x-msdownload`,
 `application/x-sh`, `application/java-archive`, `application/vnd.android.package-archive`, JavaScript, …).
 Content or extension alone is enough (`setup.png` with an `MZ` header is an executable, so is `photo.exe`).
 They are refused unless the node sets `TAVRN_UPLOAD_ALLOW_EXECUTABLES=true` **and** the member may upload `other`.
