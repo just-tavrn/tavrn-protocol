@@ -20,7 +20,7 @@ private; nothing runs on GitHub until `CI_ENABLED` is set.
 
 | Secret | Scope | Used by |
 |---|---|---|
-| `PUBLISH_CHECK_PRIVATE` | repository or organization | `ci.yml` (job `publish-check`): comma-separated private domains, hosts and addresses that must never appear in the tree. Without it the check fails on purpose. Locally the same list lives in an untracked `.publish-check.private` (in the repository or its parent directory). |
+| `PUBLISH_CHECK_PRIVATE` | repository or organization | `ci.yml` (job `publish-check`): comma-separated private domains, hosts and addresses that must never appear in the tree. Without it the check fails on purpose. Dependabot's pull requests see only Dependabot secrets, so add it there too (`gh secret set PUBLISH_CHECK_PRIVATE --app dependabot`); without it their workflow sets `PUBLISH_CHECK_ALLOW_UNCONFIGURED=1` and only the private-pattern step is skipped, with a warning (the push to `main` runs the full check). Locally the same list lives in an untracked `.publish-check.private` (in the repository or its parent directory). |
 | `CLA_PAT` | organization | `cla.yml`: fine-grained personal access token with Contents read and write on `just-tavrn/cla-signatures` (the signatures). |
 | `NPM_TOKEN` | environment `release` (never a repository secret) | `release.yml`, job `publish`: an npm automation token with publish rights on the `@tavrn` scope. Only needed once `NPM_PUBLISH_ENABLED` is set. |
 
