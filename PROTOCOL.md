@@ -72,7 +72,9 @@ detail; this document covers the concepts and rules that span individual routes.
   with `files.e2ee`, optional external WebDAV/S3 storage) are specified in `FILES.md`. `policies.files_internal`
   (also `files_internal` in `GET /node`): `false` on a node that keeps no files of files channels itself
   (`TAVRN_FILES_INTERNAL=off`): a files channel takes uploads only once it has an external store
-  (`403 files.internal_disabled` before, `FILES.md` §5).
+  (`403 files.internal_disabled` before, `FILES.md` §5). It is the node default: the entitlement
+  `files_channels.internal` can decide otherwise per room (`ENTITLEMENTS.md`), and `internal_allowed` in a files
+  channel's `GET …/files/usage` is the value for that channel.
 - `web` is the origin of the node's web client (`TAVRN_WEBAUTHN_ORIGIN`, default the public URL). The connect
   flow of `FEDERATION.md` §8 redirects to `<web>/connect`; native apps open the same page with an app session
   (`connect.app`).

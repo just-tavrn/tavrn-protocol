@@ -62,8 +62,8 @@ All under `/api/v1/rooms/{room_id}/channels/{channel_id}/files`; a channel of an
 | `GET records?epoch=&since=&after=&limit=` | `view_channel` | Encrypted channels: entries with a record, ordered by the time the record was written (`record_at`, then id), optionally only of epoch `epoch` and/or written at or after `since` (RFC 3339); cursor `after` = last entry id of the previous page; `limit` 1–200 (default 100) → `{ entries, next_after }`; only records inside the requester's history window (§8.7). For the key checks of history shares and the clients' search sync (`SEARCH.md` §3.6) |
 | `PUT {id}/thumbnail` | own: `attach_files`; others': `manage_files` | Encrypted channels: the client-made thumbnail of a file as ciphertext (§8.3, part `thumbnail`), raw body, at most 1 MiB → `204`; replaces an earlier one |
 | `GET {id}/thumbnail` | `view_channel` | The thumbnail ciphertext (`application/octet-stream`, attachment, `nosniff`); `404 files.no_thumbnail` |
-| `GET usage` | `view_channel` | `{ enabled, used_bytes, limit_bytes, files, folders, max_upload_bytes, backend, backend_host, backend_prefix, encrypt_files, encrypted, can_upload, can_manage, can_configure, allowed_categories, executables_allowed }`; `backend` is `internal`, `webdav`, `s3` or `none` (a node without internal storage and no external store yet, §5: `can_upload` is `false`); `backend_host` and `backend_prefix` (external stores: the store's host and the object prefix, `""` otherwise) only for members with `manage_channels`, for the deletion dialog (§9) |
-| `GET backend` | `manage_channels` + `manage_files` | `{ kind, url, username, password_set, access_key, secret_key_set, region, bucket, prefix, encrypt_files, max_bytes, external_allowed, internal_allowed, private_allowed, has_files, updated_at }` (`kind` `none` as for `usage`); secrets are never returned |
+| `GET usage` | `view_channel` | `{ enabled, used_bytes, limit_bytes, files, folders, max_upload_bytes, backend, internal_allowed, backend_host, backend_prefix, encrypt_files, encrypted, can_upload, can_manage, can_configure, allowed_categories, executables_allowed }`; `backend` is `internal`, `webdav`, `s3` or `none` (the node's own storage is not allowed for the room and no external store is set yet, §5: `can_upload` is `false`); `internal_allowed`: the node's own storage may hold the channel's files (the room's `files_channels.internal`, §5); `backend_host` and `backend_prefix` (external stores: the store's host and the object prefix, `""` otherwise) only for members with `manage_channels`, for the deletion dialog (§9) |
+| `GET backend` | `manage_channels` + `manage_files` | `{ kind, url, username, password_set, access_key, secret_key_set, region, bucket, prefix, encrypt_files, max_bytes, external_allowed, internal_allowed, private_allowed, has_files, updated_at }` (`kind` `none` as for `usage`, `internal_allowed` as for `usage`); secrets are never returned |
 | `PUT backend` | `manage_channels` + `manage_files` | See §5; audit log `files.backend` (kind, host, encryption; no credentials) |
 | `POST backend/test` | `manage_channels` + `manage_files` | Body as for PUT (empty secrets use the stored ones) or empty for the stored configuration → `{ ok, kind }` or a problem |
 
@@ -151,6 +151,13 @@ PUT …/files/backend
     button (with the way to the channel's storage settings for members who may configure it).
   - `PUT …/files/backend { "kind": "internal" }` and a connection test of `internal` answer
     `403 files.internal_disabled`; `GET backend` carries `internal_allowed: false`.
+  - Per room: the entitlement `files_channels.internal` (`ENTITLEMENTS.md`, a room key: the room owner's plan or
+    override, or a grant of the room) decides for the rooms it covers; its node default is `TAVRN_FILES_INTERNAL`.
+    `1` allows the node's own storage in those rooms on a node with external stores only (the quota
+    `files_channels.max_bytes`, §4, applies as usual); `0` takes it away on a node that keeps files, with the
+    behaviour above for that room's channels. The value that counts for a channel is `internal_allowed` in
+    `GET usage` and `GET backend`; `files_internal` in `GET /node` stays the node default. A member's own plan
+    plays no part (only the room owner's and the room's grants).
   - Channels that keep files on the node from before the switch keep them: listing, downloads, renames, moves and
     deletes work as before, new uploads are refused as above, and the channel can move to an external store once
     it has no files (the switching rule above).
