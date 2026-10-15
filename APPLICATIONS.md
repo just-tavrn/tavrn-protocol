@@ -266,11 +266,11 @@ ALWAYS    = view_channel | change_nickname
 
 | Scope | Permission bits it unlocks | Routes and events it unlocks (beyond the always-allowed set) |
 |---|---|---|
-| `messages:read` | `read_history` | `GET …/messages`, pins, attachment downloads, search, received history keys (`GET`/`DELETE …/history-keys`, `GET …/history-pending`), poll votes (`GET …/poll/votes`); events `message.*`, `typing`, `read.update`, `history.*`, `poll.*` |
-| `messages:write` | `send_messages`, `attach_files`, `add_reactions`, `mention_everyone`, `create_threads`, `pin_messages`, `use_external_emojis`, `create_polls` | create/edit/delete own messages, reactions, uploads, pins, typing, read markers, `ephemeral` type `cursor`, voting (`PUT`/`DELETE …/poll/vote`) |
+| `messages:read` | `read_history` | `GET …/messages`, pins, attachment downloads, search, received history keys (`GET`/`DELETE …/history-keys`, `GET …/history-pending`), poll votes (`GET …/poll/votes`), files channel reads (listings, entries, downloads, thumbnails, records, own entries, usage; `FILES.md` §3); events `message.*`, `typing`, `read.update`, `history.*`, `poll.*`, `files.update`, `files.backend` |
+| `messages:write` | `send_messages`, `attach_files`, `add_reactions`, `mention_everyone`, `create_threads`, `pin_messages`, `use_external_emojis`, `create_polls` | create/edit/delete own messages, reactions, uploads, pins, typing, read markers, `ephemeral` type `cursor`, voting (`PUT`/`DELETE …/poll/vote`), files channel writes (folders, uploads, rename/move/delete, thumbnails; `FILES.md` §3) |
 | `members:read` | – | `GET /rooms/{id}/members`, `GET /presence`; events `member.*`, `presence.update`, `user.update` |
 | `moderation` | `manage_messages`, `kick_members`, `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_nicknames`, `mute_members`, `move_members`, `manage_threads` | kicks, bans, timeouts, purge (with preview), audit log, voice mute/move/disconnect |
-| `rooms:manage` | `manage_room`, `manage_channels`, `manage_roles`, `create_invites`, `manage_emojis`, `manage_files`, `manage_applications` | room, category, channel, role, override, emoji, soundboard and invite management (installing applications and the room's command settings stay closed to app tokens, §4.2) |
+| `rooms:manage` | `manage_room`, `manage_channels`, `manage_roles`, `create_invites`, `manage_emojis`, `manage_files`, `manage_applications` | room, category, channel, role, override, emoji, soundboard and invite management; with `messages:write`, others' entries in files channels (installing applications, the room's command settings and the storage backend of files channels stay closed to app tokens, §4.2, `FILES.md` §3) |
 | `voice` | `connect`, `speak`, `stream`, `use_camera`, `use_soundboard`, `use_external_sounds`, `priority_speaker` | `voice/join`, voice state, soundboard; event `voice.state`, `voice.move` |
 | `whiteboard` | `use_whiteboard`, `manage_whiteboard` | `ephemeral` types `whiteboard.*`; event `whiteboard.session` |
 | `commands` | – | `PUT /applications/me/commands`, interaction callbacks and follow-ups; events `command.invoke`, `component.invoke`, `modal.submit` (§5.10) |
@@ -283,6 +283,14 @@ ALWAYS    = view_channel | change_nickname
 them, renaming, archiving, deleting, following and per-thread read markers under `messages:write`; other people's
 threads additionally need `manage_threads`, which only `moderation` unlocks. Bots receive `thread_id` in every
 message envelope and reply in a thread by sending it.
+
+**Files channels** (`FILES.md` §3) need no scope of their own either: browsing, downloads, thumbnails, `GET records`,
+`GET mine` and `GET usage` fall under `messages:read`; folders, uploads, renames, moves, deletes and thumbnails of the
+bot's own entries under `messages:write` (the channel's `attach_files`, upload categories and the executable rule apply
+as for users); other people's entries additionally need `manage_files`, which only `rooms:manage` unlocks. The storage
+backend (`GET`/`PUT …/files/backend`, `POST …/files/backend/test`) stays closed whatever the scopes: bots never see or
+set store credentials. In encrypted files channels the bot encrypts the entry records and chunks itself
+(`FILES.md` §8, as a member of the channel's MLS group, §3.3).
 
 **Always allowed** for an app token (no scope): `GET /users/me`, `GET /users/{address}/profile`, `GET /rooms`,
 `GET /rooms/{id}` and channel/category/role reads, `GET /node`, the WebSocket, `POST /rooms/{id}/leave`
@@ -299,7 +307,8 @@ the table is refused** with `403 app.bot_forbidden`, so a new route is unavailab
 Explicitly never in the table: password, second factor, WebAuthn, secret storage, `/users/me/identity/reset`,
 `PATCH /users/me`, profile images, the whiteboard scene library, friends and blocks, the invite list, account
 invites, `POST /rooms`, `POST /rooms/{id}/join`, `POST /invites/{code}/join`, `/auth/connect/*`, directory reports,
-the owner routes of §1.6/§2.2, `/admin/*`, and `POST /conversations` with `kind = group`. Adding a bot to a group
+the owner routes of §1.6/§2.2, `/admin/*`, the storage backend of files channels (`…/files/backend`,
+`…/files/backend/test`), and `POST /conversations` with `kind = group`. Adding a bot to a group
 DM is refused as well (`400 app.bot_forbidden`): bots live in rooms and 1:1 DMs only.
 
 Bot DMs follow `PROTOCOL.md` §8a: the owner always gets a normal conversation, everyone else a message request
@@ -330,8 +339,10 @@ events carry no per-viewer state": emoji, reactor, added or removed); `GET …/m
 | Webhook execution | 5 per 2 s and 30 per minute | webhook |
 
 Bot limits are separate from and stricter than user limits; exceeding one answers `429` with `Retry-After` and
-`meta.limit`. Auto-moderation (design note 4.6) treats bots like users (burst limits, mention floods); its actions on
-a bot are audited with the application id.
+`meta.limit`. The per-account limits of individual routes (for example listings and uploads of files channels,
+`FILES.md` §3, and the bot account's `upload.max_bytes`) apply to bots as well, on top of these. Auto-moderation
+(design note 4.6) treats bots like users (burst limits, mention floods); its actions on a bot are audited with the
+application id.
 
 ### 2.8 Bots on other nodes (federation)
 
