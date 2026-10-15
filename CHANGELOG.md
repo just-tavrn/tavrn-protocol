@@ -201,6 +201,10 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Fixed
 
+- **The `rooms:manage` scope lists `voice_status`** (`APPLICATIONS.md` §2.4, fixes #47). The scope table names bit 38
+  and the status of voice channels (`VOICE.md` §2a) in the routes column, as `permissions.md` and the reference node
+  already did.
+
 - `FEDERATION.md` §7.1/§7.2 match the implementation notes (6-hour announces to reference nodes, 48-hour expiry);
   §10.3 says how signed mentions are handled by a node that normalises mentions; §1.2 recommends `kid`s that a
   restored node cannot repeat.
