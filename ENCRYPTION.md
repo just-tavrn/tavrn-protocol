@@ -350,7 +350,9 @@ ciphersuite in §4.1 whose leaf carries the device identity and the device key.
   requesting node) and target user, so that claims in many names neither drain a user's KeyPackages nor lock out the
   people who legitimately add them (reference node: `TAVRN_E2EE_CLAIMS_PER_TARGET_PER_HOUR`, default 60 per source,
   ten times that per target over all sources; related requesters and a user's claims for their own devices do not
-  count; beyond the budget `429`).
+  count; beyond the budget `429`). The exemption of related requesters holds only for requesters the requesting
+  node can speak for: its own users, or users of the home node signed in there. A user of a third node named by
+  the requesting node always counts against that node's budget.
 
 ### 3.3 Verifying other users' devices
 
