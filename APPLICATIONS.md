@@ -313,6 +313,9 @@ default `everyone_shared`).
 old one is gone; a third closes the oldest with the new close code `4004` ("replaced", do not reconnect).
 Events are filtered by membership exactly as for users and then by the effective scopes (§2.4); an event a scope
 does not cover is dropped, never truncated. A revoked, reset or expired token closes the connection with `4001`.
+Reactions reach bots with `messages:read` as `message.update` carrying the `reaction` field (`PROTOCOL.md` §6 "Message
+events carry no per-viewer state": emoji, reactor, added or removed); `GET …/messages/{message_id}/reactions/{emoji}`
+(`PROTOCOL.md` §7 "Reactions", `messages:read`) lists the reactors of older messages.
 
 ### 2.7 Rate limits
 

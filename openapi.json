@@ -9545,6 +9545,113 @@
       }
     },
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/reactions/{emoji}": {
+      "get": {
+        "tags": [
+          "attachments"
+        ],
+        "summary": "The reactors of one emoji on a message.",
+        "description": "Lists who reacted with `emoji` on a message (PROTOCOL.md §7 \"Reactions\"), oldest reaction first (ties by user id), `limit` 1–100 per page (default 50); pass `next` as `after` for the next page (`400 reaction.cursor_invalid` for a malformed cursor). Needs what reading the message needs (`view_channel`, the history window of ENCRYPTION.md §7b; bots `messages:read`). An emoji nobody reacted with lists no one.",
+        "operationId": "list_reactors",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "emoji",
+            "in": "path",
+            "description": "Percent-encoded",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "`next` of the previous page (opaque).",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100 (default 50).",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactorList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
       "put": {
         "tags": [
           "attachments"
@@ -32332,6 +32439,29 @@
           }
         }
       },
+      "MessageUpdate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Message"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "reaction": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReactionChange"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "description": "The `data` of a `message.update` event: the message without per-viewer state and, for a reaction change, the\nchange."
+      },
       "MineList": {
         "type": "object",
         "required": [
@@ -35139,7 +35269,79 @@
           },
           "me": {
             "type": "boolean",
-            "description": "Did the requester react with it?"
+            "description": "Did the requester react with it? Always `false` in events (PROTOCOL.md §6): only responses carry the\ncaller's view."
+          }
+        }
+      },
+      "ReactionChange": {
+        "type": "object",
+        "description": "The reaction change a `message.update` names (PROTOCOL.md §6): absent on every other cause of the event.",
+        "required": [
+          "emoji",
+          "user",
+          "user_id",
+          "added"
+        ],
+        "properties": {
+          "added": {
+            "type": "boolean",
+            "description": "`false` for a removal."
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string",
+            "description": "The reactor, `username@domain`."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The reactor's id on the hosting node."
+          }
+        }
+      },
+      "Reactor": {
+        "type": "object",
+        "description": "One user who reacted with an emoji.",
+        "required": [
+          "user",
+          "user_id",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "description": "When the user reacted (RFC 3339)."
+          },
+          "user": {
+            "type": "string",
+            "description": "`username@domain`"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user's id on this node."
+          }
+        }
+      },
+      "ReactorList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reactor"
+            },
+            "description": "Oldest reaction first."
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`after` of the next page; null on the last page."
           }
         }
       },
