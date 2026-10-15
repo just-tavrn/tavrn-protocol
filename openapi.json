@@ -6,7 +6,7 @@
     "license": {
       "name": "Apache-2.0"
     },
-    "version": "0.2.0"
+    "version": "0.4.0-rc.8"
   },
   "paths": {
     "/.well-known/tavrn": {
@@ -7166,8 +7166,35 @@
         "tags": [
           "conversations"
         ],
-        "summary": "My DMs and group DMs, most recent activity first.",
+        "summary": "My DMs and group DMs, most recent activity first (`last_message_id`, else the conversation id); optionally paged\nwith `limit` and `before`.",
         "operationId": "list",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200; without it, every conversation.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Only conversations whose sort key is lower: for `GET /conversations` the `last_message_id` (else the id) of\nthe last item of the previous page, for the requests its conversation id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -7178,6 +7205,16 @@
                   "items": {
                     "$ref": "#/components/schemas/Conversation"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -7279,8 +7316,35 @@
         "tags": [
           "conversations"
         ],
-        "summary": "My message requests: conversations of people who are not my friends, until I accept or decline them.",
+        "summary": "My message requests: conversations of people who are not my friends, until I accept or decline them; newest\nfirst (by conversation id), optionally paged with `limit` and `before`.",
         "operationId": "requests",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200; without it, every conversation.",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Only conversations whose sort key is lower: for `GET /conversations` the `last_message_id` (else the id) of\nthe last item of the previous page, for the requests its conversation id.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -7291,6 +7355,16 @@
                   "items": {
                     "$ref": "#/components/schemas/ConversationRequest"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -12932,7 +13006,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Public rooms of this node (\"Discover\"). Rooms with an age gate are listed only when the request carries the\nsession of an adult (the `Authorization` header is optional here; PROTOCOL.md §5e).",
+        "summary": "Public rooms of this node (\"Discover\"). Rooms with an age gate are listed only when the request carries the\nsession of an adult (the `Authorization` header is optional here; PROTOCOL.md §5e). Anonymous requests are\nrate-limited per client address.",
         "operationId": "discover_rooms",
         "responses": {
           "200": {
@@ -12944,6 +13018,16 @@
                   "items": {
                     "$ref": "#/components/schemas/PublicRoom"
                   }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }

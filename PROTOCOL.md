@@ -1753,6 +1753,11 @@ encrypted" permanently above the file list.
   2–50 users). Messages, reactions, pins, uploads and the MLS delivery service of every conversation live under
   `/api/v1/conversations/{conversation_id}/…`; room channels are additionally reachable under
   `/rooms/{room_id}/channels/{channel_id}/…`. DMs and group DMs are always encrypted; the node rejects plaintext.
+- `GET /conversations?limit=&before=` lists the requester's active DMs and group DMs, most recent activity first:
+  the sort key of a conversation is its `last_message_id`, else its id. Without `limit` the response is the whole
+  list; with `limit` (1–200) it holds at most that many, and the next page passes the sort key of the last item as
+  `before` (conversations whose key is lower, compared as ULIDs; `400 validation.id` for a malformed one). The
+  response stays a plain array: a page shorter than `limit` is the last one.
 - `POST /conversations { kind, members, name? }` creates a group DM or returns the existing DM of the two users
   (`200`). DMs and group DMs are visible to their members only (`404 conversation.not_found` otherwise). Any
   member may add members to a group DM and rename it (`PATCH /conversations/{id} { name }`, empty removes the
@@ -1768,8 +1773,9 @@ encrypted" permanently above the file list.
   `dm.friends_only` (the recipient allows only friends; clients offer a friend request instead),
   `dm.no_shared_room`, `dm.blocked`. Blocks (`POST /users/me/blocks`) always win: a blocked user cannot send
   friend requests, start DMs or write in an existing DM with the blocking user.
-- **Message requests**: `GET /conversations/requests` → `[{ conversation, from, shared_rooms, first_message_id
-  }]` (not in `GET /conversations`); the WS event `conversation.request` announces new ones. A requested member
+- **Message requests**: `GET /conversations/requests?limit=&before=` → `[{ conversation, from, shared_rooms,
+  first_message_id }]` (not in `GET /conversations`), newest first by conversation id, paged like `GET
+  /conversations` with the conversation id as the sort key; the WS event `conversation.request` announces new ones. A requested member
   may read the conversation (the preview) but gets no `message.*` events, no unread counts and no push hints,
   and cannot write (`403 conversation.request_pending`). `POST /conversations/{id}/accept` makes it a normal
   conversation (idempotent; `conversation.update` to the members). `POST /conversations/{id}/decline { block?,
