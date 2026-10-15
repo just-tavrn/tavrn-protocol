@@ -11,6 +11,8 @@ Changes of the protocol that implementations must follow, newest first. Versions
   /conversations/requests` accept `limit` (1–200) and `before` (the sort key of the last item: `last_message_id`, else
   the id, for the DM list; the conversation id for the requests). Without `limit` both return the whole list as
   before; the responses stay plain arrays. The requests are ordered newest first by conversation id.
+- **Anonymous `GET /rooms/discover` may be rate-limited** per client address (`FEDERATION.md` §7, `429`; the
+  reference node allows 120 per minute, as for the directory reads).
 
 - **Leaf cleanup election** (`ENCRYPTION.md` §4.7): devices that may not commit a removal or are known to be offline do not count for the election, and a voice join never waits for it (the elected device removes at once, others join on the current epoch and clean up in the background).
 - **A secret storage entry marks its passkey as PRF-capable** (`ENCRYPTION.md` §2.4, `PROTOCOL.md` §3.3).

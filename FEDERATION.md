@@ -797,7 +797,8 @@ the directory in two tables, `federation_peers` and `directory_nodes`, §13.1.)
   `remote_rooms`; users of other nodes reach them through invite links.
 - Rooms appear only when their owner (or a holder of `manage_room`) marked them **discoverable**
   (`PATCH /api/v1/rooms/{room_id} { discoverable: true }`, only for `join_mode = public`, audited). The
-  `GET /api/v1/rooms/discover` returns only discoverable rooms.
+  `GET /api/v1/rooms/discover` returns only discoverable rooms. A node may rate-limit anonymous requests to it per
+  client address (the reference node: 120 per minute, like the directory reads; `429` with `Retry-After`).
 - **Signed listings**: `listing` is a JWT (`typ = "listing"`, `iss` = hosting node, `sub` = room id,
   `aud = "tavrn-directory"`, `exp` = `iat + 48 h`, claims `name`, `description`, `icon_sha256`,
   `member_count`) created by the hosting node. Relaying nodes pass it verbatim; a node accepts a peer's room
