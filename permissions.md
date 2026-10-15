@@ -46,11 +46,12 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 37 | `restore_history` | Encrypted channels: decide about requests to restore a member's history after a key reset and send the keys from before the reset (`ENCRYPTION.md` §7b "History after a key reset"). Default: nobody besides the owner and `administrator`; no app-token scope covers it. |
 | 38 | `voice_status` | Set or clear the status text of a voice channel (`VOICE.md` §2a) at any time, through the channel update route without `manage_channels`. Channel-scoped, grantable alone; granted once to every role that held `manage_channels` when it was introduced (marker `fixup.voice_status`). Covered by the app token scope `rooms:manage`. |
 | 39 | `create_polls` | Send polls (`PROTOCOL.md` §7g) together with `send_messages`: plaintext content of type `poll` and any message with a close time (`poll_closes_at`); clients enforce it for encrypted polls, whose type the node cannot see. Voting needs only `view_channel`. Channel-scoped, grantable alone; default for `@everyone`; granted once to every role and override that allowed `send_messages` when it was introduced (marker `fixup.create_polls`). Covered by the app token scope `messages:write`. |
+| 40 | `use_components` | Use the buttons, select menus and modals of applications' messages (`APPLICATIONS.md` §5.10): clicking, selecting and submitting create interactions. Channel-scoped, grantable alone, independent of `send_messages` (a read-only announcement channel can still carry a sign-up button). Default for `@everyone`; granted once to every role holding `send_messages` when it was introduced (marker `fixup.use_components`). No app-token scope covers it: bots never use components. |
 | 62 | `administrator` | All permissions, overrides are ignored |
 
 Default permissions of `@everyone` in new rooms: `view_channel`, `send_messages`, `attach_files`, `add_reactions`,
 `create_threads`, `create_invites`, `connect`, `speak`, `stream`, `use_camera`, `use_soundboard`, `change_nickname`,
-`use_whiteboard`, `use_external_emojis`, `use_external_sounds`, `read_history`, `create_polls`. Migration 0060 added `use_whiteboard` to
+`use_whiteboard`, `use_external_emojis`, `use_external_sounds`, `read_history`, `create_polls`, `use_components`. Migration 0060 added `use_whiteboard` to
 the `@everyone` role of every existing room, so boards keep working where they did; `read_history` is added once to
 the `@everyone` role of every room that existed before it (startup fixup, recorded in `node_settings` so a later
 removal by the room is kept). `manage_applications` (bit 35) replaced `manage_room` as the right to install applications:
@@ -62,7 +63,9 @@ role that held `manage_channels` when it was introduced (marker `fixup.voice_sta
 roles alone (a channel override can grant it too), so people in a voice channel can keep its status current.
 `create_polls` (bit 39) is granted once to every role holding `send_messages` (`@everyone` included) and added to
 the `allow` mask of every override that allows `send_messages` when it was introduced (marker `fixup.create_polls`),
-so whoever could write a message can still send a poll; rooms narrow it afterwards.
+so whoever could write a message can still send a poll; rooms narrow it afterwards. `use_components` (bit 40) is
+granted once to every role holding `send_messages` (`@everyone` included; overrides are not touched) when it was
+introduced (marker `fixup.use_components`), so everybody who could use commands can use the buttons of their answers.
 
 `change_nickname` covers the whole per-room profile (nickname, avatar and bio in that room, `PROTOCOL.md` §6b);
 `manage_nicknames` lets moderators change or reset the per-room profiles of members below them.
@@ -138,7 +141,7 @@ Overrides (on categories and on channels) may only carry bits that mean somethin
 `PUT /rooms/{room_id}/overrides` whose `allow` or `deny` contains another bit is refused with
 `400 permissions.not_channel_scoped` (`meta.names`: the refused bit names); room-level bits are granted through
 roles only. Reference constant: `CHANNEL_SCOPED` in the node (`tavrn-node`) and in `@tavrn/sdk`, value
-`927683510783`. Clients list only these bits in override editors.
+`2027195138559`. Clients list only these bits in override editors.
 
 | Bit | Name |
 |---|---|
@@ -170,6 +173,7 @@ roles only. Reference constant: `CHANNEL_SCOPED` in the node (`tavrn-node`) and 
 | 36 | `manage_threads` |
 | 38 | `voice_status` |
 | 39 | `create_polls` |
+| 40 | `use_components` |
 
 Room-level only (roles, never overrides): `administrator`, `manage_room`, `create_invites`, `kick_members`,
 `ban_members`, `moderate_members`, `purge`, `view_audit_log`, `manage_emojis`, `change_nickname`, `manage_nicknames`,
@@ -259,6 +263,12 @@ closes. Reference: `no_bots_effective` / `noBotsEffective`, vectors in `testvect
 `no_bots` and `scopes` in `testvectors/permissions.json`.
 
 ## Changes
+
+- **2026-10-15, `use_components` (bit 40)**: interacting with application message components (`APPLICATIONS.md`
+  §5.10) has its own permission, channel-scoped, not management-class, in the defaults of `@everyone`, covered by no
+  app-token scope (bots never click), granted once to every role holding `send_messages` at start (marker
+  `fixup.use_components`). Timeouts remove it like every bit but reading. `CHANNEL_SCOPED` becomes `2027195138559`;
+  the shared test vectors cover the bit.
 
 - **2026-10-14, `create_polls` (bit 39)**: polls (`PROTOCOL.md` §7g) have their own permission next to
   `send_messages`, channel-scoped, not management-class, in the defaults of `@everyone`, covered by

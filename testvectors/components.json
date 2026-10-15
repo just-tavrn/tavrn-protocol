@@ -1,0 +1,2234 @@
+{
+  "description": "Validation of components (APPLICATIONS.md §5.10.1) and modals (§5.10.3), plus encrypted component and modal values. Each case of `validation` has an `input` with either `components` (the value of the `components` field of a text content object) or `modal` (the `modal` of a modal response); `expected` is null for valid input, else the error `code` and `meta.path` of the first offending field. Binary values are base64url without padding; keys and devices are those of encryption.json (content, device_attestation).",
+  "validation": [
+    {
+      "name": "A row of buttons and a row with a select",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "success",
+                "label": "Sign up",
+                "custom_id": "raid:signup",
+                "emoji": "✅"
+              },
+              {
+                "type": "button",
+                "style": "danger",
+                "label": "Decline",
+                "custom_id": "raid:decline"
+              },
+              {
+                "type": "button",
+                "style": "link",
+                "label": "Guide",
+                "url": "https://guide.example/raid"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "raid:class",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ],
+                "placeholder": "Your class",
+                "min": 1,
+                "max": 1
+              }
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "An empty components array",
+      "input": {
+        "components": []
+      },
+      "expected": null
+    },
+    {
+      "name": "Five rows of five buttons",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b00"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b01"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b02"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b03"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b04"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b10"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b11"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b12"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b13"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b14"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b20"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b21"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b22"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b23"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b24"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b30"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b31"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b32"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b33"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b34"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b40"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b41"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b42"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b43"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b44"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "A button with an emoji and no label",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "",
+                "custom_id": "go",
+                "emoji": "🎉"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "A button with a custom emoji shortcode",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go",
+                "emoji": ":party_parrot:"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "A disabled select with 25 options, min 0 and max 25",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "O0",
+                    "value": "v0",
+                    "description": "d",
+                    "default": true
+                  },
+                  {
+                    "label": "O1",
+                    "value": "v1",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O2",
+                    "value": "v2",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O3",
+                    "value": "v3",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O4",
+                    "value": "v4",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O5",
+                    "value": "v5",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O6",
+                    "value": "v6",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O7",
+                    "value": "v7",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O8",
+                    "value": "v8",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O9",
+                    "value": "v9",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O10",
+                    "value": "v10",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O11",
+                    "value": "v11",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O12",
+                    "value": "v12",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O13",
+                    "value": "v13",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O14",
+                    "value": "v14",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O15",
+                    "value": "v15",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O16",
+                    "value": "v16",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O17",
+                    "value": "v17",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O18",
+                    "value": "v18",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O19",
+                    "value": "v19",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O20",
+                    "value": "v20",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O21",
+                    "value": "v21",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O22",
+                    "value": "v22",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O23",
+                    "value": "v23",
+                    "description": "d",
+                    "default": false
+                  },
+                  {
+                    "label": "O24",
+                    "value": "v24",
+                    "description": "d",
+                    "default": false
+                  }
+                ],
+                "min": 0,
+                "max": 25,
+                "disabled": true
+              }
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "Labels of 80 and custom ids of 100 characters",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "ääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääääää",
+                "custom_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "Not an array",
+      "input": {
+        "components": {
+          "type": "row"
+        }
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components"
+      }
+    },
+    {
+      "name": "Six rows",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b0"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b1"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b2"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b3"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b4"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b5"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components"
+      }
+    },
+    {
+      "name": "A row that is not an object",
+      "input": {
+        "components": [
+          "row"
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0]"
+      }
+    },
+    {
+      "name": "A row with an unknown key",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go"
+              }
+            ],
+            "colour": "red"
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].colour"
+      }
+    },
+    {
+      "name": "A row of another type",
+      "input": {
+        "components": [
+          {
+            "type": "grid",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].type"
+      }
+    },
+    {
+      "name": "An empty row",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": []
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components"
+      }
+    },
+    {
+      "name": "Six buttons in a row",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b0"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b1"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b2"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b3"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b4"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "b5"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components"
+      }
+    },
+    {
+      "name": "A select next to a button",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go"
+              },
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components"
+      }
+    },
+    {
+      "name": "An unknown component type",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "slider",
+                "custom_id": "s"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].type"
+      }
+    },
+    {
+      "name": "An unknown key on a button",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go",
+                "color": "#ff0000"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].color"
+      }
+    },
+    {
+      "name": "An unknown button style",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "blurple",
+                "label": "Go",
+                "custom_id": "go"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].style"
+      }
+    },
+    {
+      "name": "A label of 81 characters",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "custom_id": "go"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].label"
+      }
+    },
+    {
+      "name": "An empty label without emoji",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "",
+                "custom_id": "go"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].label"
+      }
+    },
+    {
+      "name": "A label with a control character",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "a\u0007b",
+                "custom_id": "go"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].label"
+      }
+    },
+    {
+      "name": "An emoji with whitespace",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go",
+                "emoji": "a b"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].emoji"
+      }
+    },
+    {
+      "name": "A shortcode with an invalid name",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go",
+                "emoji": ":Party:"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].emoji"
+      }
+    },
+    {
+      "name": "A button without custom_id",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].custom_id"
+      }
+    },
+    {
+      "name": "A custom_id of 101 characters",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].custom_id"
+      }
+    },
+    {
+      "name": "A link button with a custom_id",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "link",
+                "label": "Go",
+                "custom_id": "go",
+                "url": "https://a.example/"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].custom_id"
+      }
+    },
+    {
+      "name": "A link button without url",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "link",
+                "label": "Go"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].url"
+      }
+    },
+    {
+      "name": "A link button with an http url",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "link",
+                "label": "Go",
+                "url": "http://a.example/"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].url"
+      }
+    },
+    {
+      "name": "A link button with credentials in the url",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "link",
+                "label": "Go",
+                "url": "https://u:p@a.example/"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].url"
+      }
+    },
+    {
+      "name": "A url on a non-link button",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go",
+                "url": "https://a.example/"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].url"
+      }
+    },
+    {
+      "name": "disabled is not a boolean",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "go",
+                "disabled": "yes"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].disabled"
+      }
+    },
+    {
+      "name": "A duplicate custom_id in another row",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "Go",
+                "custom_id": "same"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "same",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[1].components[0].custom_id"
+      }
+    },
+    {
+      "name": "A placeholder of 151 characters",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ],
+                "placeholder": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].placeholder"
+      }
+    },
+    {
+      "name": "A select without options",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": []
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].options"
+      }
+    },
+    {
+      "name": "A select with 26 options",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "x",
+                    "value": "v0"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v1"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v2"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v3"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v4"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v5"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v6"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v7"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v8"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v9"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v10"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v11"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v12"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v13"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v14"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v15"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v16"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v17"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v18"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v19"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v20"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v21"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v22"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v23"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v24"
+                  },
+                  {
+                    "label": "x",
+                    "value": "v25"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].options"
+      }
+    },
+    {
+      "name": "A duplicate option value",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "a"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].options[1].value"
+      }
+    },
+    {
+      "name": "An option with an unknown key",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a",
+                    "icon": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].options[0].icon"
+      }
+    },
+    {
+      "name": "An option label of 101 characters",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+                    "value": "a"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].options[0].label"
+      }
+    },
+    {
+      "name": "An option description of 101 characters",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a",
+                    "description": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].options[0].description"
+      }
+    },
+    {
+      "name": "An empty option value",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": ""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].options[0].value"
+      }
+    },
+    {
+      "name": "min above the number of options",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ],
+                "min": 3,
+                "max": 3
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].min"
+      }
+    },
+    {
+      "name": "max below min",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ],
+                "min": 2,
+                "max": 1
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].max"
+      }
+    },
+    {
+      "name": "max 0",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ],
+                "min": 0,
+                "max": 0
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].max"
+      }
+    },
+    {
+      "name": "max above the number of options",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ],
+                "max": 3
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].max"
+      }
+    },
+    {
+      "name": "min not an integer",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "select",
+                "custom_id": "pick",
+                "options": [
+                  {
+                    "label": "A",
+                    "value": "a"
+                  },
+                  {
+                    "label": "B",
+                    "value": "b"
+                  }
+                ],
+                "min": 1.5
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components[0].components[0].min"
+      }
+    },
+    {
+      "name": "More than 8 KiB of components",
+      "input": {
+        "components": [
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "00xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "01xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "02xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "03xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "04xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "10xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "11xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "12xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "13xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "14xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "20xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "21xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "22xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "23xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "24xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "30xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "31xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "32xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "33xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "34xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "components": [
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "40xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "41xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "42xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "43xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              {
+                "type": "button",
+                "style": "primary",
+                "label": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+                "custom_id": "44xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "code": "message.components_invalid",
+        "path": "components"
+      }
+    },
+    {
+      "name": "A modal with every input field",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "paragraph",
+              "placeholder": "Arriving late…",
+              "min_length": 0,
+              "max_length": 500,
+              "required": false,
+              "value": "hi"
+            },
+            {
+              "custom_id": "when",
+              "label": "When",
+              "style": "short",
+              "min_length": 1,
+              "max_length": 4000,
+              "required": true
+            }
+          ]
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "A modal with five inputs and a title of 45 characters",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "ttttttttttttttttttttttttttttttttttttttttttttt",
+          "inputs": [
+            {
+              "custom_id": "i0",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i1",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i2",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i3",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i4",
+              "label": "Note",
+              "style": "short"
+            }
+          ]
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "A modal that is not an object",
+      "input": {
+        "modal": []
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": ""
+      }
+    },
+    {
+      "name": "A modal with an unknown key",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short"
+            }
+          ],
+          "color": "red"
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "color"
+      }
+    },
+    {
+      "name": "A modal without custom_id",
+      "input": {
+        "modal": {
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "custom_id"
+      }
+    },
+    {
+      "name": "A title of 46 characters",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "tttttttttttttttttttttttttttttttttttttttttttttt",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "title"
+      }
+    },
+    {
+      "name": "An empty title",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "title"
+      }
+    },
+    {
+      "name": "A modal without inputs",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": []
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs"
+      }
+    },
+    {
+      "name": "Six inputs",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "i0",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i1",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i2",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i3",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i4",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "i5",
+              "label": "Note",
+              "style": "short"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs"
+      }
+    },
+    {
+      "name": "An input with an unknown key",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short",
+              "kind": "email"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].kind"
+      }
+    },
+    {
+      "name": "An input with an unknown style",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "long"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].style"
+      }
+    },
+    {
+      "name": "An input label of 46 characters",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "llllllllllllllllllllllllllllllllllllllllllllll",
+              "style": "short"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].label"
+      }
+    },
+    {
+      "name": "A duplicate input custom_id",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short"
+            },
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[1].custom_id"
+      }
+    },
+    {
+      "name": "A placeholder of 101 characters",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short",
+              "placeholder": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].placeholder"
+      }
+    },
+    {
+      "name": "min_length above 4000",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short",
+              "min_length": 4001
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].min_length"
+      }
+    },
+    {
+      "name": "max_length 0",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short",
+              "max_length": 0
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].max_length"
+      }
+    },
+    {
+      "name": "max_length below min_length",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short",
+              "min_length": 10,
+              "max_length": 5
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].max_length"
+      }
+    },
+    {
+      "name": "required is not a boolean",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short",
+              "required": 1
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].required"
+      }
+    },
+    {
+      "name": "A value longer than max_length",
+      "input": {
+        "modal": {
+          "custom_id": "raid:note",
+          "title": "A note",
+          "inputs": [
+            {
+              "custom_id": "note",
+              "label": "Note",
+              "style": "short",
+              "max_length": 3,
+              "value": "four"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "code": "interaction.modal_invalid",
+        "path": "inputs[0].value"
+      }
+    }
+  ],
+  "component_values": {
+    "description": "An encrypted component.values content object (APPLICATIONS.md §5.10.2): content format 1 of ENCRYPTION.md §5.2 under content_key, signed by the device key of encryption.json device_attestation; the invoker is author/device_id.",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "epoch": 42,
+    "author": "alice@node.example",
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "content_key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8",
+    "nonce": "sLGys7S1tre4ubq7",
+    "json": "{\"type\":\"component.values\",\"message_id\":\"01J9ZK3G5M8Q2W4E6R8T0Y2VM1\",\"custom_id\":\"raid:class\",\"values\":[\"healer\"],\"nonce\":\"0NHS09TV1tfY2drb3N3e3w\",\"issued_at\":\"2026-10-15T18:00:00Z\"}",
+    "values_ciphertext": "AQAAAAAAAAAqsLGys7S1tre4ubq7Yi0bf87sUN3O00ElQqQz5eDbmPTVG6i_YuL6Zc_w79PFxTpFO8TcJTYugO4dWx0VmWYjbHcbCwf3n0lO7vOh1ddUhgPgVUnZNjqzp7EHggWW6HGFkfcFrzlR6zlarQuxTzV3khIuUq79mY-9j4dvk5O8Qa4p9bBPFS80yNOoAQOW-5gI4CmOPEWCdKGxdqZeczVOwqXGdTKcknK59ith7Zf_PWG5G-zg9akXll4buz4N52-06I__QfoHY3WMHbClcOUR7LkR-OpdwfFhSvAeLnOyjlt9miEYmaV03ld2CjEEwWgVPfDq76_hTb-KDtmYHhDxsb4dyLdrukijRLsaY417wfmmGA"
+  },
+  "modal_values": {
+    "description": "An encrypted modal.values content object (APPLICATIONS.md §5.10.4), as component_values.",
+    "conversation": "node.example/01J9ZK3G5M8Q2W4E6R8T0Y2V00",
+    "epoch": 42,
+    "author": "alice@node.example",
+    "device_id": "01J9ZK3G5M8Q2W4E6R8T0Y2VA1",
+    "content_key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8",
+    "nonce": "wMHCw8TFxsfIycrL",
+    "json": "{\"type\":\"modal.values\",\"interaction\":\"01J9ZK3G5M8Q2W4E6R8T0Y2VI1\",\"custom_id\":\"raid:note\",\"values\":{\"note\":\"Arriving 20 minutes late ⏰\"},\"nonce\":\"4OHi4-Tl5ufo6err7O3u7w\",\"issued_at\":\"2026-10-15T18:01:00Z\"}",
+    "values_ciphertext": "AQAAAAAAAAAqwMHCw8TFxsfIycrLT1KMQ_ehCEXVuDzXOTXT8zcl-5BcPJyqcmw6xV4aSv8ve0Jfn-kVKDQDgfitZwGBJlvYLPuN7Riac-mw0oHkWXSOqyzgMVQagmSLGvVP7FK_8-TK7A8HcA7trkENv5l1gNy3ji1TF7eKs-SG1EZvfEtJUDXrxRxHrD8QEaMeXPwqS4N6UoZqxAXHipQ4pZ1aZ0WvL25HlX6iAGMLjdNO6IUGPOS4OpQFc-gv_928DsU_VSUc25lqvvJUmQnTjO-1o-H36UXjDnhadZfa_mogJEdgiVGJAAI-u8EhZKFRekD46QEB413hkc26LxZ3Hqm2misCnIFsSCZW_z_SYAEGfCikfr0kcJo3N4D0Hzi9z7joezzEhnKMEtbaKDO4tCs"
+  }
+}

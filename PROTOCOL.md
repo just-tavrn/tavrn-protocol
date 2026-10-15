@@ -127,6 +127,7 @@ Capabilities reserved in v1, and when nodes that implement them announce them:
 | `federation`, `federation.v1` | federation; `federation.v1` names exactly `FEDERATION.md` (§12 there) | while `TAVRN_FEDERATION_ENABLED` is on |
 | `connect.app` | app sessions of the connect flow for native apps (`FEDERATION.md` §8 step 3) | always, also without federation |
 | `apps.v1`, `commands.v1` | applications, bots and slash commands (`APPLICATIONS.md` §10.1); clients announce `commands.v1` in their WebSocket `hello` | always |
+| `components.v1` | buttons, select menus and modals of applications (`APPLICATIONS.md` §5.10); clients announce it in their WebSocket `hello` | always |
 | `webhooks.v1` | incoming webhooks, event subscriptions, hook tokens and embeds (`APPLICATIONS.md` §6) | while `TAVRN_WEBHOOKS_ENABLED` is on |
 | `sso.oidc` | single sign-on (§5a.6, `APPLICATIONS.md` §8) | while `TAVRN_OIDC_ISSUER` is set |
 | `search.v1` | node-side message search (§7d, `SEARCH.md`) | while `TAVRN_SEARCH_ENABLED` is on |
@@ -744,7 +745,9 @@ Event types besides the room and message events:
 | `application.token_expiring` | the application's owner and its bot | `{ application_id, token_id, expires_at, days }`: an app token expires in 7 or 1 days (`APPLICATIONS.md` §2.2) |
 | `commands.update` | room members (and bots with the `commands` scope) | `{ room_id }`: the application commands of the room changed (definitions, approval, room settings, installations); clients refetch their palettes (`APPLICATIONS.md` §5.1, §5.3) |
 | `command.invoke` | exactly one connection of the bot whose token has the `commands` scope (round robin over its devices) | the interaction data of `APPLICATIONS.md` §5.6 (`interaction_id`, `command`, `conversation_id`, `user`, `device_id`, `permissions`, `args` or `args_ciphertext` + `epoch`, `locale`, `expires_at`) |
-| `interaction.reply` | the invoker: their other connections for the first response, all of them for follow-ups | `EphemeralReply` `{ interaction_id, conversation_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`: an ephemeral reply, shown only to the invoker and never stored (`APPLICATIONS.md` §5.7) |
+| `component.invoke` | exactly one connection of the message author's bot whose token has the `commands` scope (round robin over its devices) | the interaction data of `APPLICATIONS.md` §5.10.2 (`interaction_id`, `message_id`, `custom_id`, `values` or `values_ciphertext` + `epoch`, `conversation_id`, `user`, `device_id`, `permissions`, `locale`, `expires_at`) |
+| `modal.submit` | as `component.invoke` | the data of `component.invoke` plus `parent_interaction_id`, `modal_custom_id` and `command`, with the form's values (`APPLICATIONS.md` §5.10.4) |
+| `interaction.reply` | the invoker: their other connections for the first response, all of them for follow-ups | `EphemeralReply` `{ interaction_id, conversation_id, thread_id, message_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`: an ephemeral reply, shown only to the invoker and never stored (`APPLICATIONS.md` §5.7; `message_id` names the message whose component started the interaction, §5.10.3) |
 | `message.redact` | conversation audience¹ | `{ room_id, conversation_id, ids, author_id }`: the content of these messages was deleted with their author's account (§5d); the slots stay with the content `{"type":"system.deleted"}`. Clients replace cached content and drop the messages from local search indexes |
 | `user.deleted` | the rooms the user was in, friends and DM contacts | `{ user_id, address, tombstone }`: an account was deleted (§5d); its messages now name the tombstone (`author_deleted: true`) |
 | `thread.create`, `thread.update` | room members who can view the channel | `{ room_id, thread }`: a thread was started, or its title, tags, archive or lock state or its counters changed (§7e) |
@@ -1092,9 +1095,11 @@ Every message consists of an envelope (readable by the node) and content (opaque
   with the WEBHOOK badge and never the "unverified" marker (the node authenticated the webhook). The field is absent on
   every other message.
 - `interaction` (set by the node on a message an application posted as the answer to a command, `APPLICATIONS.md`
-  §5.7): `{ id, command, application, user }` with the interaction id, the command's name, the application reference
-  and the invoker's address. Clients show "\<user> used /\<command>" above the message. The field is absent on every
-  other message.
+  §5.7): `{ id, kind, command, message_id, application, user }` with the interaction id, its `kind` (`command`,
+  `component` or `modal`, `APPLICATIONS.md` §5.10), the command's name (null for components and for modals opened by a
+  component), the message whose component started it (`message_id`, null for commands), the application reference
+  and the invoker's address. Clients show "\<user> used /\<command>" above the message (for components "\<user> used
+  \<application>" with a link to `message_id`). The field is absent on every other message.
 - `device_id` is the sending (or last editing) device, null for system and webhook messages; `epoch` is set for
   encrypted messages only. For
   encrypted content the node checks `ENCRYPTION.md` §5.3 (`message.ciphertext_invalid`,
@@ -1130,14 +1135,21 @@ Content object (after decryption or in plaintext):
 `{ title?, description?, url?, color?, fields?, footer?, timestamp? }` with `title` ≤ 256, `description` ≤ 4096
 (Markdown subset), `url` `https://` without credentials (≤ 2048), `color` 0–16777215, at most 25 `fields`
 `{ name ≤ 256, value ≤ 1024, inline? }`, `footer` ≤ 2048, `timestamp` RFC 3339, at most 6000 characters over all
-text fields, at least a title, description, field or footer per embed; `body` may then be empty. The node checks
+text fields, at least a title, description, field or footer per embed; `body` may then be empty.
+
+`text` content may carry `components` (`APPLICATIONS.md` §5.10.1): at most 5 rows of 1–5 buttons or one select menu,
+at most 8 KiB, unknown keys refused, `body` may then be empty. They are meaningful only on messages of bots: the node
+refuses them in plaintext from users and webhooks (`400 message.components_invalid` with `meta.path`), and clients
+render them only when `author_kind = "bot"` (encrypted content, which the node cannot check, included). The node checks
 plaintext content (`400 message.embeds_invalid`), clients check encrypted content before encrypting and drop invalid
 embeds after decrypting. Embeds never contain images; clients render them through the message Markdown sanitizer
 and show links with their full host. Unknown embed fields are ignored.
 
 Reserved `type` values: `text`, `action`, `system.join`, `system.leave`, `system.key_changed`, `system.bot_added`, `system.bot_removed`, `system.pin`, `system.encryption_changed`, `system.history_restored`, `system.history_restore_denied`,
 `command.args` (encrypted command arguments, `APPLICATIONS.md` §5.8: `{ type, command, nonce, issued_at, args }`,
-only ever inside `args_ciphertext` of an invocation, never as a message), `poll` (§7g), `poll.vote` (only inside a
+only ever inside `args_ciphertext` of an invocation, never as a message), `component.values` and `modal.values`
+(encrypted component values and modal input, `APPLICATIONS.md` §5.10.2 and §5.10.4, only inside `values_ciphertext`,
+never as a message), `poll` (§7g), `poll.vote` (only inside a
 vote record of §7g, never as a message). Unknown types are shown by clients as "Your client cannot display this message". `action`
 (`{ "type": "action", "body": "waves" }`, `/me`) follows the rules of `text` and is rendered in italics after the
 author's name.
