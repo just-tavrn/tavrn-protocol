@@ -89,14 +89,15 @@ report here).
 | `federation.json` | `FEDERATION.md` §10: JSON canonicalization (JCS), plaintext signatures, safety numbers, payloads that must be refused | object per section; binary values base64url without padding |
 | `polls.json` | `PROTOCOL.md` §7g: the hash of a poll (JCS without `ctx`), an encrypted vote record and a plaintext signed vote of a date poll | object per section; binary values base64url without padding |
 | `components.json` | `APPLICATIONS.md` §5.10: validation of components and modals (valid cases and the error code and `meta.path` of invalid ones), an encrypted `component.values` and `modal.values` content object | `validation`: list of `{ name, input, expected }`; other sections objects, binary values base64url without padding |
+| `upload_categories.json` | `PROTOCOL.md` §7a: the upload category and the executable flag of a file from its name, its declared type and its first bytes | `cases`: list of `{ name, file_name, mime, head_hex, category, executable }`; `head_hex` is the hex of the first bytes or null (classified without content) |
 | `federation_node.json` | `FEDERATION.md` §1.1/§1.4 and §2.3/§7.3: discovery documents (one valid, invalid ones with the reason) and node and listing tokens (a fixed signing key, the exact token bytes, the body hash) | object per section; binary values base64url without padding |
 
 The reference implementations use them as follows: the node evaluates `permissions.json` and `no_bots.json`
 in its unit tests; the crypto core checks `encryption.json` and `federation.json` in Rust and through its
 WebAssembly build; `@tavrn/sdk` runs `permissions.json`, `no_bots.json` and the JCS cases of
-`federation.json` and the validation cases of `components.json`; `@tavrn/e2ee` runs the identity, webhook inbox, files channel, local storage key, signed context, device share key,
+`federation.json`, the validation cases of `components.json` and `upload_categories.json`; `@tavrn/e2ee` runs the identity, webhook inbox, files channel, local storage key, signed context, device share key,
 history share (both formats) and sealed unlock cases of `encryption.json` and the poll votes of `polls.json` and the encrypted values of `components.json`; the node checks the device login
-proof, runs the validation cases of `components.json` and runs `federation_node.json`. A
+proof, runs the validation cases of `components.json`, `upload_categories.json` and `federation_node.json`. A
 new implementation should do the same: load the file, run every case, and compare exactly.
 
 ### Using this repository from code
