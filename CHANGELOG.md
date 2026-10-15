@@ -23,6 +23,16 @@ Changes of the protocol that implementations must follow, newest first. Versions
   the executable flag of a file from its name, its declared type and its first bytes, with the order of the magic-byte
   checks spelled out. Clients that declare the category of encrypted uploads run them; the node classifies plaintext
   uploads by the same cases.
+- **Files channels for bots** (`FILES.md` §3, `APPLICATIONS.md` §2.4, §2.5, §2.7, fixes #44). The files routes are
+  in the app route table: listings, entries, downloads, thumbnails, `GET records`, `GET mine` and `GET usage` under
+  `messages:read`; folders, uploads, rename/move/delete and `PUT …/thumbnail` under `messages:write` (the channel's
+  `attach_files`, upload categories and the executable rule apply as for users); others' entries need `manage_files`
+  (`rooms:manage`). The storage backend routes (`GET`/`PUT …/files/backend`, `POST …/files/backend/test`) stay
+  closed (`403 app.bot_forbidden`), and `GET usage` answers bots with `can_configure: false` and no backend host or
+  prefix. Events `files.update` and `files.backend` reach bots with `messages:read`. "No bots" zones and
+  `bots_allowed` apply unchanged; in encrypted channels the bot encrypts records and chunks itself (§8). Compatible:
+  a bot without the scopes sees no change.
+
 - **Reaction events name the change and the reactor; reactors route** (`PROTOCOL.md` §6, §7 "Reactions",
   `APPLICATIONS.md` §2.6, fixes #43). A `message.update` caused by a reaction change carries `reaction: { emoji, user,
   user_id, added }` and is sent only when the reactions changed; its audience is unchanged (the conversation audience,

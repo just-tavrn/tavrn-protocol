@@ -74,7 +74,30 @@ Encrypted channels change some routes (§8.5). Error codes besides the above: `f
 encrypted channels `files.record_invalid`, `files.id_invalid`, `files.id_taken`, `files.encrypted`,
 `files.search_unavailable`, `files.no_thumbnail`, `files.thumbnail_too_large`, `files.not_encrypted`.
 
-Bots have no access (the routes are not in `APP_ROUTES`, APPLICATIONS.md §2.5).
+**Bots** (app tokens, `APPLICATIONS.md` §2.4–§2.5) use files channels like members, within their scopes:
+
+| Routes | Scope |
+|---|---|
+| `GET` (listing and search), `GET {id}`, `GET {id}/download`, `GET {id}/thumbnail`, `GET records`, `GET mine`, `GET usage` | `messages:read` |
+| `POST folders`, `POST upload`, `PATCH {id}`, `DELETE {id}`, `PUT {id}/thumbnail` | `messages:write` |
+| `GET backend`, `PUT backend`, `POST backend/test` | none: closed to bots (`403 app.bot_forbidden`) |
+
+- The rights of the route table above (`view_channel`, `attach_files`, `manage_files`) apply unchanged to the bot's
+  capped permissions (`APPLICATIONS.md` §2.4):
+  `messages:write` unlocks `attach_files` (own entries), `rooms:manage` unlocks `manage_files` (everybody's entries);
+  a bot without `manage_files` cannot rename, move or delete others' entries or a folder that holds one
+  (`403 files.manage_forbidden`). Upload categories and the executable rule apply to the bot as to any member.
+- The store credentials stay out of reach: the backend routes are never in the route table, and `GET usage` answers
+  bots with `can_configure: false` and `backend_host`/`backend_prefix` `null`, whatever their scopes.
+- "No bots" zones (`APPLICATIONS.md` §3.5) apply unchanged: in a channel whose effective `no_bots` flag is set
+  (explicit flags, or an encrypted files channel without `bots_allowed` in a `per_channel` room) the bot holds no
+  permission, every route answers `403 channel.view_forbidden` as for a channel it cannot view, and it receives no
+  events of the channel.
+- Encrypted channels (§8): the bot is a member of the channel's MLS group like any device (it joins as for text
+  channels, `APPLICATIONS.md` §3.3) and encrypts the records and chunks itself; the node sees no more than for users.
+- Rate limits: the bot limits of `APPLICATIONS.md` §2.7 come on top of the per-user limits of files routes (listings,
+  uploads) and the upload size of the bot account (`upload.max_bytes`, §4).
+- Events: `files.update` and `files.backend` reach bots with `messages:read` (and the right to view the channel).
 
 Realtime: `files.update { room_id, channel_id, parent_id }` to the room members who can view the channel after every change of a folder's
 content (create, upload, rename, move: old and new parent, delete); `files.backend { room_id, channel_id,
