@@ -280,6 +280,12 @@ recovery key or removes a passkey because it may have leaked, and offer the rese
 
 ## 3. Devices
 
+**Limits of a keys document.** Clients refuse a keys document with more than 100 devices, 1000 retired entries or
+100 continuity statements. A home node therefore keeps at most 100 devices per account (a login that would create
+the 101st answers `403 auth.device_limit` with `meta.max_devices`; the user removes a device first), lists at most
+the newest 100 attested devices and 1000 retired entries, and refuses a rotation beyond 100 continuity statements
+(`409 e2ee.rotation_limit`; an identity reset starts a new chain).
+
 **Bot devices** (`APPLICATIONS.md` §3): every app token is bound to exactly one bot device (`dev`); the bot process
 attests that device with the bot's identity key and keeps its KeyPackages uploaded like any device. Bots have
 no secret storage and no recovery key; their master secret lives in a key file of the bot process (§2.2 format).

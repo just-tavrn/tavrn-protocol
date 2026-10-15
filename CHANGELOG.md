@@ -33,6 +33,8 @@ Changes of the protocol that implementations must follow, newest first. Versions
   the node allows is refused with `403 automod.blocked`.
 - **Moderation bots never see reports about their owner** or the owner's other bots (`MODERATION.md` §1.4a).
 - **One node holds at most 500 entries of a bot's install index** (`APPLICATIONS.md` §4.5).
+- **A keys document stays within the clients' limits** (`ENCRYPTION.md` §3): at most 100 devices per account (`403
+  auth.device_limit` at a login beyond it), 1000 retired entries and 100 continuity statements (`409 e2ee.rotation_limit`).
 - **The DM list and the message requests can be paged** (`PROTOCOL.md` §8a). `GET /conversations` and `GET
   /conversations/requests` accept `limit` (1–200) and `before` (the sort key of the last item: `last_message_id`, else
   the id, for the DM list; the conversation id for the requests). Without `limit` both return the whole list as
