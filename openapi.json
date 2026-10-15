@@ -9156,6 +9156,138 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/interactions": {
+      "post": {
+        "tags": [],
+        "summary": "Use a button or select menu of an application's message (APPLICATIONS.md §5.10.2; `use_components`); waits at\nmost 3 seconds for the application's first response, which may open a modal.",
+        "operationId": "invoke_component",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComponentInvokeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvokeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/messages/{message_id}/poll/vote": {
       "put": {
         "tags": [
@@ -11356,7 +11488,7 @@
     "/api/v1/interactions/{interaction_id}/callback": {
       "post": {
         "tags": [],
-        "summary": "The application's first response to an interaction (app token with the `commands` scope): `reply`,\n`defer` or `error`. Only the first response counts; after 3 seconds it is `410 interaction.expired`.",
+        "summary": "The application's first response to an interaction (app token with the `commands` scope): `reply`, `defer`,\n`error`, `update` (component interactions) or `modal`. Only the first response counts; after 3 seconds it is\n`410 interaction.expired`.",
         "operationId": "callback",
         "parameters": [
           {
@@ -11534,6 +11666,130 @@
             }
           },
           "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/interactions/{interaction_id}/submit": {
+      "post": {
+        "tags": [],
+        "summary": "Submit the modal an application answered an interaction with (APPLICATIONS.md §5.10.4; the invoker only, once);\nwaits at most 3 seconds for the application's first response.",
+        "operationId": "submit_interaction",
+        "parameters": [
+          {
+            "name": "interaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModalSubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvokeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "504": {
             "description": "",
             "content": {
               "application/json": {
@@ -26757,7 +27013,7 @@
         ],
         "properties": {
           "content": {
-            "description": "`reply`: a content object, or ciphertext in encrypted conversations."
+            "description": "`reply` and `update`: a content object, or ciphertext in encrypted conversations."
           },
           "device_id": {
             "type": [
@@ -26790,6 +27046,13 @@
             ],
             "description": "`error`: at most 200 characters, shown to the invoker only."
           },
+          "modal": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "`modal`: the form (APPLICATIONS.md §5.10.3)."
+          },
           "thread_id": {
             "type": [
               "string",
@@ -26799,7 +27062,7 @@
           },
           "type": {
             "type": "string",
-            "description": "`reply`, `defer` or `error`."
+            "description": "`reply`, `defer`, `error`, `update` (component interactions) or `modal`."
           }
         }
       },
@@ -27328,6 +27591,50 @@
             "description": "Welcome for added devices, base64url; required when the commit adds devices."
           }
         }
+      },
+      "ComponentInvokeRequest": {
+        "type": "object",
+        "description": "`POST /conversations/{conversation_id}/messages/{message_id}/interactions` (APPLICATIONS.md §5.10.2).",
+        "required": [
+          "custom_id"
+        ],
+        "properties": {
+          "custom_id": {
+            "type": "string",
+            "description": "The button or select (1–100 characters)."
+          },
+          "epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The epoch of `values_ciphertext`."
+          },
+          "thread_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Must be null: the thread is the message's."
+          },
+          "values": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {},
+            "description": "Unencrypted conversations: null for buttons, the selected option values for selects."
+          },
+          "values_ciphertext": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted conversations: the `component.values` content object encrypted like a message (base64url)."
+          }
+        },
+        "additionalProperties": false
       },
       "ConformanceRoom": {
         "type": "object",
@@ -29602,6 +29909,13 @@
           "interaction_id": {
             "type": "string"
           },
+          "message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The message whose component started the interaction (APPLICATIONS.md §5.10.3); null for commands."
+          },
           "thread_id": {
             "type": [
               "string",
@@ -31264,10 +31578,9 @@
       },
       "InteractionRef": {
         "type": "object",
-        "description": "The node-set envelope field of a command answer (APPLICATIONS.md §5.7).",
+        "description": "The node-set envelope field of an application's answer to an interaction (APPLICATIONS.md §5.7, §5.10.3).",
         "required": [
           "id",
-          "command",
           "application",
           "user"
         ],
@@ -31277,12 +31590,26 @@
             "description": "The application reference `<domain>/<id>`."
           },
           "command": {
-            "type": "string",
-            "description": "The command's name."
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The command's name; null for components and for modals opened by a component."
           },
           "id": {
             "type": "string",
             "description": "The interaction id."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`command`, `component` or `modal` (APPLICATIONS.md §5.10)."
+          },
+          "message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The message whose component started the interaction; null for commands."
           },
           "user": {
             "type": "string",
@@ -31442,13 +31769,21 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/Message"
+                "$ref": "#/components/schemas/Message",
+                "description": "The stored reply (`reply`) or the updated message (`update`)."
               }
             ]
           },
+          "modal": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "`modal`: the form to show on the invoking device (APPLICATIONS.md §5.10.3); returned only here."
+          },
           "outcome": {
             "type": "string",
-            "description": "`reply`, `defer` or `error`."
+            "description": "`reply`, `defer`, `error`, `update` or `modal`."
           }
         }
       },
@@ -32033,6 +32368,34 @@
             ]
           }
         }
+      },
+      "ModalSubmitRequest": {
+        "type": "object",
+        "description": "`POST /interactions/{interaction_id}/submit` (APPLICATIONS.md §5.10.4).",
+        "properties": {
+          "epoch": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "values": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Unencrypted conversations: input `custom_id` → text."
+          },
+          "values_ciphertext": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encrypted conversations: the `modal.values` content object encrypted like a message (base64url)."
+          }
+        },
+        "additionalProperties": false
       },
       "Mode": {
         "type": "string",
