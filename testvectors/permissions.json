@@ -217,7 +217,7 @@
       "member_roles": [], "category_overrides": [], "timed_out": false, "system_channel": true,
       "channel_overrides": []
     },
-    "expected": "4611686568015429525"
+    "expected": "4611687667527057301"
   },
   {
     "name": "System channel: a role allowed to send, attach and pin still cannot",
