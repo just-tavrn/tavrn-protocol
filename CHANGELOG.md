@@ -26,6 +26,27 @@ Changes of the protocol that implementations must follow, newest first. Versions
   files. `GET …/files/usage` gains `internal_allowed` (the room's effective value), `GET …/files/backend` reports the
   same value in `internal_allowed`, and `backend: "none"`, `403 files.internal_disabled` follow it; `files_internal`
   in `GET /node` and the discovery document stays the node default.
+- **Message components** (`APPLICATIONS.md` §5.10, capability `components.v1`, fixes #27). `text` content carries
+  optional `components`: at most 5 rows of 1–5 buttons (`primary`, `secondary`, `success`, `danger`, `link`) or one
+  select menu (1–25 options, `min`/`max`), 8 KiB, unknown keys refused (`400 message.components_invalid` with
+  `meta.path`); only bots' messages carry them (the node refuses them in plaintext from users and webhooks, clients
+  render them only on bot messages). Clicking or selecting:
+  `POST /conversations/{id}/messages/{message_id}/interactions { custom_id, values | values_ciphertext + epoch }`
+  (permission `use_components`; `403 component.forbidden`, `404 component.not_found` when the author is not the bot of
+  an installed application, `410 component.expired` after `TAVRN_COMPONENT_MAX_AGE_DAYS`, `400
+  component.values_invalid`) creates an interaction of `kind` `component`, delivered as `component.invoke`. New
+  responses for every interaction: `update` (edits the message carrying the component; `400
+  interaction.update_unsupported`, `403 interaction.update_forbidden`) and `modal` (a form shown on the invoking
+  device; `400 interaction.modal_invalid`, `400 interaction.modal_nested`), with `outcome` `update`/`modal` and the
+  new field `modal` in the invocation response. Modal submits: `POST /interactions/{id}/submit` (`403
+  interaction.not_invoker`, `409 interaction.already_submitted`, `400 interaction.values_invalid`) create an
+  interaction of `kind` `modal`, delivered as `modal.submit`. Encrypted conversations carry the values as the content
+  objects `component.values` and `modal.values` (signed by the invoking device, checked by the bot like
+  `command.args`). `EphemeralReply` and `interaction.reply` gain `message_id`; the envelope field `interaction` gains
+  `kind` and `message_id` (`command` is null for components). New test vectors `testvectors/components.json`.
+- **Permission `use_components`** (`permissions.md` bit 40): channel-scoped, default of `@everyone`, independent of
+  `send_messages`, covered by no app-token scope, granted once to every role holding `send_messages` (marker
+  `fixup.use_components`). `CHANNEL_SCOPED` is now `2027195138559`.
 - **Polls and date polls** (`PROTOCOL.md` §7g, `ENCRYPTION.md` §5.2, capability `polls.v1`, fixes #35). The
   content type `poll` (`kind` `choice` with 2–20 options and `max_choices`, or `date` with 1–60 time slots answered
   `yes`/`maybe`/`no`; `results_visible`, `votes_visible`, both cooperative) is encrypted like any content; the node

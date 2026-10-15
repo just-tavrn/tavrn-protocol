@@ -6,7 +6,7 @@
       "member_roles": [], "category_overrides": [], "timed_out": false,
       "channel_overrides": [{ "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 1 }]
     },
-    "expected": "4611687117939015679"
+    "expected": "4611688217450643455"
   },
   {
     "name": "The administrator role beats all overrides",
@@ -15,7 +15,7 @@
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }],
       "channel_overrides": [], "timed_out": false
     },
-    "expected": "4611687117939015679"
+    "expected": "4611688217450643455"
   },
   {
     "name": "Only @everyone, no overrides",
@@ -155,7 +155,7 @@
     "expected": "0"
   },
   {
-    "name": "Bot without a scope list (all scopes) keeps everything except administrator and restore_history (voice_status and create_polls included)",
+    "name": "Bot without a scope list (all scopes) keeps everything except administrator, restore_history and use_components (voice_status and create_polls included)",
     "input": {
       "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1,
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
@@ -533,5 +533,52 @@
       "kind": "bot", "no_bots": false, "scopes": ["messages:read"]
     },
     "expected": "1"
+  },
+  {
+    "name": "use_components (bit 40) is channel-scoped: a channel override grants it alone",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 3,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 1099511627776, "deny": 0 }]
+    },
+    "expected": "1099511627779"
+  },
+  {
+    "name": "use_components (bit 40) does not need send_messages: a channel denying send_messages keeps it",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1099511627779,
+      "member_roles": [], "timed_out": false,
+      "category_overrides": [],
+      "channel_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 2 }]
+    },
+    "expected": "1099511627777"
+  },
+  {
+    "name": "use_components (bit 40) on @everyone, denied by a category override for one role the member holds",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1099511627779,
+      "member_roles": [["r1", 0]], "timed_out": false,
+      "category_overrides": [{ "subject_type": "role", "subject_id": "r1", "allow": 0, "deny": 1099511627776 }],
+      "channel_overrides": []
+    },
+    "expected": "3"
+  },
+  {
+    "name": "Timeout removes use_components (bit 40)",
+    "input": {
+      "user_id": "u1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1099511627779,
+      "member_roles": [], "category_overrides": [], "channel_overrides": [], "timed_out": true
+    },
+    "expected": "1"
+  },
+  {
+    "name": "Bot: no scope covers use_components (bit 40)",
+    "input": {
+      "user_id": "b1", "is_owner": false, "everyone_role_id": "r0", "everyone_permissions": 1099511627779,
+      "member_roles": [], "timed_out": false, "category_overrides": [], "channel_overrides": [],
+      "kind": "bot", "no_bots": false
+    },
+    "expected": "3"
   }
 ]

@@ -1,4 +1,4 @@
-# tavrn applications, bots, commands, webhooks and SSO (`apps.v1`, `commands.v1`, `webhooks.v1`, `sso.oidc`, draft v1)
+# tavrn applications, bots, commands, webhooks and SSO (`apps.v1`, `commands.v1`, `components.v1`, `webhooks.v1`, `sso.oidc`, draft v1)
 
 This document specifies applications and their bot accounts, slash commands, webhooks and event subscriptions, rich
 presence and single sign-on with OpenID Connect.
@@ -273,7 +273,7 @@ ALWAYS    = view_channel | change_nickname
 | `rooms:manage` | `manage_room`, `manage_channels`, `manage_roles`, `create_invites`, `manage_emojis`, `manage_files`, `manage_applications` | room, category, channel, role, override, emoji, soundboard and invite management (installing applications and the room's command settings stay closed to app tokens, §4.2) |
 | `voice` | `connect`, `speak`, `stream`, `use_camera`, `use_soundboard`, `use_external_sounds`, `priority_speaker` | `voice/join`, voice state, soundboard; event `voice.state`, `voice.move` |
 | `whiteboard` | `use_whiteboard`, `manage_whiteboard` | `ephemeral` types `whiteboard.*`; event `whiteboard.session` |
-| `commands` | – | `PUT /applications/me/commands`, interaction callbacks and follow-ups; event `command.invoke` |
+| `commands` | – | `PUT /applications/me/commands`, interaction callbacks and follow-ups; events `command.invoke`, `component.invoke`, `modal.submit` (§5.10) |
 | `webhooks:manage` | `manage_webhooks` (new bit, §10.2) | webhook routes of §6.1 |
 | `presence` | – | `PUT /users/me/presence`, `PUT/DELETE /users/me/activity` for the bot; the local activity bridge of §7.3 |
 | `dms` | – | `POST /conversations { kind: "dm" }` (reading/writing DMs still needs `messages:*`) |
@@ -323,7 +323,7 @@ does not cover is dropped, never truncated. A revoked, reset or expired token cl
 | New DMs | 10 per 10 minutes | bot |
 | Command announcement (`PUT …/commands`) | 10 per hour | application |
 | Token create/reset | 10 per hour | application |
-| Interactions | 5 per 5 s | invoking user |
+| Interactions (commands, components and modal submits, §5.5, §5.10) | 5 per 5 s | invoking user |
 | Webhook execution | 5 per 2 s and 30 per minute | webhook |
 
 Bot limits are separate from and stricter than user limits; exceeding one answers `429` with `Retry-After` and
@@ -720,7 +720,12 @@ the URL response body). Only the first response counts (`409 interaction.already
   "device_id": "01J…", "ephemeral": false, "mentions": [], "thread_id": null }
 { "type": "defer", "ephemeral": false }
 { "type": "error", "message": "City not found" }
+{ "type": "update", "content": … , "epoch": 43, "device_id": "01J…", "mentions": [] }
+{ "type": "modal", "modal": { "custom_id": "…", "title": "…", "inputs": [ … ] } }
 ```
+
+`update` (edit the message that carries a component) and `modal` (open a form on the invoking device) are described
+in §5.10.3; the invocation response then has the `outcome` `update` or `modal`.
 
 - **reply, not ephemeral**: the node stores a normal message authored by the bot (`device_id` = the token's device;
   in URL responses the body names it and the node checks that it is an attested device of the bot) with the new
@@ -732,7 +737,8 @@ the URL response body). Only the first response counts (`409 interaction.already
   An archived thread reopens.
 - **reply, ephemeral**: not stored; returned to the invoker in the invocation response and as WS
   `interaction.reply` to the invoker's other connections on this node: `EphemeralReply = { interaction_id,
-  conversation_id, thread_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`. Clients show it
+  conversation_id, thread_id, message_id, application: { ref, name, bot }, device_id, content, epoch, created_at }`
+  (`message_id`: the message whose component started the interaction, §5.10.3; null for commands). Clients show it
   marked "only you can see this" and drop it on reload.
 - **defer**: clients show "WeatherBot is thinking…" until a follow-up arrives or the interaction expires.
 - **error**: a short plaintext notice (≤ 200 characters) shown to the invoker only; bots SHOULD keep it generic in
@@ -775,7 +781,290 @@ invocation, thread or user.
 `interaction.expired` (410), `interaction.already_acked` (409), `interaction.followup_limit` (409),
 `interaction.encryption_mismatch` (400), `interaction.ciphertext_invalid` (400), `interaction.epoch_unknown` (400),
 `interaction.not_owner` (403: another application's interaction), `interaction.owner_unavailable` (503, several
-instances: the instance holding the interaction does not answer; see the scaling guide of `tavrn-node`).
+instances: the instance holding the interaction does not answer; see the scaling guide of `tavrn-node`); components
+and modals §5.10.6.
+
+### 5.10 Message components (`components.v1`)
+
+Applications put interactive controls into their messages: **buttons** and **select menus** in the message, and
+**modals** (small forms) that open on the invoker's device. Clicking, selecting and submitting create interactions on
+the machinery of §5.5–§5.8 (one cache, the same delivery, the same responses, the same encryption of what the user
+sends); components are a second kind of interaction, not a new subsystem.
+
+Two rules shape everything below. (1) Security is unchanged: in an encrypted conversation the application's bot is
+an MLS member like any other (§3), the node never reads encrypted values, and nothing routes an interaction to an
+application other than the author of the message that carries the component. (2) The client stays in control of the
+rendering: components are data, never markup. There is no HTML, no CSS, no colour of the application's choosing, no
+remote image; the client draws them from its own fixed palette within hard size limits, so nothing an application
+sends can deform the client.
+
+#### 5.10.1 Content
+
+The `text` content object (and only `text`, `PROTOCOL.md` §7) gains an optional `components` array: at most **5
+rows**; a row holds **1–5 buttons** or **exactly one select menu**. `body` may be empty when `components` (or
+`embeds`) is present.
+
+```json
+{ "type": "text", "body": "Raid on Friday 20:00",
+  "components": [
+    { "type": "row", "components": [
+      { "type": "button", "style": "success", "label": "Sign up", "emoji": "✅", "custom_id": "raid:signup" },
+      { "type": "button", "style": "danger", "label": "Decline", "custom_id": "raid:decline" },
+      { "type": "button", "style": "link", "label": "Guide", "url": "https://guide.example/raid" } ] },
+    { "type": "row", "components": [
+      { "type": "select", "custom_id": "raid:class", "placeholder": "Your class",
+        "options": [ { "label": "Tank", "value": "tank", "emoji": "🛡️" },
+                     { "label": "Healer", "value": "healer", "description": "Keeps everyone alive" },
+                     { "label": "Damage", "value": "dps" } ],
+        "min": 1, "max": 1 } ] } ] }
+```
+
+| Object | Field | Rule |
+|---|---|---|
+| row | `type` | `"row"` |
+| | `components` | 1–5 buttons, or exactly one select (never both) |
+| button | `type` | `"button"` |
+| | `style` | `primary`, `secondary`, `success`, `danger` or `link` |
+| | `label` | string of 0–80 characters; empty only when `emoji` is set |
+| | `emoji` | optional: one Unicode emoji (1–16 characters without whitespace, control characters, `:`, `<` or `>`) or a `:shortcode:` of the room's custom emojis (`:name:` with a name of 2–30 characters of `a-z0-9_`, at most 32 characters in total) |
+| | `custom_id` | 1–100 characters; required unless `style` is `link`, forbidden for `link` |
+| | `url` | `link` only, and required there: an `https://` URL with a host and without credentials, at most 2048 characters |
+| | `disabled` | optional boolean (default `false`) |
+| select | `type` | `"select"` |
+| | `custom_id` | 1–100 characters |
+| | `placeholder` | optional, at most 150 characters |
+| | `options` | 1–25 objects `{ label (1–100), value (1–100, unique within the select), description? (≤ 100), emoji? (as for buttons), default? (boolean) }` |
+| | `min` | optional integer 0–25 (default 1), at most the number of options |
+| | `max` | optional integer 1–25 (default 1), at least `min`, at most the number of options |
+| | `disabled` | optional boolean (default `false`) |
+
+Further rules: `custom_id` values are unique within a message (buttons and selects together); the serialized
+`components` array is at most **8 KiB** (UTF-8 JSON); characters are Unicode scalar values; control characters
+are not allowed in any string; **unknown keys are invalid** (an unknown key, a wrong type, a value out of range or a
+duplicate are all `400 message.components_invalid`). The error's `meta.path` names the first offending field in
+document order, as a JSON path below the content object: `components`, `components[1]`, `components[0].components[2]`,
+`components[0].components[2].label`, `components[1].components[0].options[3].value`. `custom_id` is opaque to the
+node and to clients: applications encode their own state in it (a ticket number, a page) and MUST treat it as
+untrusted input when it comes back, because a user's client sends it.
+
+**Who may send components.** Components mean something only on messages authored by an application's bot device:
+
+- In unencrypted conversations the node checks `components` on every create and edit like `embeds` and refuses them
+  from users and from webhooks (`400 message.components_invalid`, `meta.path` = `"components"`), so a person cannot
+  plant buttons that look like an application's.
+- In encrypted conversations the node cannot see the content. Clients therefore check components after decrypting:
+  they render `components` only on messages whose author is a bot (`author_kind = "bot"`) and ignore them (render the
+  rest of the message) on every other message; invalid components are dropped as a whole, the message stays. Bots
+  validate before encrypting. A member of an encrypted conversation could send a ciphertext with components in it;
+  it is never shown as clickable, and an interaction on it is refused by the node (§5.10.2 check 2), because the node
+  knows the author of every message.
+- Edits may change components through the normal edit route (`PATCH …/messages/{id}`, the same checks); the `update`
+  response of §5.10.3 is the shortcut for the message that carried the interaction. An application that removes or
+  disables a component this way ends its use: the node checks the current content in plaintext conversations.
+
+**Rendering (normative for clients that announce `components.v1`).** Clients draw components below the message body
+and its embeds, inside the message's own box, and never let them overflow it: rows wrap their buttons onto further
+lines on narrow screens (a phone shows one button per line when the labels do not fit), labels, placeholders and
+option texts are truncated with an ellipsis (the full text in the accessible name and a tooltip), select menus take
+the row's width up to the message width. Styles map to the client's own palette (`primary` the accent colour,
+`secondary` neutral, `success` and `danger` the status colours, `link` neutral with an external-link icon); the
+application cannot choose colours, sizes, fonts or icons. Every component is a native control or has the matching
+role (`button`; a select is a listbox or combobox with `aria-multiselectable` when `max > 1`), is reachable and
+operable with the keyboard in reading order, has a visible focus ring, a target size of at least 24×24 CSS pixels,
+text contrast of 4.5:1 and a state that is not shown by colour alone (disabled, selected, pending). While an
+interaction is in flight the control shows a pending state and ignores further activations; an error (§5.10.2,
+`error` responses) is announced politely next to the message. Link buttons open their URL with the client's usual
+treatment of external links (the full host shown, a warning before leaving) and never reach the node; nothing else
+in a component can navigate the client. Components of a message the user cannot use (missing `use_components`, a
+deleted application, an expired message) are shown disabled with a short reason.
+
+#### 5.10.2 Invocation
+
+`POST /conversations/{conversation_id}/messages/{message_id}/interactions` (user session; bots and app tokens
+`403 app.bot_forbidden`, bots never click):
+
+```json
+{ "custom_id": "raid:class", "values": ["healer"], "values_ciphertext": null, "epoch": null }
+```
+
+`values` is null for buttons and the selected option values (in the order the user selected them) for selects. The
+thread is taken from the message (its `thread_id`); a `thread_id` in the body is ignored and must be null. The node
+checks, in this order:
+
+1. The caller may view the conversation (`404` as for every route of the conversation), is a member of the room or a
+   member of the DM, has no pending message request there (`403 conversation.request_pending`), and holds
+   `use_components` in the channel (`permissions.md` bit 40; `403 component.forbidden`). DMs grant it to both
+   members.
+2. The message exists in this conversation and is not deleted, and its author is the bot of an application that is
+   still installed in the room (a DM: the conversation is a DM with that bot), not disabled or blocked, and able to
+   view the channel; otherwise `404 component.not_found` (also for a message of a person or a webhook, and after the
+   application was removed). A message older than `TAVRN_COMPONENT_MAX_AGE_DAYS` (default 30; 0 = no limit) answers
+   `410 component.expired`.
+3. The values. In unencrypted conversations `custom_id` must name a button or select of the message's current
+   content that is not disabled (link buttons have none), and `values` must fit it: null for a button; for a select
+   an array of `min`–`max` distinct option values (`400 component.values_invalid`, `meta.path` = `"custom_id"`,
+   `"values"` or `"values[1]"`); `values_ciphertext` and `epoch` must be null (`400
+   interaction.encryption_mismatch`). In encrypted conversations the node only checks that `custom_id` has 1–100
+   characters (`400 component.values_invalid`); `values` must be null and `values_ciphertext` + `epoch` carry the
+   encrypted values (below), checked like command arguments (`ENCRYPTION.md` §5.3: `400
+   interaction.ciphertext_invalid`, `400 interaction.epoch_unknown`, `409 mls.epoch_stale`; the wrong form `400
+   interaction.encryption_mismatch`). For a button the client still sends a ciphertext (with `values: null`), so the
+   bot can verify who clicked and when.
+4. Rate limit: component interactions count against the invoker's interaction limit (§2.7, 5 per 5 s).
+
+The node creates an interaction `{ id, kind: "component", message_id, custom_id, conversation_id, thread_id (the
+message's), user_id, created_at, expires_at = +15 min }` in the same cache as command interactions (§5.5, sealed in
+the shared cache of a node with several instances), delivers it like a command (§5.6: WS event `component.invoke` to
+exactly one connection of the bot whose token has the `commands` scope, round robin over its devices; or the
+interactions URL with `"type": "component.invoke"`) and waits at most 3 seconds for the first response. `data`:
+
+```json
+{ "interaction_id": "01J…", "application_id": "01J…", "message_id": "01J…", "custom_id": "raid:class",
+  "values": ["healer"], "values_ciphertext": null, "epoch": null,
+  "conversation_id": "01J…", "room_id": "01J…", "channel_id": "01J…", "thread_id": null, "encrypted": false,
+  "user": "alice@node.example", "user_id": "01J…", "device_id": "01J…", "permissions": "123", "locale": "de",
+  "expires_at": "…" }
+```
+
+The invocation answers with the object of §5.5 plus `modal`:
+
+```json
+{ "interaction_id": "01J…", "outcome": "reply" | "defer" | "error" | "update" | "modal",
+  "message": Message | null, "ephemeral": EphemeralReply | null, "error": "…" | null, "modal": Modal | null }
+```
+
+or `503 interaction.app_offline`, `504 interaction.no_ack` as in §5.5. `message` is the stored reply (`reply`) or the
+updated message (`update`).
+
+**Encrypted values.** The invoker's client encrypts, under the current epoch of the conversation and exactly like a
+message (`ENCRYPTION.md` §5.2: author = the invoker, device = the invoking device), the content object
+
+```json
+{ "type": "component.values", "message_id": "01J…", "custom_id": "raid:class", "values": ["healer"],
+  "nonce": "<base64url 16 bytes>", "issued_at": "2026-10-15T18:00:00Z" }
+```
+
+and sends it as `values_ciphertext` with its `epoch`. The application decrypts it as an MLS member, verifies the
+content signature against the invoker's attested device (`device_id` of the data), and MUST reject values whose
+`message_id` or `custom_id` differ from the interaction's, whose `issued_at` is older than 5 minutes, or whose `nonce`
+it saw before (kept 15 minutes), as for `command.args` (§5.8). It also checks the values against the components of
+the message as it sent them (it knows its own message), since the node cannot. Test vector: `component_values` in
+`testvectors/components.json`.
+
+#### 5.10.3 Responses: `update` and `modal`
+
+`POST /interactions/{interaction_id}/callback` (§5.7) takes, for command and component interactions alike, the
+existing `reply` (stored or ephemeral), `defer` and `error`, and two new types:
+
+```json
+{ "type": "update", "content": { "type": "text", "body": "Raid: 4 signed up", "components": [ … ] } | "<ciphertext>",
+  "epoch": 43, "device_id": "01J…", "mentions": [] }
+{ "type": "modal", "modal": { "custom_id": "raid:note", "title": "A note for the raid lead",
+    "inputs": [ { "custom_id": "note", "label": "Note", "style": "paragraph", "placeholder": "Arriving late…",
+                  "max_length": 500, "required": false } ] } }
+```
+
+- **update** edits the message that carries the component (component interactions, and modal submits that came from
+  a component; `400 interaction.update_unsupported` for command interactions and modals opened by a command). The bot
+  must be the message's author (`403 interaction.update_forbidden`). The edit follows the normal message edit path
+  (the bot needs `send_messages`, the content rules of `PROTOCOL.md` §7 and `ENCRYPTION.md` §5.3 apply, `edited_at`
+  is set, members receive `message.update`), and the outcome is `update` with the edited message. In encrypted
+  conversations `content` is the ciphertext of the whole new content, signed context included (the message's
+  `thread_id` and `reply_to`, as for every edit). It counts as the first response; later changes use follow-ups or
+  the normal edit route. Typical uses: a counter on a sign-up button, disabling a button after use, replacing a
+  select with the result.
+- **modal** opens a form on the invoking device. It is valid as the first response of command and component
+  interactions (`400 interaction.modal_nested` as the response to a modal submit, `400 interaction.modal_invalid`
+  with `meta.path` for an invalid definition). The node keeps the definition with the interaction (until it expires;
+  never stored in the database), returns it only in the invocation response (`outcome: "modal"`, `modal`) and sends
+  it to nobody else, not even to the invoker's other devices. Clients show it as a dialog with the application's
+  name and the BOT badge, render the inputs from their own palette, and drop it when the interaction expires or the
+  user cancels (a cancel sends nothing).
+
+`Modal`:
+
+| Field | Rule |
+|---|---|
+| `custom_id` | 1–100 characters |
+| `title` | 1–45 characters |
+| `inputs` | 1–5 objects, see below; `custom_id` unique within the modal |
+| input `custom_id` | 1–100 characters |
+| input `label` | 1–45 characters |
+| input `style` | `short` (one line) or `paragraph` (several lines) |
+| input `placeholder` | optional, at most 100 characters |
+| input `min_length` | optional integer 0–4000 (default 0) |
+| input `max_length` | optional integer 1–4000 (default 4000), at least `min_length` |
+| input `required` | optional boolean (default `true`) |
+| input `value` | optional prefilled text, at most `max_length` characters |
+
+Unknown keys are invalid; `meta.path` names the first offending field below the modal (`custom_id`, `title`,
+`inputs[1].label`). Clients render modal inputs as labelled text fields (the label is the accessible name; a
+character counter where `max_length` applies), trap the focus inside the dialog, close it with Escape, and validate
+`required` and the lengths before sending.
+
+Follow-ups (`POST /interactions/{id}/messages`) work unchanged for component interactions. An ephemeral reply to a
+component interaction (or to a modal submit that came from one) carries the new optional field `message_id` in
+`EphemeralReply` and in the WS event `interaction.reply`, so clients render it under that message; it is null for
+command interactions. Stored replies carry the envelope field `interaction` (`PROTOCOL.md` §7) with `kind` =
+`component` (or `modal`), `command` = null and `message_id`; clients show "\<user> used \<application>" with a link to
+the message instead of "\<user> used /\<command>".
+
+#### 5.10.4 Modal submit
+
+`POST /interactions/{interaction_id}/submit` (the invoker's user session; anyone else `403 interaction.not_invoker`)
+with the interaction that answered with the modal:
+
+```json
+{ "values": { "note": "Arriving 20 minutes late" }, "values_ciphertext": null, "epoch": null }
+```
+
+Errors: `404 interaction.not_found` (unknown, or the interaction did not answer with a modal), `410
+interaction.expired` (after its `expires_at`), `409 interaction.already_submitted` (each modal is submitted at most
+once). The caller must still be able to use the origin (`use_components` for a component, `send_messages` for a
+command; the application still installed, as in §5.10.2 check 2 or §5.5 check 2). In unencrypted conversations
+`values` maps input `custom_id`s to strings and is checked against the definition the node kept (an unknown input,
+a missing required input, an empty required value, a value outside `min_length`–`max_length` or not a string: `400
+interaction.values_invalid` with `meta.path` = `"values"` or `"values.<input custom_id>"`; optional inputs may be
+absent or empty); `values_ciphertext` and `epoch` must be null. In encrypted conversations `values` must be null and
+the client sends, encrypted like §5.10.2,
+
+```json
+{ "type": "modal.values", "interaction": "<the modal's interaction id>", "custom_id": "raid:note",
+  "values": { "note": "Arriving 20 minutes late" }, "nonce": "<base64url 16 bytes>", "issued_at": "…" }
+```
+
+which the application verifies like `component.values` (`interaction` and `custom_id` equal the submit's
+`parent_interaction_id` and `modal_custom_id`, `issued_at` ≤ 5 minutes, nonce unseen) and checks against its own modal
+definition. Test vector: `modal_values` in `testvectors/components.json`. Submits count against the invoker's
+interaction rate limit.
+
+The node creates a **new** interaction `{ id, kind: "modal", parent: <the modal's interaction id>, modal_custom_id,
+message_id (the component's message; null for a modal opened by a command), … }` with its own 3-second deadline and
+15-minute lifetime, delivers it as WS event (or URL request) `modal.submit` with `data` = the fields of
+`component.invoke` plus `parent_interaction_id`, `modal_custom_id` and `command` (`{ id, name }` of the command that
+opened the modal, null for components), with `values` / `values_ciphertext` + `epoch` being the form's values, and
+answers the submit like an invocation. Allowed first responses: `reply`, `defer`, `error` and `update` (the latter
+only when `message_id` is set); a second `modal` is refused with `400 interaction.modal_nested`.
+
+#### 5.10.5 Limits and abuse
+
+- Only the application that authored a message receives its interactions; an interaction is never routed by
+  `custom_id`, and a message whose application was removed from the room answers `404 component.not_found`.
+- Bots cannot click, select or submit (`403 app.bot_forbidden`); people can do so only where they hold
+  `use_components`, which room managers can deny per channel like any channel-scoped bit.
+- Component interactions and modal submits count against the invoker's interaction limit (§2.7); the application's
+  responses against its own limits (message creation, edits).
+- Sizes: 5 rows, 5 buttons per row, 25 options, 8 KiB of components per message, a modal with 5 inputs of at most
+  4000 characters each; `values_ciphertext` at most 16 KiB like `args_ciphertext`.
+- The node logs component interactions like command interactions (application, `kind`, conversation, outcome,
+  latency), never `custom_id`, values or modal input.
+
+#### 5.10.6 Error codes
+
+`message.components_invalid` (400), `component.forbidden` (403), `component.not_found` (404), `component.expired`
+(410), `component.values_invalid` (400), `interaction.update_unsupported` (400), `interaction.update_forbidden` (403),
+`interaction.modal_invalid` (400), `interaction.modal_nested` (400), `interaction.not_invoker` (403),
+`interaction.already_submitted` (409), `interaction.values_invalid` (400).
 
 ## 6. Webhooks
 
@@ -1180,8 +1469,8 @@ the ID token failed a check), `sso.not_provisioned` (403), `sso.email_unverified
 | Least privilege | no `administrator` in add links; granted ≤ the installer's permissions; role creation needs `manage_roles`; private applications only by the owner |
 | Cascades | owner disabled → bots disabled; owner banned → bots banned; application blocked → removed from the node; transfer → fresh tokens and identity |
 | Outbound | application URLs and the OIDC provider through vetted clients without redirects; SSRF rules of `FEDERATION.md` §1.3 for application URLs |
-| Lifetimes | app token ≤ 365 days (rotation with 24 h overlap), interaction 15 min, hook token 5 min, SSO state 10 min, SSO one-time code 60 s, SSO session ≤ `TAVRN_OIDC_SESSION_DAYS` |
-| Sizes | public document 128 KiB, command set 64 KiB, webhook payload 32 KiB, callback/URL response 64 KiB, embeds 6000 characters |
+| Lifetimes | app token ≤ 365 days (rotation with 24 h overlap), interaction 15 min (a modal lives with its interaction), components usable for `TAVRN_COMPONENT_MAX_AGE_DAYS` (30 days), hook token 5 min, SSO state 10 min, SSO one-time code 60 s, SSO session ≤ `TAVRN_OIDC_SESSION_DAYS` |
+| Sizes | public document 128 KiB, command set 64 KiB, webhook payload 32 KiB, callback/URL response 64 KiB, embeds 6000 characters, components 8 KiB per message (§5.10.5) |
 | Rate limits | §2.7, §8.7 |
 
 ### 9.2 Audit log
@@ -1211,10 +1500,10 @@ bots; bot DMs are message requests for non-owners and rate-limited (§2.7).
 ### 9.4 Logging
 
 Logged (structured, with `request_id`): token use (application, token id, route, status; sampled for successful
-reads), token management, installations, interactions (application, command, conversation, outcome, latency; never
-arguments or replies), hook deliveries (application, event type, id, status, attempt, latency), webhook executions
+reads), token management, installations, interactions (application, command or kind, conversation, outcome, latency;
+never arguments, `custom_id`, values or replies), hook deliveries (application, event type, id, status, attempt, latency), webhook executions
 (webhook id, status), SSO logins (issuer, account, result, error code). Never logged: app tokens, webhook secrets
-(path redacted), hook tokens, command arguments, reply content, OIDC client secret, codes, ID or access tokens.
+(path redacted), hook tokens, command arguments, component values, modal input, reply content, OIDC client secret, codes, ID or access tokens.
 
 ### 9.5 Error codes (applications)
 
@@ -1231,7 +1520,7 @@ arguments or replies), hook deliveries (application, event type, id, status, att
 `webhook.pending_key` (409), `webhook.not_sealed` (409), `inbox_key.invalid` (400), `inbox_key.bad_signature` (400),
 `inbox_key.not_encrypted` (400), `inbox_key.no_webhooks` (409), `inbox_key.stale` (409),
 `subscription.event_invalid` (400), `subscription.not_found` (404), `webhook.manage_forbidden` (403),
-`message.embeds_invalid` (400); commands §5.9, SSO §8.8.
+`message.embeds_invalid` (400); commands §5.9, components §5.10.6, SSO §8.8.
 
 ### 9.6 Operator switches
 
@@ -1243,6 +1532,7 @@ arguments or replies), hook deliveries (application, event type, id, status, att
 | `TAVRN_APP_TOKEN_MAX_DAYS` | `365` | maximum app token lifetime (1–3650) |
 | `TAVRN_APP_RATE_REQUESTS` | `1200` | API requests per application and minute |
 | `TAVRN_APP_COMMANDS_REQUIRE_APPROVAL` | `false` | node admins approve every command definition (§5.2) |
+| `TAVRN_COMPONENT_MAX_AGE_DAYS` | `30` | components of messages older than this answer `410 component.expired` (§5.10.2); `0` = no limit |
 | `TAVRN_APP_ALLOW_PRIVATE_URLS` | `false` | allow application URLs on private/loopback addresses (intranets, tests) |
 | `TAVRN_APPS_FEDERATE` | `true` | this node's bots may obtain federation tokens (split from `TAVRN_FEDERATION_REMOTE_BOTS`, §2.8) |
 | `TAVRN_FEDERATION_REMOTE_BOTS` | `true` | accept bots of other nodes (existing; meaning narrowed) |
@@ -1261,12 +1551,14 @@ Variables of the **bot process** (SDK, not the node): `TAVRN_BOT_NODE` (node URL
 |---|---|---|
 | `apps.v1` | nodes | §1–§4, §7.1–§7.2: applications, app tokens, scopes, bot devices, "no bots", installation, `app.*` inbox types |
 | `commands.v1` | nodes and clients | §5: command definitions, palette route, interactions; clients merge the palette and encrypt arguments |
+| `components.v1` | nodes and clients | §5.10: buttons and select menus in `text` content, component interactions, the `update` and `modal` responses, modal submits; clients render components and modals and encrypt their values |
 | `webhooks.v1` | nodes (while `TAVRN_WEBHOOKS_ENABLED`) | §6: incoming webhooks, subscriptions, hook tokens, embeds |
 | `sso.oidc` | nodes (with a configured issuer) | §8 |
 
 Incompatible changes (token claims, hook token format, the bot key file, the interaction protocol) get `.v2`
 capabilities and run in parallel for at least 12 months (`PROTOCOL.md` §3). New scopes, event types, command arg
-types and embed fields are compatible additions; receivers ignore unknown ones, except scopes, which nodes refuse at
+types and embed fields are compatible additions; new component types or component fields come with a new capability,
+because nodes and clients refuse unknown keys in components (§5.10.1); receivers ignore unknown ones, except scopes, which nodes refuse at
 token creation (§2.4). A client without `commands.v1` shows built-in commands only; a client without `apps.v1`
 still shows bots with the badge rule of §1.5, which depends only on `kind`.
 
@@ -1290,6 +1582,10 @@ still shows bots with the badge rule of §1.5, which depends only on `kind`.
   §5.2 inbox types `app.install`, `app.uninstall`, `app.changed`; §9.2 report subject `application`; §11.4
   `TAVRN_FEDERATION_REMOTE_BOTS` narrowed.
 - **Node configuration** (design note 8): the switches of §9.6 and §8.1.
+- **`components.v1`** (§5.10, added 2026-10-15): `PROTOCOL.md` §3 the capability; §6 events `component.invoke`,
+  `modal.submit` and `message_id` in `interaction.reply`; §7 `components` in `text` content, `kind` and `message_id`
+  in the envelope field `interaction`, reserved content types `component.values` and `modal.values`;
+  `permissions.md` bit 40 `use_components`; test vectors `testvectors/components.json`.
 
 ## 11. Implementation order
 
