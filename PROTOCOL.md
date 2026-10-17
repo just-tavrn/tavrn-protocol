@@ -1596,8 +1596,8 @@ count their messages again (§7e).
   (owner or `manage_room`, 1–36500, `0` = the node's value, `400 validation.range` otherwise; audited in `room.update`
   with `meta.message_retention_days`). Room objects carry `message_retention_days` (null = the node's value). The
   effective retention is the shorter non-zero of the room's and the node's value: a room can never extend the node's.
-- Never deleted by retention: **pinned** messages (unpinning lets them expire) and the entries of the room's
-  **welcome channel** (the room's security log, `MODERATION.md` §3).
+- Never deleted by retention: **pinned** messages (unpinning lets them expire), the entries of the room's
+  **welcome channel** (the room's security log, `MODERATION.md` §3) and the **security notices** in channels (§7).
 - The node writes one node audit entry `retention.messages { deleted, node_days, rooms, incomplete }` per run that
   deleted something. Clients get no event: what they already loaded stays until they reload. Attachment retention
   (`ENTITLEMENTS.md` §6) is separate and may delete files earlier.
