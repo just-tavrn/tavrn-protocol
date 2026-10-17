@@ -635,7 +635,8 @@ their home node (`FEDERATION.md` §2.2); every refusal is `403 age.restricted` w
   session, so gated rooms never enter other nodes' directories.
 - **Joining.** `POST /rooms/{room_id}/join` and `POST /invites/{code}/join` (also with an invite bound to the user,
   `FEDERATION.md` §3.4) refuse users below the room's gate. The invite preview `GET /invites/{code}` stays public
-  and carries `room.age_gate`, so clients can explain the refusal before the user tries.
+  and carries `room.age_gate`, so clients can explain the refusal before the user tries. The room preview `GET
+  /rooms/{room_id}/preview` of a public room with a gate answers only an adult's session (members always).
 - **Gated channels** stay in the channel list (`GET /rooms/{room_id}`) with their gate, but users below it have no
   permission in them (the permission evaluation of `permissions.md` yields 0): messages, history, threads and forum
   posts, pins, reactions, attachments and files, search, read markers, unread and mention counts, link previews
@@ -946,11 +947,50 @@ profile"); they belong to the membership and are deleted (files included) when i
   the media errors above.
 
 **Room rules.** A room's `rules` (`PATCH /rooms/{id} { rules }` with `manage_room`, at most 10,000 characters,
-`""` removes them; part of the room detail and of the public invite preview `GET /invites/{code}`) are a Markdown
-subset like `bio`: rendered and sanitized by clients; no images or embeds; clients without a renderer show the text
-as is. While a room has rules, `POST /rooms/{room_id}/join` and `POST /invites/{code}/join` need `{ "accept_rules":
-true }` (`403 room.rules_not_accepted` otherwise), so clients show the rendered rules with an explicit acceptance
-before the user joins.
+`""` removes them; part of the room detail, of the public invite preview `GET /invites/{code}` and of the room
+preview below) are a Markdown subset like `bio`: rendered and sanitized by clients; no images or embeds; clients
+without a renderer show the text as is. While a room has rules (anything but whitespace), every join route needs `{
+"accept_rules": true }` (`403 room.rules_not_accepted` for a missing or false value): `POST /rooms/{room_id}/join`
+and `POST /invites/{code}/join`, also with an invite bound to the user (a personal invitation of the invite list,
+`FEDERATION.md` §3.4, §4) and for remote users with their federated session (`FEDERATION.md` §3.1); a refused invite
+join does not use up the invite. Clients show the rendered rules with an explicit acceptance before the user joins,
+on every path that leads to a join (invite page, pasted links, the invite list, Discover and the directory); the
+node cannot tell whether the user saw them, so the value is the client's statement on the user's behalf.
+
+**Room preview.** `GET /rooms/{room_id}/preview` → `RoomPreview { room: PublicRoom, rules, privacy_notice,
+privacy_notice_updated_at, legal_notice, legal_notice_updated_at }`: what a room shows before joining (empty strings
+and nulls mean none). Public rooms (`join_mode: public`) answer everyone; the `Authorization` header is optional,
+anonymous callers are rate-limited per address like the directory (`429 rate_limited`), signed-in callers by the
+per-user limit. Public rooms with an age gate answer only an adult's session (§5e). Every other room answers only
+its members and node admins; everyone else gets `404 room.not_found`, the answer for an unknown room. People with an
+invite use the invite preview `GET /invites/{code}` (public), which carries the same fields next to `code`. Clients
+fetch the preview of the hosting node before a join from Discover, the directory or the invite list; remote users
+ask with their federated session (`FEDERATION.md` §3.1).
+
+**Room privacy notice and legal notice.** A room can publish two optional documents for its members and for people
+about to join, both Markdown subsets like `rules` (same rendering rules) and both off while empty:
+
+- `privacy_notice` (at most 20,000 characters): who is responsible for the room and how the room uses personal data,
+  for rooms that are not purely private (for example under Art. 13 and 26 GDPR, where the person running a room on a
+  platform can be a controller jointly with the platform's operator);
+- `legal_notice` (at most 5,000 characters): who runs the room and how to reach them (for example a provider
+  identification such as § 5 of the German DDG requires for business-like services).
+
+`PATCH /rooms/{room_id} { privacy_notice?, legal_notice? }` (`manage_room`, `""` removes a document; trimmed;
+`400 validation.length`, `400 validation.control_chars`) stores them; a document whose text changes gets the time of
+the change as `privacy_notice_updated_at` / `legal_notice_updated_at` (null while it is off). The room object (room
+detail, room lists, `room.update`) carries only these two timestamps, so lists stay small; the texts come with the
+room preview and the invite preview. Every change is audited as `room.legal` with `meta: { privacy_notice?,
+legal_notice? }` naming each changed document as `added`, `updated` or `removed`, and sends `room.update`. Federation:
+the documents belong to the hosting node's room; remote members and remote users about to join read them there
+(previews above), nothing is copied to other nodes.
+
+The documents **inform**; they are never a condition: joining needs no acknowledgement of them, and a changed
+document asks nobody to accept it again. The law asks for the information to be available at the time of
+collection, easily accessible and in clear language, not for consent, so clients show a visible link to each
+document wherever a user is about to join a room that has one (next to the rules and their checkbox, which stay
+the only acceptance), and an entry in the room's menu and room info for members, with the date of the last change.
+The node operator remains a separate controller with its own documents (`LEGAL.md`; `GET /node` `legal.pages`).
 
 ## 6c. Notification settings (design note 4.11)
 
