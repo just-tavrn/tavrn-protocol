@@ -72,6 +72,11 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Links** (`PROTOCOL.md` §7h): the canonical https form of links to rooms, channels, messages (`?message=`), files of
+  files channels (`…/files/<entry>`), invites and profiles, on the web origin of the hosting node; clients recognise
+  them only for nodes they already talk to (no request to unknown hosts), resolve names with the viewer's session and
+  show neutral chips without access. `@name@domain` is a mention, never an e-mail link; clients may mark members a
+  bot's card names without a `mentions` list, without notification. Prose only, no schema change.
 - **Test vectors for upload categories** (`PROTOCOL.md` §7a, `testvectors/upload_categories.json`): the category and
   the executable flag of a file from its name, its declared type and its first bytes, with the order of the magic-byte
   checks spelled out. Clients that declare the category of encrypted uploads run them; the node classifies plaintext

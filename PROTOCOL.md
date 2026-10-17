@@ -1761,6 +1761,50 @@ and the poll); like messages, it could withhold a vote or serve an older one of 
 **Events** (conversation audience¹ of §6): `poll.vote` (data: the `PollVote`) and `poll.vote.delete`. Bots receive
 both with `messages:read`. Neither counts towards unread or mention counts, sends `notify` hints or web pushes.
 
+## 7h. Links
+
+Rooms, channels, messages, files of files channels, invites and profiles have one canonical, portable link: an https
+URL on the **web origin of the node that hosts the target** (`web` of its discovery document, §2: by default
+`https://<domain>`, under delegation another host). The same link works for members of every node and in a plain
+browser, where the hosting node's web client opens it.
+
+| Target | Link |
+|---|---|
+| Room | `https://<web>/rooms/<room>` |
+| Channel | `https://<web>/rooms/<room>/channels/<channel>` |
+| Message in a channel | `https://<web>/rooms/<room>/channels/<channel>?message=<message>` |
+| File or folder of a files channel | `https://<web>/rooms/<room>/channels/<channel>/files/<entry>` |
+| Invite | `https://<web>/invite/<code>` |
+| Profile | `https://<web>/u/<address>` (the user's home node; `@` may appear as `%40`) |
+
+Ids are the node-local ULIDs (uppercase Crockford base32), codes `[A-Za-z0-9_-]{4,64}`, addresses as in §1. No other
+query parameter, no fragment, no credentials. Opening a link grants nothing: the hosting node answers with the
+viewer's own session and its permissions decide (`403`/`404` for a room the viewer is not a member of, a channel
+without `view_channel`, a files channel entry without `view_channel` on that channel, `FILES.md` §3, a deleted
+target). A node serves its web client for every one of these paths (a single-page application route).
+
+**Clients** recognise these links in message text (also in DMs, threads and the text of bot messages) and may show them
+as chips with the target's icon and name instead of the URL. Rules:
+
+- Recognise a link only for a node the client already talks to (its home node and nodes it holds a session with, by
+  their `web` origin exactly, or by their identity domain over `https` without a port). Any other host, a URL with
+  userinfo (`https://evil@node.example/…`), another scheme, a port that is not part of a known `web` origin, an
+  unknown path shape or extra parameters: a plain external link. A client never fetches anything from an unknown host
+  because of a link.
+- Resolve names from local data first, otherwise from the hosting node with the viewer's own session. Without access,
+  show a neutral chip ("Private channel", "File not available"), never a name the node did not give the viewer (also
+  not a cached one of a channel the viewer lost access to). In encrypted conversations everything happens on the
+  device after decryption; message text is never sent anywhere to build a chip.
+- Opening a link stays inside the client (a message opens its channel at the message, an invite the join flow, a file
+  the files channel at the entry). The sender's client does not build a link preview (§7b) for these links.
+- Links in code stay literal. A labelled Markdown link keeps its label.
+
+**Mentions without a mentions list.** Clients mark `@name@domain` (and `@name` of the conversation's node) as mention
+pills only for the conversation's `mentions` list, `@everyone`/`@here` and role names (§6, §7); they may also mark a
+member of the conversation that the text names without listing it (a bot's card that is edited in place carries no
+`mentions` list so that edits notify nobody) — such a pill has no notification semantics. `@name@domain` in text is a
+mention, never an e-mail address: Markdown renderers must not autolink it as `mailto:`.
+
 ## 8. Encryption marker (mandatory for all clients)
 
 If a channel has `encrypted = false`, every client **must** permanently and clearly show a notice above the
