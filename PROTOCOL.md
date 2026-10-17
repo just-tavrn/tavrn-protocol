@@ -1257,8 +1257,8 @@ every member, so the node writes an entry that names a channel there only when `
 (listed to a member holding only `@everyone`, `APPLICATIONS.md` §3.6); any other entry about a channel goes into that
 channel as a **security notice**: the same plaintext system message, delivered to the channel's viewers only. Security
 notices never count towards unread or mention counts (§6 "Read markers and unread counts"), notify nobody, cannot be
-edited or deleted (`403 message.system_protected`, the bot they name included) and are skipped by purges and message
-retention (§7f); they go with their channel and with their author's account. Clients render them as a quiet inline line
+edited (`400 message.system_immutable`, like every system message) or deleted (`403 message.system_protected`, the bot
+they name included) and are skipped by purges and message retention (§7f); they go with their channel and with their author's account. Clients render them as a quiet inline line
 in the channel ("… can now read this channel") and do not notify. An entry already in a welcome channel stays there
 when its channel becomes private later: clients name the channel of a welcome channel entry only when it is in the
 viewer's channel list, else they say "a private channel". `system.key_changed` is informational: the client decides with its
