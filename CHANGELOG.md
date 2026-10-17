@@ -5,6 +5,11 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- Private single-choice modal inputs (`components.modal_select.v1`, `APPLICATIONS.md` §5.10.3): a select style
+  with 1–25 validated options, invoker-only presentation and unchanged text-map submits, including encryption.
+  Applications can follow a public class choice with a private spec form without changing shared controls.
+
+
 ### Security
 
 - **The welcome channel names no private channel** (`APPLICATIONS.md` §3.6, `PROTOCOL.md` §7): `system.bot_added` and
