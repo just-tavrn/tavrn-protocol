@@ -293,7 +293,7 @@ set store credentials. In encrypted files channels the bot encrypts the entry re
 (`FILES.md` §8, as a member of the channel's MLS group, §3.3).
 
 **Always allowed** for an app token (no scope): `GET /users/me`, `GET /users/{address}/profile`, `GET /rooms`,
-`GET /rooms/{id}` and channel/category/role reads, `GET /node`, the WebSocket, `POST /rooms/{id}/leave`
+`GET /rooms/{id}`, `GET /rooms/{id}/preview` and channel/category/role reads, `GET /node`, the WebSocket, `POST /rooms/{id}/leave`
 (= uninstall, §4.3), every E2EE route of §3 (identity, device key, KeyPackages, claims, MLS delivery service,
 Welcomes, backups), `POST /federation/token`, `GET /applications/me*`. Events `room.*`, `channel.*`, `category.*`,
 `role.*`, `override.update`, `mls.*`, `identity.changed`, `devices.changed`, `application.*` are always delivered.
