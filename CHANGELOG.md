@@ -28,18 +28,6 @@ Changes of the protocol that implementations must follow, newest first. Versions
   library connectors, diagnostic packages and further Windows script and installer types are flagged as executables
   (new test vector `help.chm`; clients extend their lists).
 
-### Added
-
-- **Room privacy notice and legal notice** (`PROTOCOL.md` §6b "Room privacy notice and legal notice"): optional
-  Markdown documents of a room (`privacy_notice` up to 20,000 and `legal_notice` up to 5,000 characters, `manage_room`
-  via `PATCH /rooms/{room_id}`), audited as `room.legal`, announced with `room.update`. Room objects carry
-  `privacy_notice_updated_at` and `legal_notice_updated_at` (null while off); the texts come with the previews.
-  Information only: joining never needs an acknowledgement of them.
-- **Room preview** `GET /rooms/{room_id}/preview` (`PROTOCOL.md` §6b "Room preview"): room, rules and legal documents
-  before joining; public rooms for everyone (rate-limited anonymously, age gates as on Discover), other rooms for
-  their members and node admins only. The invite preview `GET /invites/{code}` carries the same fields
-  (`InvitePreview` is now `RoomPreview` plus `code`).
-
 ### Changed
 
 - **Rules on every join route** (`PROTOCOL.md` §6b "Room rules"): spelled out that personal invitations and federated
@@ -87,6 +75,15 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Room privacy notice and legal notice** (`PROTOCOL.md` §6b "Room privacy notice and legal notice"): optional
+  Markdown documents of a room (`privacy_notice` up to 20,000 and `legal_notice` up to 5,000 characters, `manage_room`
+  via `PATCH /rooms/{room_id}`), audited as `room.legal`, announced with `room.update`. Room objects carry
+  `privacy_notice_updated_at` and `legal_notice_updated_at` (null while off); the texts come with the previews.
+  Information only: joining never needs an acknowledgement of them.
+- **Room preview** `GET /rooms/{room_id}/preview` (`PROTOCOL.md` §6b "Room preview"): room, rules and legal documents
+  before joining; public rooms for everyone (rate-limited anonymously, age gates as on Discover), other rooms for
+  their members and node admins only. The invite preview `GET /invites/{code}` carries the same fields
+  (`InvitePreview` is now `RoomPreview` plus `code`).
 - **Links** (`PROTOCOL.md` §7h): the canonical https form of links to rooms, channels, messages (`?message=`), files of
   files channels (`…/files/<entry>`), invites and profiles, on the web origin of the hosting node; clients recognise
   them only for nodes they already talk to (no request to unknown hosts), resolve names with the viewer's session and
