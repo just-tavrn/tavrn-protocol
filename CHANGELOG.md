@@ -7,6 +7,13 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Security
 
+- **The welcome channel names no private channel** (`APPLICATIONS.md` §3.6, `PROTOCOL.md` §7): `system.bot_added` and
+  `system.bot_removed` go into the welcome channel only when `@everyone` can view the channel; otherwise the node
+  writes them into the channel itself as a security notice (plaintext, delivered to the channel's viewers only). Security
+  notices never count towards unread or mention counts, cannot be deleted (`403 message.system_protected`) and are
+  skipped by purges and retention. Clients name the channel of an older welcome channel entry only when the viewer can
+  see that channel ("a private channel" otherwise). No schema change.
+
 - **Outbound requests honour the domain policy** (`FEDERATION.md` §1.5): outbox entries, profile and image mirroring
   and application documents no longer reach a banned or blocked domain; queued entries are dropped as undeliverable.
 - **The KeyPackage claim budget of a requesting node** (`ENCRYPTION.md` §3.2) exempts only related requesters that

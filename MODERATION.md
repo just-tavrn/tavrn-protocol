@@ -342,7 +342,9 @@ anyone, owners, moderators and node admins included: `DELETE …/messages/{id}` 
 purges skip the welcome channel even when it is named, and the report actions cannot remove them; message retention
 (`PROTOCOL.md` §7f) skips them too. Only the deletion of the account an entry is about (`LEGAL.md` §3.2) removes
 them. Clients do not offer
-"Delete" for them.
+"Delete" for them. The security notices the node writes into a channel instead of the welcome channel (`system.bot_*`
+about a channel `@everyone` cannot view, `PROTOCOL.md` §7) are protected the same way: no deletion (the bot they name
+included), purges and retention skip them; they go with their channel.
 
 **History restore after a key reset** (`ENCRYPTION.md` §7b, capability `history.restore`). A member who reset their
 security key loses the encrypted history from before the reset; it comes back only when a member with
