@@ -817,7 +817,8 @@ not full and does not insert live `message.create` events before that.
   membership). The user's notification settings apply (§6c): muted conversations report `0`/`0` and
   `muted: true`, mode `nothing` reports no mentions, `suppress_everyone` leaves `@everyone` out. The welcome
   channel (`kind = "system"`) never counts mentions and reports `unread_count` 1 when something changed since the
-  marker (clients show a dot, no number).
+  marker (clients show a dot, no number). Security notices in a channel (§7, `system.bot_*` outside the welcome
+  channel) never count: they may be a channel's `last_message_id` with `unread_count` 0.
 - `GET /rooms/{room_id}` (`RoomDetail`) carries `read_states` for the channels the requester can view (empty
   for node admins who are not members). `GET /conversations` carries `last_read_message_id`, `unread_count`
   and `mention_count` per DM/group DM (these fields are absent in other conversation responses and events).
@@ -1202,14 +1203,25 @@ clients cannot send `system.*`, `400 message.type_reserved`):
 | `system.join` | the room's welcome channel | `{ user, display_name, avatar, avatar_still }`: a member joined (`user` = address; name and avatar paths are a snapshot) |
 | `system.leave` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, reason_kind }`: `reason_kind` = `leave`, `kick` or `ban` (reasons and moderator names stay in the audit log) |
 | `system.key_changed` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, at, rotated }`: the member's identity key changed (`at`, RFC 3339). `rotated: true` for a rotation with a valid continuity statement (`ENCRYPTION.md` §9a), `false` for an identity reset (§9) or any other change |
-| `system.bot_added` | the room's welcome channel | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, by }`: a bot's first leaf joined the encryption group of the encrypted channel `channel` (`by` = the committer's address; `APPLICATIONS.md` §3.6) |
-| `system.bot_removed` | the room's welcome channel | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, reason }`: the bot's last leaf left that group (`reason`, `APPLICATIONS.md` §3.6) |
+| `system.bot_added` | the room's welcome channel when `@everyone` can view `channel`, else `channel` itself as a security notice | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, by }`: a bot's first leaf joined the encryption group of the encrypted channel `channel` (`by` = the committer's address; `APPLICATIONS.md` §3.6) |
+| `system.bot_removed` | as `system.bot_added` | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, reason }`: the bot's last leaf left that group (`reason`, `APPLICATIONS.md` §3.6) |
 | `system.history_restored` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, by }`: `by` (an address) approved the request of `user` to restore its encrypted history after a key reset (`ENCRYPTION.md` §7b) |
 | `system.history_restore_denied` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, by }`: `by` denied that request (the reason stays in the audit log) |
 
 The message author of `system.join`/`system.leave`/`system.key_changed`/`system.history_restore*` is the member concerned (of `system.bot_*` the
 bot). Clients render them
-localized in the viewer's language with the avatar. `system.key_changed` is informational: the client decides with its
+localized in the viewer's language with the avatar.
+
+**Nothing about private channels in the welcome channel.** Every member reads the welcome channel and its events reach
+every member, so the node writes an entry that names a channel there only when `@everyone` can view that channel
+(listed to a member holding only `@everyone`, `APPLICATIONS.md` §3.6); any other entry about a channel goes into that
+channel as a **security notice**: the same plaintext system message, delivered to the channel's viewers only. Security
+notices never count towards unread or mention counts (§6 "Read markers and unread counts"), notify nobody, cannot be
+edited or deleted (`403 message.system_protected`, the bot they name included) and are skipped by purges and message
+retention (§7f); they go with their channel and with their author's account. Clients render them as a quiet inline line
+in the channel ("… can now read this channel") and do not notify. An entry already in a welcome channel stays there
+when its channel becomes private later: clients name the channel of a welcome channel entry only when it is in the
+viewer's channel list, else they say "a private channel". `system.key_changed` is informational: the client decides with its
 own pin of the user's key what it shows (`ENCRYPTION.md` §3.3): the same "security key changed" warning as elsewhere
 while a change is unacknowledged, a soft "rotated" notice after a verified continuity statement, plain text once
 acknowledged. The node writes the entry into the welcome channel of every room it hosts that the user is a member of:
