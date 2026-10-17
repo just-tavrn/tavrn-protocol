@@ -1036,8 +1036,33 @@ existing `reply` (stored or ephemeral), `defer` and `error`, and two new types:
 | input `required` | optional boolean (default `true`) |
 | input `value` | optional prefilled text, at most `max_length` characters |
 
+**Private single-choice selects (`components.modal_select.v1`).** Nodes and clients announce this capability in
+addition to `components.v1`. An application MUST check that the node supports it before sending a select input.
+Users also need a client that supports this capability; clients MUST reject unsupported input styles as a whole
+instead of presenting them as text fields. This extension adds no per-invocation client-capability transport.
+Existing text inputs and the routes, invoker binding, lifetime and one-submit rule are unchanged. A select input uses this shape:
+
+```json
+{ "custom_id": "spec", "label": "Paladin spec", "style": "select",
+  "placeholder": "Choose your spec", "required": true,
+  "options": [ { "label": "Holy", "value": "holy", "description": "Healer", "emoji": "💚" },
+               { "label": "Protection", "value": "protection", "description": "Tank", "emoji": "🛡️" } ] }
+```
+
+The common `custom_id`, `label`, `placeholder` (at most 100 characters), `required` (default `true`) and `value`
+fields retain their text-input bounds except that `value`, when present, MUST equal one of the option values.
+`options` contains 1–25 choices with the same `label`, `value`, `description` and `emoji` rules as message selects;
+values are unique. Unknown option keys, including `default`, are invalid: use the input's `value` to preselect one
+choice. Text-only `min_length` and `max_length` are invalid on a select. A select always chooses one value; an
+optional input may be absent or submit the empty string. A supplied nonempty value MUST exactly equal an option
+value (no trimming or coercion), including in encrypted conversations where the application performs this check.
+Only the invoker sees the form; its selected value is not a public message or a shared component edit. Clients
+render a labelled keyboard-operable select inside the existing modal, preserve the focus trap and error reporting,
+and refuse unsupported or invalid definitions as a whole. For example, a public class menu may open a private
+spec-select modal without changing any other member's class choice.
+
 Unknown keys are invalid; `meta.path` names the first offending field below the modal (`custom_id`, `title`,
-`inputs[1].label`). Clients render modal inputs as labelled text fields (the label is the accessible name; a
+`inputs[1].label`). Clients render text modal inputs as labelled text fields (the label is the accessible name; a
 character counter where `max_length` applies), trap the focus inside the dialog, close it with Escape, and validate
 `required` and the lengths before sending.
 
@@ -1049,6 +1074,10 @@ command interactions. Stored replies carry the envelope field `interaction` (`PR
 the message instead of "\<user> used /\<command>".
 
 #### 5.10.4 Modal submit
+
+Select inputs submit their single selected option value as a string in the existing input `custom_id` → string
+object, exactly like text inputs. No new encrypted content type is introduced: `modal.values` contains the same
+string map and remains bound to the parent interaction, modal id, invoking device and signed context.
 
 `POST /interactions/{interaction_id}/submit` (the invoker's user session; anyone else `403 interaction.not_invoker`)
 with the interaction that answered with the modal:
@@ -1591,6 +1620,7 @@ Variables of the **bot process** (SDK, not the node): `TAVRN_BOT_NODE` (node URL
 | `apps.v1` | nodes | §1–§4, §7.1–§7.2: applications, app tokens, scopes, bot devices, "no bots", installation, `app.*` inbox types |
 | `commands.v1` | nodes and clients | §5: command definitions, palette route, interactions; clients merge the palette and encrypt arguments |
 | `components.v1` | nodes and clients | §5.10: buttons and select menus in `text` content, component interactions, the `update` and `modal` responses, modal submits; clients render components and modals and encrypt their values |
+| `components.modal_select.v1` | nodes and clients | §5.10.3: private single-choice modal selects; requires `components.v1`, unchanged string values and modal ownership |
 | `webhooks.v1` | nodes (while `TAVRN_WEBHOOKS_ENABLED`) | §6: incoming webhooks, subscriptions, hook tokens, embeds |
 | `sso.oidc` | nodes (with a configured issuer) | §8 |
 

@@ -128,6 +128,7 @@ Capabilities reserved in v1, and when nodes that implement them announce them:
 | `connect.app` | app sessions of the connect flow for native apps (`FEDERATION.md` §8 step 3) | always, also without federation |
 | `apps.v1`, `commands.v1` | applications, bots and slash commands (`APPLICATIONS.md` §10.1); clients announce `commands.v1` in their WebSocket `hello` | always |
 | `components.v1` | buttons, select menus and modals of applications (`APPLICATIONS.md` §5.10); clients announce it in their WebSocket `hello` | always |
+| `components.modal_select.v1` | private single-choice inputs in application modals (`APPLICATIONS.md` §5.10.3); nodes and clients announce it alongside `components.v1` | always |
 | `webhooks.v1` | incoming webhooks, event subscriptions, hook tokens and embeds (`APPLICATIONS.md` §6) | while `TAVRN_WEBHOOKS_ENABLED` is on |
 | `sso.oidc` | single sign-on (§5a.6, `APPLICATIONS.md` §8) | while `TAVRN_OIDC_ISSUER` is set |
 | `search.v1` | node-side message search (§7d, `SEARCH.md`) | while `TAVRN_SEARCH_ENABLED` is on |
