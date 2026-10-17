@@ -11993,7 +11993,7 @@
         "tags": [
           "rooms"
         ],
-        "summary": "Preview of an invite (room name, rules), without joining.",
+        "summary": "Preview of an invite (room, rules, privacy notice and legal notice), without joining.",
         "operationId": "get_invite",
         "parameters": [
           {
@@ -19199,6 +19199,57 @@
             "bearer": []
           }
         ]
+      }
+    },
+    "/api/v1/rooms/{room_id}/preview": {
+      "get": {
+        "tags": [
+          "rooms"
+        ],
+        "summary": "Preview of a room before joining: its public data, rules, privacy notice and legal notice (PROTOCOL.md §6b \"Room\npreview\"). Public rooms answer everyone (the `Authorization` header is optional; anonymous callers are\nrate-limited per address); rooms with an age gate only an adult's session. Every other room answers only its\nmembers and node admins (`404 room.not_found` for everyone else, as for an unknown room); people with an invite\nuse the invite preview. Remote users ask the hosting node with their federated session.",
+        "operationId": "preview_room",
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/rooms/{room_id}/reports": {
@@ -32018,23 +32069,22 @@
         }
       },
       "InvitePreview": {
-        "type": "object",
-        "required": [
-          "code",
-          "room",
-          "rules"
-        ],
-        "properties": {
-          "code": {
-            "type": "string"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RoomPreview"
           },
-          "room": {
-            "$ref": "#/components/schemas/PublicRoom"
-          },
-          "rules": {
-            "type": "string"
+          {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            }
           }
-        }
+        ]
       },
       "InvokeRequest": {
         "type": "object",
@@ -36476,6 +36526,13 @@
             "type": "string",
             "description": "public | invite"
           },
+          "legal_notice_updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Time of the last change of the room's legal notice, null while it has none."
+          },
           "message_retention_days": {
             "type": [
               "integer",
@@ -36493,6 +36550,13 @@
           },
           "owner_id": {
             "type": "string"
+          },
+          "privacy_notice_updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Time of the last change of the room's privacy notice, null while it has none (PROTOCOL.md §6b \"Room privacy\nnotice and legal notice\"; the text itself comes with `GET /rooms/{id}/preview` and the invite preview)."
           },
           "rules": {
             "type": "string"
@@ -36649,6 +36713,47 @@
           "hidden": {
             "type": "boolean",
             "description": "Hide my presence from the members of this room (friends and other shared rooms still see it)."
+          }
+        }
+      },
+      "RoomPreview": {
+        "type": "object",
+        "description": "What a room shows before joining (PROTOCOL.md §6b \"Room preview\"): the public room, its rules and its legal\ndocuments. Empty strings mean none.",
+        "required": [
+          "room",
+          "rules",
+          "privacy_notice",
+          "legal_notice"
+        ],
+        "properties": {
+          "legal_notice": {
+            "type": "string",
+            "description": "The room's legal notice (Markdown subset), information only."
+          },
+          "legal_notice_updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Time of the legal notice's last change, null without one."
+          },
+          "privacy_notice": {
+            "type": "string",
+            "description": "The room's privacy notice (Markdown subset), information only."
+          },
+          "privacy_notice_updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Time of the privacy notice's last change, null without one."
+          },
+          "room": {
+            "$ref": "#/components/schemas/PublicRoom"
+          },
+          "rules": {
+            "type": "string",
+            "description": "Markdown subset; joining needs `accept_rules: true` while it is not empty."
           }
         }
       },
@@ -38407,6 +38512,13 @@
               "null"
             ]
           },
+          "legal_notice": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The room's legal notice (who runs the room and how to reach them; Markdown subset, at most 5,000 characters,\n`\"\"` removes it). Audited as `room.legal`."
+          },
           "message_retention_days": {
             "type": [
               "integer",
@@ -38427,6 +38539,13 @@
               "null"
             ],
             "description": "\"No bots\" zone (APPLICATIONS.md §3.5): setting it removes every bot from the room and refuses new\nones. Owner or `manage_room`."
+          },
+          "privacy_notice": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The room's privacy notice (Markdown subset like `rules`, at most 20,000 characters, `\"\"` removes it; PROTOCOL.md\n§6b \"Room privacy notice and legal notice\"). Information for members and people about to join, never a\ncondition of joining. Audited as `room.legal`."
           },
           "rules": {
             "type": [

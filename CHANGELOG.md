@@ -7,6 +7,13 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Security
 
+- **The welcome channel names no private channel** (`APPLICATIONS.md` §3.6, `PROTOCOL.md` §7): `system.bot_added` and
+  `system.bot_removed` go into the welcome channel only when `@everyone` can view the channel; otherwise the node
+  writes them into the channel itself as a security notice (plaintext, delivered to the channel's viewers only). Security
+  notices never count towards unread or mention counts, cannot be deleted (`403 message.system_protected`) and are
+  skipped by purges and retention. Clients name the channel of an older welcome channel entry only when the viewer can
+  see that channel ("a private channel" otherwise). No schema change.
+
 - **Outbound requests honour the domain policy** (`FEDERATION.md` §1.5): outbox entries, profile and image mirroring
   and application documents no longer reach a banned or blocked domain; queued entries are dropped as undeliverable.
 - **The KeyPackage claim budget of a requesting node** (`ENCRYPTION.md` §3.2) exempts only related requesters that
@@ -23,6 +30,9 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Changed
 
+- **Rules on every join route** (`PROTOCOL.md` §6b "Room rules"): spelled out that personal invitations and federated
+  joins need `accept_rules: true` like the other routes, and that clients show the rules on every path that leads
+  to a join. The node already behaved this way.
 - **Room rules are Markdown** (`PROTOCOL.md` §6b "Room rules"): a room's `rules` are a Markdown subset like `bio`,
   rendered and sanitized by clients without images or embeds; clients without a renderer show the text as is. The
   join routes' `accept_rules` requirement is spelled out. Prose only, no schema change.
@@ -65,6 +75,20 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ### Added
 
+- **Room privacy notice and legal notice** (`PROTOCOL.md` §6b "Room privacy notice and legal notice"): optional
+  Markdown documents of a room (`privacy_notice` up to 20,000 and `legal_notice` up to 5,000 characters, `manage_room`
+  via `PATCH /rooms/{room_id}`), audited as `room.legal`, announced with `room.update`. Room objects carry
+  `privacy_notice_updated_at` and `legal_notice_updated_at` (null while off); the texts come with the previews.
+  Information only: joining never needs an acknowledgement of them.
+- **Room preview** `GET /rooms/{room_id}/preview` (`PROTOCOL.md` §6b "Room preview"): room, rules and legal documents
+  before joining; public rooms for everyone (rate-limited anonymously, age gates as on Discover), other rooms for
+  their members and node admins only. The invite preview `GET /invites/{code}` carries the same fields
+  (`InvitePreview` is now `RoomPreview` plus `code`).
+- **Links** (`PROTOCOL.md` §7h): the canonical https form of links to rooms, channels, messages (`?message=`), files of
+  files channels (`…/files/<entry>`), invites and profiles, on the web origin of the hosting node; clients recognise
+  them only for nodes they already talk to (no request to unknown hosts), resolve names with the viewer's session and
+  show neutral chips without access. `@name@domain` is a mention, never an e-mail link; clients may mark members a
+  bot's card names without a `mentions` list, without notification. Prose only, no schema change.
 - **Test vectors for upload categories** (`PROTOCOL.md` §7a, `testvectors/upload_categories.json`): the category and
   the executable flag of a file from its name, its declared type and its first bytes, with the order of the magic-byte
   checks spelled out. Clients that declare the category of encrypted uploads run them; the node classifies plaintext

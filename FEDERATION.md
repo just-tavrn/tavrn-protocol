@@ -457,8 +457,9 @@ sessions immediately and closes their WebSockets (code `4001`). Because delivery
    `https://community.example/invite/<code>`, Discover, a `room.invite` notification).
 2. It obtains a federation token from H (`target = community.example`) and a federated session at the room
    node (§2.5), unless it still holds one.
-3. It uses **the normal room API of that node unchanged**: `GET /invites/{code}`,
-   `POST /invites/{code}/join` or `POST /rooms/{id}/join`, channels, messages, MLS (external join with the
+3. It uses **the normal room API of that node unchanged**: `GET /invites/{code}` or `GET /rooms/{id}/preview`
+   (rules, privacy notice and legal notice, `PROTOCOL.md` §6b), `POST /invites/{code}/join` or
+   `POST /rooms/{id}/join`, channels, messages, MLS (external join with the
    node's GroupInfo), WebSocket. Nothing in the room API changes for federation.
 4. It adds an entry to its conversation index on H (§4).
 

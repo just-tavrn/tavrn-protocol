@@ -635,7 +635,8 @@ their home node (`FEDERATION.md` §2.2); every refusal is `403 age.restricted` w
   session, so gated rooms never enter other nodes' directories.
 - **Joining.** `POST /rooms/{room_id}/join` and `POST /invites/{code}/join` (also with an invite bound to the user,
   `FEDERATION.md` §3.4) refuse users below the room's gate. The invite preview `GET /invites/{code}` stays public
-  and carries `room.age_gate`, so clients can explain the refusal before the user tries.
+  and carries `room.age_gate`, so clients can explain the refusal before the user tries. The room preview `GET
+  /rooms/{room_id}/preview` of a public room with a gate answers only an adult's session (members always).
 - **Gated channels** stay in the channel list (`GET /rooms/{room_id}`) with their gate, but users below it have no
   permission in them (the permission evaluation of `permissions.md` yields 0): messages, history, threads and forum
   posts, pins, reactions, attachments and files, search, read markers, unread and mention counts, link previews
@@ -817,7 +818,8 @@ not full and does not insert live `message.create` events before that.
   membership). The user's notification settings apply (§6c): muted conversations report `0`/`0` and
   `muted: true`, mode `nothing` reports no mentions, `suppress_everyone` leaves `@everyone` out. The welcome
   channel (`kind = "system"`) never counts mentions and reports `unread_count` 1 when something changed since the
-  marker (clients show a dot, no number).
+  marker (clients show a dot, no number). Security notices in a channel (§7, `system.bot_*` outside the welcome
+  channel) never count: they may be a channel's `last_message_id` with `unread_count` 0.
 - `GET /rooms/{room_id}` (`RoomDetail`) carries `read_states` for the channels the requester can view (empty
   for node admins who are not members). `GET /conversations` carries `last_read_message_id`, `unread_count`
   and `mention_count` per DM/group DM (these fields are absent in other conversation responses and events).
@@ -946,11 +948,50 @@ profile"); they belong to the membership and are deleted (files included) when i
   the media errors above.
 
 **Room rules.** A room's `rules` (`PATCH /rooms/{id} { rules }` with `manage_room`, at most 10,000 characters,
-`""` removes them; part of the room detail and of the public invite preview `GET /invites/{code}`) are a Markdown
-subset like `bio`: rendered and sanitized by clients; no images or embeds; clients without a renderer show the text
-as is. While a room has rules, `POST /rooms/{room_id}/join` and `POST /invites/{code}/join` need `{ "accept_rules":
-true }` (`403 room.rules_not_accepted` otherwise), so clients show the rendered rules with an explicit acceptance
-before the user joins.
+`""` removes them; part of the room detail, of the public invite preview `GET /invites/{code}` and of the room
+preview below) are a Markdown subset like `bio`: rendered and sanitized by clients; no images or embeds; clients
+without a renderer show the text as is. While a room has rules (anything but whitespace), every join route needs `{
+"accept_rules": true }` (`403 room.rules_not_accepted` for a missing or false value): `POST /rooms/{room_id}/join`
+and `POST /invites/{code}/join`, also with an invite bound to the user (a personal invitation of the invite list,
+`FEDERATION.md` §3.4, §4) and for remote users with their federated session (`FEDERATION.md` §3.1); a refused invite
+join does not use up the invite. Clients show the rendered rules with an explicit acceptance before the user joins,
+on every path that leads to a join (invite page, pasted links, the invite list, Discover and the directory); the
+node cannot tell whether the user saw them, so the value is the client's statement on the user's behalf.
+
+**Room preview.** `GET /rooms/{room_id}/preview` → `RoomPreview { room: PublicRoom, rules, privacy_notice,
+privacy_notice_updated_at, legal_notice, legal_notice_updated_at }`: what a room shows before joining (empty strings
+and nulls mean none). Public rooms (`join_mode: public`) answer everyone; the `Authorization` header is optional,
+anonymous callers are rate-limited per address like the directory (`429 rate_limited`), signed-in callers by the
+per-user limit. Public rooms with an age gate answer only an adult's session (§5e). Every other room answers only
+its members and node admins; everyone else gets `404 room.not_found`, the answer for an unknown room. People with an
+invite use the invite preview `GET /invites/{code}` (public), which carries the same fields next to `code`. Clients
+fetch the preview of the hosting node before a join from Discover, the directory or the invite list; remote users
+ask with their federated session (`FEDERATION.md` §3.1).
+
+**Room privacy notice and legal notice.** A room can publish two optional documents for its members and for people
+about to join, both Markdown subsets like `rules` (same rendering rules) and both off while empty:
+
+- `privacy_notice` (at most 20,000 characters): who is responsible for the room and how the room uses personal data,
+  for rooms that are not purely private (for example under Art. 13 and 26 GDPR, where the person running a room on a
+  platform can be a controller jointly with the platform's operator);
+- `legal_notice` (at most 5,000 characters): who runs the room and how to reach them (for example a provider
+  identification such as § 5 of the German DDG requires for business-like services).
+
+`PATCH /rooms/{room_id} { privacy_notice?, legal_notice? }` (`manage_room`, `""` removes a document; trimmed;
+`400 validation.length`, `400 validation.control_chars`) stores them; a document whose text changes gets the time of
+the change as `privacy_notice_updated_at` / `legal_notice_updated_at` (null while it is off). The room object (room
+detail, room lists, `room.update`) carries only these two timestamps, so lists stay small; the texts come with the
+room preview and the invite preview. Every change is audited as `room.legal` with `meta: { privacy_notice?,
+legal_notice? }` naming each changed document as `added`, `updated` or `removed`, and sends `room.update`. Federation:
+the documents belong to the hosting node's room; remote members and remote users about to join read them there
+(previews above), nothing is copied to other nodes.
+
+The documents **inform**; they are never a condition: joining needs no acknowledgement of them, and a changed
+document asks nobody to accept it again. The law asks for the information to be available at the time of
+collection, easily accessible and in clear language, not for consent, so clients show a visible link to each
+document wherever a user is about to join a room that has one (next to the rules and their checkbox, which stay
+the only acceptance), and an entry in the room's menu and room info for members, with the date of the last change.
+The node operator remains a separate controller with its own documents (`LEGAL.md`; `GET /node` `legal.pages`).
 
 ## 6c. Notification settings (design note 4.11)
 
@@ -1202,14 +1243,25 @@ clients cannot send `system.*`, `400 message.type_reserved`):
 | `system.join` | the room's welcome channel | `{ user, display_name, avatar, avatar_still }`: a member joined (`user` = address; name and avatar paths are a snapshot) |
 | `system.leave` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, reason_kind }`: `reason_kind` = `leave`, `kick` or `ban` (reasons and moderator names stay in the audit log) |
 | `system.key_changed` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, at, rotated }`: the member's identity key changed (`at`, RFC 3339). `rotated: true` for a rotation with a valid continuity statement (`ENCRYPTION.md` §9a), `false` for an identity reset (§9) or any other change |
-| `system.bot_added` | the room's welcome channel | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, by }`: a bot's first leaf joined the encryption group of the encrypted channel `channel` (`by` = the committer's address; `APPLICATIONS.md` §3.6) |
-| `system.bot_removed` | the room's welcome channel | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, reason }`: the bot's last leaf left that group (`reason`, `APPLICATIONS.md` §3.6) |
+| `system.bot_added` | the room's welcome channel when `@everyone` can view `channel`, else `channel` itself as a security notice | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, by }`: a bot's first leaf joined the encryption group of the encrypted channel `channel` (`by` = the committer's address; `APPLICATIONS.md` §3.6) |
+| `system.bot_removed` | as `system.bot_added` | `{ bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, reason }`: the bot's last leaf left that group (`reason`, `APPLICATIONS.md` §3.6) |
 | `system.history_restored` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, by }`: `by` (an address) approved the request of `user` to restore its encrypted history after a key reset (`ENCRYPTION.md` §7b) |
 | `system.history_restore_denied` | the room's welcome channel | `{ user, display_name, avatar, avatar_still, by }`: `by` denied that request (the reason stays in the audit log) |
 
 The message author of `system.join`/`system.leave`/`system.key_changed`/`system.history_restore*` is the member concerned (of `system.bot_*` the
 bot). Clients render them
-localized in the viewer's language with the avatar. `system.key_changed` is informational: the client decides with its
+localized in the viewer's language with the avatar.
+
+**Nothing about private channels in the welcome channel.** Every member reads the welcome channel and its events reach
+every member, so the node writes an entry that names a channel there only when `@everyone` can view that channel
+(listed to a member holding only `@everyone`, `APPLICATIONS.md` §3.6); any other entry about a channel goes into that
+channel as a **security notice**: the same plaintext system message, delivered to the channel's viewers only. Security
+notices never count towards unread or mention counts (§6 "Read markers and unread counts"), notify nobody, cannot be
+edited (`400 message.system_immutable`, like every system message) or deleted (`403 message.system_protected`, the bot
+they name included) and are skipped by purges and message retention (§7f); they go with their channel and with their author's account. Clients render them as a quiet inline line
+in the channel ("… can now read this channel") and do not notify. An entry already in a welcome channel stays there
+when its channel becomes private later: clients name the channel of a welcome channel entry only when it is in the
+viewer's channel list, else they say "a private channel". `system.key_changed` is informational: the client decides with its
 own pin of the user's key what it shows (`ENCRYPTION.md` §3.3): the same "security key changed" warning as elsewhere
 while a change is unacknowledged, a soft "rotated" notice after a verified continuity statement, plain text once
 acknowledged. The node writes the entry into the welcome channel of every room it hosts that the user is a member of:
@@ -1584,8 +1636,8 @@ count their messages again (§7e).
   (owner or `manage_room`, 1–36500, `0` = the node's value, `400 validation.range` otherwise; audited in `room.update`
   with `meta.message_retention_days`). Room objects carry `message_retention_days` (null = the node's value). The
   effective retention is the shorter non-zero of the room's and the node's value: a room can never extend the node's.
-- Never deleted by retention: **pinned** messages (unpinning lets them expire) and the entries of the room's
-  **welcome channel** (the room's security log, `MODERATION.md` §3).
+- Never deleted by retention: **pinned** messages (unpinning lets them expire), the entries of the room's
+  **welcome channel** (the room's security log, `MODERATION.md` §3) and the **security notices** in channels (§7).
 - The node writes one node audit entry `retention.messages { deleted, node_days, rooms, incomplete }` per run that
   deleted something. Clients get no event: what they already loaded stays until they reload. Attachment retention
   (`ENTITLEMENTS.md` §6) is separate and may delete files earlier.
@@ -1748,6 +1800,50 @@ and the poll); like messages, it could withhold a vote or serve an older one of 
 
 **Events** (conversation audience¹ of §6): `poll.vote` (data: the `PollVote`) and `poll.vote.delete`. Bots receive
 both with `messages:read`. Neither counts towards unread or mention counts, sends `notify` hints or web pushes.
+
+## 7h. Links
+
+Rooms, channels, messages, files of files channels, invites and profiles have one canonical, portable link: an https
+URL on the **web origin of the node that hosts the target** (`web` of its discovery document, §2: by default
+`https://<domain>`, under delegation another host). The same link works for members of every node and in a plain
+browser, where the hosting node's web client opens it.
+
+| Target | Link |
+|---|---|
+| Room | `https://<web>/rooms/<room>` |
+| Channel | `https://<web>/rooms/<room>/channels/<channel>` |
+| Message in a channel | `https://<web>/rooms/<room>/channels/<channel>?message=<message>` |
+| File or folder of a files channel | `https://<web>/rooms/<room>/channels/<channel>/files/<entry>` |
+| Invite | `https://<web>/invite/<code>` |
+| Profile | `https://<web>/u/<address>` (the user's home node; `@` may appear as `%40`) |
+
+Ids are the node-local ULIDs (uppercase Crockford base32), codes `[A-Za-z0-9_-]{4,64}`, addresses as in §1. No other
+query parameter, no fragment, no credentials. Opening a link grants nothing: the hosting node answers with the
+viewer's own session and its permissions decide (`403`/`404` for a room the viewer is not a member of, a channel
+without `view_channel`, a files channel entry without `view_channel` on that channel, `FILES.md` §3, a deleted
+target). A node serves its web client for every one of these paths (a single-page application route).
+
+**Clients** recognise these links in message text (also in DMs, threads and the text of bot messages) and may show them
+as chips with the target's icon and name instead of the URL. Rules:
+
+- Recognise a link only for a node the client already talks to (its home node and nodes it holds a session with, by
+  their `web` origin exactly, or by their identity domain over `https` without a port). Any other host, a URL with
+  userinfo (`https://evil@node.example/…`), another scheme, a port that is not part of a known `web` origin, an
+  unknown path shape or extra parameters: a plain external link. A client never fetches anything from an unknown host
+  because of a link.
+- Resolve names from local data first, otherwise from the hosting node with the viewer's own session. Without access,
+  show a neutral chip ("Private channel", "File not available"), never a name the node did not give the viewer (also
+  not a cached one of a channel the viewer lost access to). In encrypted conversations everything happens on the
+  device after decryption; message text is never sent anywhere to build a chip.
+- Opening a link stays inside the client (a message opens its channel at the message, an invite the join flow, a file
+  the files channel at the entry). The sender's client does not build a link preview (§7b) for these links.
+- Links in code stay literal. A labelled Markdown link keeps its label.
+
+**Mentions without a mentions list.** Clients mark `@name@domain` (and `@name` of the conversation's node) as mention
+pills only for the conversation's `mentions` list, `@everyone`/`@here` and role names (§6, §7); they may also mark a
+member of the conversation that the text names without listing it (a bot's card that is edited in place carries no
+`mentions` list so that edits notify nobody) — such a pill has no notification semantics. `@name@domain` in text is a
+mention, never an e-mail address: Markdown renderers must not autolink it as `mailto:`.
 
 ## 8. Encryption marker (mandatory for all clients)
 

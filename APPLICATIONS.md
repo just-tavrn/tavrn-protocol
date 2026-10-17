@@ -293,7 +293,7 @@ set store credentials. In encrypted files channels the bot encrypts the entry re
 (`FILES.md` §8, as a member of the channel's MLS group, §3.3).
 
 **Always allowed** for an app token (no scope): `GET /users/me`, `GET /users/{address}/profile`, `GET /rooms`,
-`GET /rooms/{id}` and channel/category/role reads, `GET /node`, the WebSocket, `POST /rooms/{id}/leave`
+`GET /rooms/{id}`, `GET /rooms/{id}/preview` and channel/category/role reads, `GET /node`, the WebSocket, `POST /rooms/{id}/leave`
 (= uninstall, §4.3), every E2EE route of §3 (identity, device key, KeyPackages, claims, MLS delivery service,
 Welcomes, backups), `POST /federation/token`, `GET /applications/me*`. Events `room.*`, `channel.*`, `category.*`,
 `role.*`, `override.update`, `mls.*`, `identity.changed`, `devices.changed`, `application.*` are always delivered.
@@ -471,8 +471,22 @@ channel objects carry `no_bots_effective`.
 ### 3.6 Bots in the security log
 
 Whenever an accepted commit (or the creation of a group) makes a bot's first leaf join, or its last leaf leave, an
-encrypted channel's group, the room node writes an entry into the room's welcome channel (`PROTOCOL.md` §7), so every
-member sees who can read along:
+encrypted channel's group, the room node writes an entry, so every member who can read the channel sees who can read
+along. Where it goes depends on who may see the channel at that moment:
+
+- **into the room's welcome channel** (`PROTOCOL.md` §7) when `@everyone` can view the channel: the permission
+  evaluation (`permissions.md`) for a member holding only `@everyone`, with the room-level bits and the overrides of
+  the channel's category and the channel, ignoring age gates (as for listing a channel). Such a channel is listed to
+  every member, so its name tells nobody anything new;
+- **into the channel itself** otherwise. The welcome channel is read by every member (new ones included) and its
+  events reach every member, so an entry there would name a private channel to members who cannot view it. In the
+  channel the entry reaches exactly its viewers (`PROTOCOL.md` §6 "Audiences"). It is the same plaintext system
+  message (`device_id` null) in an encrypted channel too: it reveals nothing the node does not know anyway (the
+  bot's leaf in the group). It never counts towards the channel's unread or mention counts and sends no `notify`
+  hints or web pushes (`PROTOCOL.md` §6 "Read markers and unread counts"); clients show it as a quiet inline line
+  and do not notify.
+
+The content is the same in both places:
 
 - `system.bot_added { bot, display_name, avatar, avatar_still, channel, channel_name, channel_system_name, by }`: `by` is the address of the
   committer (the bot itself for an external join, the member for an Add with Welcome);
@@ -482,8 +496,12 @@ member sees who can read along:
   flag), `bots_not_allowed` (an encrypted channel of a `per_channel` room without `bots_allowed`), `no_access` (no read
   access any more), else `device_removed`.
 
-The author of the entry is the bot. Like the other security entries they are plaintext, readable by every member and
-follow the normal moderation rules of the welcome channel.
+The author of the entry is the bot. Like the other security entries they are plaintext; in the welcome channel they
+are readable by every member and follow its moderation rules (`MODERATION.md` §3), in a channel they are readable by
+its viewers and cannot be edited (`400 message.system_immutable`). The node decides the place per entry, when it is
+written: entries already in a welcome channel stay there, also when the channel becomes private later. Clients
+therefore show the channel of a welcome channel entry only when the viewer can see that channel (it is in the
+viewer's channel list) and "a private channel" otherwise.
 
 ## 4. Add link and installation
 
