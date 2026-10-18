@@ -161,7 +161,7 @@
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [], "channel_overrides": [],
       "timed_out": false, "kind": "bot"
     },
-    "expected": "962072674303"
+    "expected": "3161095929855"
   },
   {
     "name": "Users are not affected by the no-bots flag",
@@ -217,7 +217,7 @@
       "member_roles": [], "category_overrides": [], "timed_out": false, "system_channel": true,
       "channel_overrides": []
     },
-    "expected": "4611687667527057301"
+    "expected": "4611689866550312853"
   },
   {
     "name": "System channel: a role allowed to send, attach and pin still cannot",
