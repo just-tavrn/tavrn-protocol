@@ -5,6 +5,9 @@ Changes of the protocol that implementations must follow, newest first. Versions
 
 ## Unreleased
 
+- Add channel-scoped `whisper` initiation permission (bit 41) and authenticated, bounded `voice.whisper2` initiation/receipt/reply routing.
+
+
 - **Whisper to selected participants** (`VOICE.md` §4c, §9.0): a second encrypted microphone track named
   `whisper`, selective SFU subscription permissions, targeted reliable `tavrn.whisper` start/end signals,
   mandatory receiver filtering, size/rate limits and failure recovery that restores ordinary microphone state.

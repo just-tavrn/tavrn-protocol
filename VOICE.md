@@ -278,25 +278,12 @@ its frames with the channel's shared key as any other's.
 
 ## 4c. Whisper to participants of the same channel
 
-Whisper is a client extension of voice channels: one participant talks to selected participants of the **same
-currently connected channel**, using a second encrypted audio track and SFU subscription permissions. It needs
-`speak` and MUST stop on server mute, loss of `speak`, deafen, disconnect, move or leave. No new permission bit,
-REST route or `voice.state` field is introduced. Nodes implementing the grants of §3 and selective SFU
-subscriptions announce `voice.whisper1` alongside `voice`; clients implementing this section announce it in
-their capability list (§3 of `PROTOCOL.md`). Senders MUST require the hosting node's `voice.whisper1` before
-offering whisper; its absence means unavailable, never ordinary broadcast as a fallback.
-Clients implementing whisper MUST route publications
-named `whisper` through the receiver filter below, never through their ordinary audio playback path. Unknown data
-topics remain ignorable for clients that do not implement whisper.
+Whisper uses server-authenticated routing authorizations, a second E2EE audio track and SFU subscription permissions. Nodes and clients implement capability `voice.whisper2`; senders MUST require the hosting node's capability and MUST NOT fall back to legacy `voice.whisper1` or ordinary broadcast. `speak` and no server mute are always required. Initiation additionally requires `whisper` (bit 41); replying to the last actually received whisper bypasses only this initiation bit. All permissions are evaluated in the current voice channel, including category/channel overrides.
 
-Recipient capability lists are not exposed by the voice API. Senders MUST NOT infer recipient support from
-node capability, track receipt or silence. An explicitly selected device using an older client MAY receive
-the authorized audio through its ordinary playback path, without whisper markers, cues or reply support;
-recipient UI support is not a condition of targeting and MUST NOT be promised. SFU authorization protects
-nonrecipients independently of their client version. No recipient-discovery API or capability handshake is required.
+Clients MUST filter all track names beginning with `whisper`; they never enter ordinary audio playback. An encrypted client signal alone grants neither playback nor reply rights. Recipient capability discovery is unchanged; an older selected receiver may hear the authorized audio, but no reply UI support is promised.
 
 **Media and permissions.** Use the existing microphone capture graph, a second Opus publication with
-`source: microphone`, `name: "whisper"`, the channel's epoch frame key (§6) and the same audio bitrate/FEC limits
+`source: microphone`, `name: "whisper:<authorization id>"`, the channel's epoch frame key (§6) and the same audio bitrate/FEC limits
 as the main microphone (§4/§4a). At most one whisper publication and one active recipient set per sender are
 allowed. Recipients are full LiveKit device identities (`<address>/<device id>`, §3), never just addresses,
 `#screen` publishers or participants of another channel. Resolve saved addresses against the currently connected
@@ -305,7 +292,7 @@ MUST fit the signal size limit below; do not silently send to a truncated group.
 
 The sender MUST perform these steps in order:
 
-1. Mute the main microphone publication (no audio packets, no renegotiation). Whisper press-and-hold opens the
+1. Authorize the start/reply through §4d, then mute the main microphone publication (no audio packets, no renegotiation). Whisper press-and-hold opens the
    microphone gate even with push-to-talk; it never toggles the user's persistent mute setting.
 2. Install restricted per-participant SFU subscription permissions **before** publishing/unmuting whisper.
    Keep every ordinary publication available to everyone, including participants that join later; allow only
@@ -352,7 +339,7 @@ over-rate packets, packets on another topic or unreliable delivery, packets with
 LiveKit sender in the same channel, and packets that do not name their own exact device identity. Use the
 transport's sender identity, never a claimed JSON sender. Validate that recipients are current participants as
 above. Ignore unknown extra JSON fields for forward compatibility. Track receipt alone never authorizes playback:
-a track named `whisper` MUST be played only while a valid `whisper.start` from its publisher names this device.
+a track named `whisper:<id>` MUST be played only after the receiver has obtained the server receipt in §4d, verified its sender equals the transport publisher, and received a valid `whisper.start` naming this device.
 An end without a start is harmless. Valid end, publisher leave/disconnect or server mute, whisper track
 end/unpublish, local leave, deafen or reconnect clears playback authorization immediately. Keep authorization and its rate counter scoped to
 the current connection, never persisted. A valid start may arrive before the publication; attach it only after
@@ -364,6 +351,20 @@ outsiders see only an ordinary muted microphone, without a recipient or whisper 
 track subscription permissions and destination identities; the epoch-key threat model is in `ENCRYPTION.md` §5a.
 Clients do not duck other speakers while receiving a whisper. Whisper state and reply-to-last are ephemeral;
 reply-to-last is cleared on leave and never modifies configured groups.
+
+## 4d. Authenticated whisper initiation and reply
+
+All paths below have prefix `/api/v1/rooms/{room_id}/channels/{channel_id}/voice/whisper`. Requests use the ordinary bearer session; the server derives the sender device from authentication, never the JSON body.
+
+- `POST` with `{ "recipients": ["bob@node.example/DEVICE"] }` initiates a whisper. The nonempty list has at most 32 unique currently connected ordinary devices of the same channel, excluding self and screen publishers.
+- `POST` with `{ "reply_to": "<authorization id>" }` replies. Recipients MUST be omitted/empty. The server selects only the original sender of this device's latest confirmed receipt. Forged ids, another device's receipt, changed channel/connection, expired receipts and arbitrary reply targets are rejected.
+- Start returns `{id,sender,recipients,expires_at}`. It is valid for 30 seconds, at most one current authorization per sender. Only the sender receives the entire recipient list. Publish a GCM-encrypted microphone track named `whisper:<id>`; the SFU signaling proxy rejects legacy/unapproved whisper publication and applies recipient-only subscription permissions on the same ordered connection before publication. While the track exists, clients cannot widen these permissions. The proxy owns ordinary publication permissions too: ordinary/renamed media is always available to all authorized listeners; while whispering, outsiders receive ordinary track SIDs only, including newly published camera tracks. The existing E2EE frame key derivation is unchanged.
+- After receiving the publication, the intended receiver calls `POST /{id}/receive` before attaching audio. The server requires a verified LiveKit `track_published` event, current authorization and matching devices/connections. The response is `{id,sender,expires_at,reply_expires_at}` and does not disclose other recipients. `expires_at` remains the original 30-second playback deadline. `reply_expires_at` is at most 120 seconds from authorization creation; repeated receipt validation never extends it. The reply window is bounded by both connections; a newer confirmed receipt replaces the previous one. Clients may retry briefly while the webhook is in flight, while keeping audio detached.
+- On end, stop/unpublish first, await SFU removal confirmation, then `DELETE /{id}` (204). Only the authenticated original device may end its authorization. Replies to already ended whispers remain possible until the receipt expires, provided both devices remain in the same connections/channel.
+
+The node stores sealed, expiring routing records in its node-scoped cache, shared between instances. Verified participant departures/rejoins invalidate connection generations, including reconnect grace. Generations bind actual SFU participant SIDs and join timestamps; bounded departure tombstones reject duplicate delayed joins, old lifecycle events do not replace newer connections, and ambiguous equal-timestamp different-SID events fail closed. Active publications recheck authorization and DB permissions every second; expiry, mute, role/override revocation or missing recipients disconnects the offending publisher from LiveKit, ending media as well as signaling. Clients MUST schedule stop/unpublication with at least a two-second safety margin before the deadline (at most 28 seconds per hold), rather than race the server expiry. A new authorization is required for longer holds. A failed signaling connection with a whisper still published is removed from the SFU; it cannot resume an old whisper through reconnect/SyncState. Room signaling uses binary protobuf, as supported by the official clients.
+
+Servers see routing metadata but never E2EE media plaintext or frame keys. Receivers MUST also stop on deafen, leave, server mute, expiry and unpublication; they never trust client-provided recipient lists or session ids as server authority. `voice.state` and public participant metadata contain no whisper recipients.
 
 ## 5. Presence: who is in which channel
 

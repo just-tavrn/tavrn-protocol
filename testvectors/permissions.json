@@ -6,7 +6,7 @@
       "member_roles": [], "category_overrides": [], "timed_out": false,
       "channel_overrides": [{ "subject_type": "member", "subject_id": "u1", "allow": 0, "deny": 1 }]
     },
-    "expected": "4611688217450643455"
+    "expected": "4611690416473899007"
   },
   {
     "name": "The administrator role beats all overrides",
@@ -15,7 +15,7 @@
       "member_roles": [["r1", 4611686018427387904]], "category_overrides": [{ "subject_type": "role", "subject_id": "r0", "allow": 0, "deny": 1 }],
       "channel_overrides": [], "timed_out": false
     },
-    "expected": "4611688217450643455"
+    "expected": "4611690416473899007"
   },
   {
     "name": "Only @everyone, no overrides",
@@ -580,5 +580,68 @@
       "kind": "bot", "no_bots": false
     },
     "expected": "3"
+  },
+  {
+    "name": "Whisper category deny preserves speaking",
+    "input": {
+      "user_id": "u1",
+      "is_owner": false,
+      "everyone_role_id": "r0",
+      "everyone_permissions": 2199023452161,
+      "member_roles": [],
+      "category_overrides": [
+        {
+          "subject_type": "role",
+          "subject_id": "r0",
+          "allow": 0,
+          "deny": 2199023255552
+        }
+      ],
+      "channel_overrides": [],
+      "timed_out": false
+    },
+    "expected": "196609"
+  },
+  {
+    "name": "Whisper channel allow overrides category deny",
+    "input": {
+      "user_id": "u1",
+      "is_owner": false,
+      "everyone_role_id": "r0",
+      "everyone_permissions": 2199023452161,
+      "member_roles": [],
+      "category_overrides": [
+        {
+          "subject_type": "role",
+          "subject_id": "r0",
+          "allow": 0,
+          "deny": 2199023255552
+        }
+      ],
+      "channel_overrides": [
+        {
+          "subject_type": "role",
+          "subject_id": "r0",
+          "allow": 2199023255552,
+          "deny": 0
+        }
+      ],
+      "timed_out": false
+    },
+    "expected": "2199023452161"
+  },
+  {
+    "name": "Timeout strips whisper initiation",
+    "input": {
+      "user_id": "u1",
+      "is_owner": false,
+      "everyone_role_id": "r0",
+      "everyone_permissions": 2199023452161,
+      "member_roles": [],
+      "category_overrides": [],
+      "channel_overrides": [],
+      "timed_out": true
+    },
+    "expected": "1"
   }
 ]
