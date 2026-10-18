@@ -138,6 +138,7 @@ Capabilities reserved in v1, and when nodes that implement them announce them:
 | `threads`, `forum`, `announcement` | threads, forum posts and announcement channels (§7e) | always |
 | `threads.client_ids` | the client-chosen thread id of §7e | always |
 | `voice`, `soundboard` | voice channels and calls (`VOICE.md`), room clips (`VOICE.md` §8) | while `TAVRN_VOICE_ENABLED` is on |
+| `voice.whisper1` | selective encrypted whisper (`VOICE.md` §4c); clients also announce it | while voice is enabled and the node implements the data grants and SFU subscription support of `VOICE.md` §3/§4c |
 | `screenshare` | screen sharing is allowed (`VOICE.md`) | while `TAVRN_VOICE_ENABLED` and `TAVRN_SCREENSHARE_ENABLED` are on |
 | `history.restore` | history restore after a key reset by request and approval (`ENCRYPTION.md` §7b "History after a key reset") | always |
 | `history.shares2` | history shares sealed to each recipient device, device share keys (`ENCRYPTION.md` §3.1, §7b "Format v2") | always |

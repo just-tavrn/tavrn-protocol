@@ -756,6 +756,13 @@ same authorization; the group exists before the first voice join, created by the
   index 0). LiveKit derives the AES-GCM frame key from it with its default salt (`LKFrameEncryptionKey`) and key size
   (128 bit); all tavrn clients MUST keep these defaults, so every SDK interoperates. Setting a key with an index makes
   it the sending key; receivers pick the key by the index in each frame.
+- **Whisper** (`VOICE.md` §4c) uses the same epoch frame key, encryption settings and key index on its second
+  microphone track. It is confidential against the node, SFU and network. Within the MLS group, privacy relies
+  on the SFU forwarding only to selected devices and on honest clients applying receiver filtering. A member
+  who colludes with a dishonest node/SFU and obtains forwarded frames can decrypt them with the shared epoch
+  key; whisper is **not cryptographically isolated from other MLS members**. Targeted signals and permission
+  metadata also reveal recipient identities to the SFU. A future separate `#whisper` identity with a key sealed
+  only to recipient devices may strengthen this model; this contract does not implement that design.
 - **Screen publishers** (`VOICE.md` §4b): a device that publishes its screen from a native SDK as a second LiveKit
   participant (`<user>/<device>#screen`) encrypts it with the device's own frame key of the current epoch, at the same
   key index and with the same key provider settings. The device's client hands every epoch's 32 bytes to its native
