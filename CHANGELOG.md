@@ -8,6 +8,8 @@ Changes of the protocol that implementations must follow, newest first. Versions
 - **Whisper to selected participants** (`VOICE.md` §4c, §9.0): a second encrypted microphone track named
   `whisper`, selective SFU subscription permissions, targeted reliable `tavrn.whisper` start/end signals,
   mandatory receiver filtering, size/rate limits and failure recovery that restores ordinary microphone state.
+  Nodes and clients opt in with `voice.whisper1`; senders require hosting-node support, while explicitly
+  selected legacy receivers may play authorized audio without whisper UI (no recipient-discovery API).
   `canPublishData` now also permits `speak` while not server-muted; existing soundboard grants remain valid.
   Groups are per room, reply-to-last clears on leave, no ducking or outsider whisper markers. The shared
   epoch-key privacy boundary is explicit in `ENCRYPTION.md` §5a; native engines may offer a browser fallback.

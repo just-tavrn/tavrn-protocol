@@ -281,9 +281,19 @@ its frames with the channel's shared key as any other's.
 Whisper is a client extension of voice channels: one participant talks to selected participants of the **same
 currently connected channel**, using a second encrypted audio track and SFU subscription permissions. It needs
 `speak` and MUST stop on server mute, loss of `speak`, deafen, disconnect, move or leave. No new permission bit,
-REST route, capability or `voice.state` field is introduced. Clients implementing whisper MUST route publications
+REST route or `voice.state` field is introduced. Nodes implementing the grants of §3 and selective SFU
+subscriptions announce `voice.whisper1` alongside `voice`; clients implementing this section announce it in
+their capability list (§3 of `PROTOCOL.md`). Senders MUST require the hosting node's `voice.whisper1` before
+offering whisper; its absence means unavailable, never ordinary broadcast as a fallback.
+Clients implementing whisper MUST route publications
 named `whisper` through the receiver filter below, never through their ordinary audio playback path. Unknown data
 topics remain ignorable for clients that do not implement whisper.
+
+Recipient capability lists are not exposed by the voice API. Senders MUST NOT infer recipient support from
+node capability, track receipt or silence. An explicitly selected device using an older client MAY receive
+the authorized audio through its ordinary playback path, without whisper markers, cues or reply support;
+recipient UI support is not a condition of targeting and MUST NOT be promised. SFU authorization protects
+nonrecipients independently of their client version. No recipient-discovery API or capability handshake is required.
 
 **Media and permissions.** Use the existing microphone capture graph, a second Opus publication with
 `source: microphone`, `name: "whisper"`, the channel's epoch frame key (§6) and the same audio bitrate/FEC limits
@@ -316,6 +326,13 @@ releases during an asynchronous start. Never restore unrestricted permissions wh
 If stopping the track or restoring permissions cannot be confirmed, disconnect and rejoin with the ordinary
 publication configuration; do not leave a live whisper track or a silently restricted main microphone behind.
 Reconnect starts in ordinary voice mode; it MUST NOT resume a held whisper automatically.
+
+A subscription-permission setter returning locally is not an SFU acknowledgement. Implementations MUST
+establish deny-by-default for the new track before it can carry audio, using the SFU's documented and verified
+signaling order or an acknowledged operation as a barrier. Merely waiting a fixed time is insufficient.
+A later SID-specific grant may fail closed (the intended recipient hears nothing); it MUST NOT broaden
+permissions for nonrecipients. Validate this boundary against the SFU with a nonrecipient explicitly attempting
+to subscribe, independently of receiver UI filtering.
 
 **Signal.** Use LiveKit reliable data, topic `tavrn.whisper`, UTF-8 JSON:
 
@@ -542,6 +559,9 @@ Clips are room assets like custom emojis; playing them is client-side.
   per sender and 10 s, and show the emoji as an overlay on the sender's tile for `duration_ms` (custom emojis only
   when the room's emoji list resolves them, otherwise nothing). The signal only decorates: the audio still travels
   in the microphone track.
+  Receivers MUST also verify the sender's effective `use_soundboard` and `speak` in the current channel from
+  current room roles, overrides and membership (as for priority claims, §7a), and reject unknown or unauthorized
+  senders. A general LiveKit data grant alone is not evidence of soundboard permission.
 
 ## 9. What the reference client shows
 

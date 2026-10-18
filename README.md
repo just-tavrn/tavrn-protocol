@@ -51,7 +51,7 @@ The capabilities defined today, by document:
   `threads`, `forum`, `announcement`, `threads.client_ids`, `age.v1`, `polls.v1`;
 - `ENCRYPTION.md`: `e2ee.mls1`, `history.shares2`, `history.restore`;
 - `FEDERATION.md`: `federation`, `federation.v1`, `connect.app`, and the client capability `content.signed1`;
-- `VOICE.md`: `voice`, `screenshare`, `soundboard`;
+- `VOICE.md`: `voice`, `voice.whisper1` (also announced by clients), `screenshare`, `soundboard`;
 - `APPLICATIONS.md`: `apps.v1`, `commands.v1`, `components.v1` and `components.modal_select.v1` (also announced by clients), `webhooks.v1`, `sso.oidc`;
 - `SEARCH.md`: `search.v1`;
 - `FILES.md`: `files.e2ee`;
