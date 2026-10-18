@@ -147,7 +147,7 @@ the user's earlier device in every voice channel of the node; the node disconnec
 | `canSubscribe` | `true` (listening needs only `connect`) |
 | `canPublishSources` | `microphone` if `speak` and not server-muted (§7); `camera` if `use_camera` and camera policy; `screen_share` + `screen_share_audio` if `stream` and screen share policy |
 | `canPublish` | `true` if any source is allowed, otherwise `false` (an empty source list would mean "everything" to LiveKit) |
-| `canPublishData` | `true` with `use_soundboard` (the `soundboard.play` signal, §8), otherwise `false` |
+| `canPublishData` | `true` with `speak` and not server-muted (whisper signals, §4c), or with `use_soundboard` (soundboard signals, §8); otherwise `false` |
 | `canUpdateOwnMetadata` | `true` with `priority_speaker` (the `priority` attribute, §7a), otherwise `false` |
 | `roomAdmin`, `roomCreate`, `roomList`, `roomRecord`, `hidden`, `recorder` | not set |
 | `sub` (identity), TTL | `<user address>/<device id>`, 10 minutes |
@@ -275,6 +275,78 @@ local bridge between its client and its native part (the Android app: the shell'
 commands), right after deriving it, before its own connection uses it. The key never travels through the node,
 LiveKit or any network. Like every client, the native publisher MUST NOT publish without a key; receivers decrypt
 its frames with the channel's shared key as any other's.
+
+## 4c. Whisper to participants of the same channel
+
+Whisper is a client extension of voice channels: one participant talks to selected participants of the **same
+currently connected channel**, using a second encrypted audio track and SFU subscription permissions. It needs
+`speak` and MUST stop on server mute, loss of `speak`, deafen, disconnect, move or leave. No new permission bit,
+REST route, capability or `voice.state` field is introduced. Clients implementing whisper MUST route publications
+named `whisper` through the receiver filter below, never through their ordinary audio playback path. Unknown data
+topics remain ignorable for clients that do not implement whisper.
+
+**Media and permissions.** Use the existing microphone capture graph, a second Opus publication with
+`source: microphone`, `name: "whisper"`, the channel's epoch frame key (§6) and the same audio bitrate/FEC limits
+as the main microphone (§4/§4a). At most one whisper publication and one active recipient set per sender are
+allowed. Recipients are full LiveKit device identities (`<address>/<device id>`, §3), never just addresses,
+`#screen` publishers or participants of another channel. Resolve saved addresses against the currently connected
+participants on every start; omit the sender itself and reject an empty set. A set MUST have no duplicates and
+MUST fit the signal size limit below; do not silently send to a truncated group.
+
+The sender MUST perform these steps in order:
+
+1. Mute the main microphone publication (no audio packets, no renegotiation). Whisper press-and-hold opens the
+   microphone gate even with push-to-talk; it never toggles the user's persistent mute setting.
+2. Install restricted per-participant SFU subscription permissions **before** publishing/unmuting whisper.
+   Keep every ordinary publication available to everyone, including participants that join later; allow only
+   the selected identities to subscribe to the whisper publication. A new whisper track MUST remain silent until
+   its track SID is covered by that permission list. Never publish audible whisper under unrestricted permissions.
+3. Send the targeted reliable `whisper.start` below, then enable whisper audio only while the control is held.
+   Receivers may get track and signal events in either order; they wait until both are present before playback.
+4. Re-send the full SFU permission list on every participant join or departure and every own track publication or
+   unpublication while restricted. If a selected participant leaves, end the whisper; a new press resolves the
+   group again. To change recipients, end the current whisper before starting another.
+5. On release/end, first mute and stop/unpublish the whisper track, then send targeted `whisper.end`, restore SFU
+   subscription permissions to all, and restore the main microphone to the user's normal mute, deafen and
+   voice-activation/push-to-talk state. Do not unmute a user who was muted or whose push-to-talk key is not held.
+
+On **any failure** (track, encryption, signaling or permission update), clients MUST end whisper and execute the
+same cleanup, including restoring normal main-track behavior. Cleanup is idempotent and MUST also run if the user
+releases during an asynchronous start. Never restore unrestricted permissions while whisper can still transmit.
+If stopping the track or restoring permissions cannot be confirmed, disconnect and rejoin with the ordinary
+publication configuration; do not leave a live whisper track or a silently restricted main microphone behind.
+Reconnect starts in ordinary voice mode; it MUST NOT resume a held whisper automatically.
+
+**Signal.** Use LiveKit reliable data, topic `tavrn.whisper`, UTF-8 JSON:
+
+```json
+{ "type": "whisper.start", "recipients": ["bob@node.example/01JDEVICE"] }
+```
+
+`type` is exactly `whisper.start` or `whisper.end`; `recipients` is the nonempty, duplicate-free array of full
+recipient identities of this whisper. Send each packet only to that same set with `destinationIdentities`, never
+broadcast. End names the same recipients as start. The complete encoded payload MUST be at most **512 bytes**;
+senders MUST send at most **10 packets per rolling 10 seconds**, counting starts and ends together, and reserve
+capacity for the end before starting. If the budget is exhausted, refuse a new start and restore normal voice.
+Do not send heartbeats. The data channel grant does not authorize other topics or bypass `use_soundboard` (§8).
+
+**Receiver filtering.** Receivers MUST drop malformed UTF-8/JSON, invalid types or recipient lists, oversized or
+over-rate packets, packets on another topic or unreliable delivery, packets without a known currently connected
+LiveKit sender in the same channel, and packets that do not name their own exact device identity. Use the
+transport's sender identity, never a claimed JSON sender. Validate that recipients are current participants as
+above. Ignore unknown extra JSON fields for forward compatibility. Track receipt alone never authorizes playback:
+a track named `whisper` MUST be played only while a valid `whisper.start` from its publisher names this device.
+An end without a start is harmless. Valid end, publisher leave/disconnect or server mute, whisper track
+end/unpublish, local leave, deafen or reconnect clears playback authorization immediately. Keep authorization and its rate counter scoped to
+the current connection, never persisted. A valid start may arrive before the publication; attach it only after
+publication is available. No ordinary remote-audio auto-attach path may bypass this filter.
+
+**Privacy and local state.** Nothing is added to `voice.state`, participant metadata, attributes or public track
+metadata containing recipients. Only the sender and selected receivers show whisper markers or hear whisper cues;
+outsiders see only an ordinary muted microphone, without a recipient or whisper signal. The SFU necessarily sees
+track subscription permissions and destination identities; the epoch-key threat model is in `ENCRYPTION.md` §5a.
+Clients do not duck other speakers while receiving a whisper. Whisper state and reply-to-last are ephemeral;
+reply-to-last is cleared on leave and never modifies configured groups.
 
 ## 5. Presence: who is in which channel
 
@@ -464,8 +536,8 @@ Clips are room assets like custom emojis; playing them is client-side.
 - **Signal** (design note 4.13 item 3): when a clip starts, the player's client sends a LiveKit data message, reliable,
   topic `tavrn.soundboard`, UTF-8 JSON `{ "type": "soundboard.play", "sound_id", "emoji"?, "duration_ms" }`
   (`duration_ms` 1–5000 like the clip limits, `emoji` = the sound's optional `emoji`: a Unicode emoji or a custom
-  emoji token `<:name:id@node>`). Data messages need `use_soundboard` (§3) and are end-to-end encrypted by LiveKit
-  with the call's frame key (data channel encryption of the `encryption` room option). Senders send at most 5
+  emoji token `<:name:id@node>`). Soundboard signals still need `use_soundboard` (§3), even when `speak` grants
+  data for whisper. They are end-to-end encrypted by LiveKit with the call's frame key (data channel encryption of the `encryption` room option). Senders send at most 5
   signals per 10 s; receivers drop packets over 512 bytes, anything that does not validate and more than 5 signals
   per sender and 10 s, and show the emoji as an overlay on the sender's tile for `duration_ms` (custom emojis only
   when the room's emoji list resolves them, otherwise nothing). The signal only decorates: the audio still travels
@@ -516,6 +588,23 @@ Part of the web client, responsive like the rest of the client:
   tooltip "connection problems") instead of the speaking ring; a poor LiveKit connection quality shows static amber
   signal bars; on the stage the tile dims and a camera keeps its last frame. The own voice bar shows "reconnecting"
   with a cancel button.
+
+### 9.0 Whisper controls (client conventions)
+
+- Participant menu: "Whisper to" selects a person; "Add to whisper group…" adds them to a named group.
+  Store groups **per room**, by user address, with a hold hotkey per group (`whisper:<group id>`). Resolve all
+  connected devices of each address at start (§4c). Never reuse a group implicitly in another room.
+- Settings "Voice & video" expose the groups and a separate "Reply to last whisperer" hold hotkey. The last
+  valid start addressed to this device sets the reply target; it is independent of groups and cleared on leave.
+- Desktop hotkeys and touch tile buttons are press-and-hold, with cancellation on blur, pointer cancellation,
+  lost capture and leave. A whisper key never toggles. With push-to-talk it opens the gate for whisper only.
+- Sender tile/voice bar: "Whispering to A, B", a distinct border and glyph; receivers: "Whispering to you" on the
+  sender's tile. Provide accessible labels, keyboard operation and touch targets. Outsiders receive no marker.
+- Soft `whisper_start` / `whisper_end` cues for sender and recipients, distinct from join/leave, with the existing
+  per-cue switches and volume. No ducking of ordinary audio.
+- Native engines need the same second track, E2EE and SFU permission semantics. Until supported, clients MAY
+  offer whisper through the browser engine only, with an explicit fallback choice; never silently degrade to a
+  broadcast track or unencrypted/native whisper.
 
 ### 9.1 Implementation notes (web client)
 
