@@ -16838,6 +16838,7 @@
         "tags": [
           "voice"
         ],
+        "summary": "Unpublish locally, then await confirmation of the exact SFU track removal before restoring ordinary audio.",
         "operationId": "whisper_end",
         "parameters": [
           {
@@ -16870,6 +16871,16 @@
             "description": ""
           },
           "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {
@@ -40209,7 +40220,7 @@
         "properties": {
           "expires_at": {
             "type": "string",
-            "description": "Active playback authorization expiry (30 seconds from start), never the reply deadline."
+            "description": "Active playback authorization expiry, separate from the latest-received reply deadline."
           },
           "id": {
             "type": "string"
