@@ -280,7 +280,7 @@ its frames with the channel's shared key as any other's.
 
 Whisper uses server-authenticated routing authorizations, a second E2EE audio track and SFU subscription permissions. Nodes and clients implement capability `voice.whisper2`; senders MUST require the hosting node's capability and MUST NOT fall back to legacy `voice.whisper1` or ordinary broadcast. `speak` and no server mute are always required. Initiation additionally requires `whisper` (bit 41); replying to the last actually received whisper bypasses only this initiation bit. All permissions are evaluated in the current voice channel, including category/channel overrides.
 
-Clients MUST filter all track names beginning with `whisper`; they never enter ordinary audio playback. An encrypted client signal alone grants neither playback nor reply rights. Recipient capability discovery is unchanged; an older selected receiver may hear the authorized audio, but no reply UI support is promised.
+Clients MUST filter legacy tracks named `whisper` and all track names beginning with `whisper:`; they never enter ordinary audio playback. An encrypted client signal alone grants neither playback nor reply rights. Recipient capability discovery is unchanged; an older selected receiver may hear the authorized audio, but no reply UI support is promised.
 
 **Media and permissions.** Use the existing microphone capture graph, a second Opus publication with
 `source: microphone`, `name: "whisper:<authorization id>"`, the channel's epoch frame key (§6) and the same audio bitrate/FEC limits
@@ -339,11 +339,7 @@ over-rate packets, packets on another topic or unreliable delivery, packets with
 LiveKit sender in the same channel, and packets that do not name their own exact device identity. Use the
 transport's sender identity, never a claimed JSON sender. Validate that recipients are current participants as
 above. Ignore unknown extra JSON fields for forward compatibility. Track receipt alone never authorizes playback:
-a track named `whisper:<id>` MUST be played only after the receiver has obtained the server receipt in §4d, verified its sender equals the transport publisher, and received a valid `whisper.start` naming this device.
-An end without a start is harmless. Valid end, publisher leave/disconnect or server mute, whisper track
-end/unpublish, local leave, deafen or reconnect clears playback authorization immediately. Keep authorization and its rate counter scoped to
-the current connection, never persisted. A valid start may arrive before the publication; attach it only after
-publication is available. No ordinary remote-audio auto-attach path may bypass this filter.
+a track named `whisper:<id>` MUST be played only after the receiver has obtained the server receipt in §4d and verified its sender equals the transport publisher. Data signals are retry hints for receipt validation, never playback authority; the publication may trigger validation without a preceding signal. An end without a start is harmless. Publisher leave/disconnect or server mute, whisper track end/unpublish, local leave, deafen, reconnect or the original playback deadline clears playback authorization immediately. Keep authorization and its rate counter scoped to the current connection, never persisted. A valid start may arrive before the publication; validate only after the publication is available. No ordinary remote-audio auto-attach path may bypass this filter.
 
 **Privacy and local state.** Nothing is added to `voice.state`, participant metadata, attributes or public track
 metadata containing recipients. Only the sender and selected receivers show whisper markers or hear whisper cues;

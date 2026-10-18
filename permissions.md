@@ -47,7 +47,7 @@ and `permissions.ts` in `@tavrn/sdk` (`tavrn-js`, TypeScript); both must pass `t
 | 38 | `voice_status` | Set or clear the status text of a voice channel (`VOICE.md` §2a) at any time, through the channel update route without `manage_channels`. Channel-scoped, grantable alone; granted once to every role that held `manage_channels` when it was introduced (marker `fixup.voice_status`). Covered by the app token scope `rooms:manage`. |
 | 39 | `create_polls` | Send polls (`PROTOCOL.md` §7g) together with `send_messages`: plaintext content of type `poll` and any message with a close time (`poll_closes_at`); clients enforce it for encrypted polls, whose type the node cannot see. Voting needs only `view_channel`. Channel-scoped, grantable alone; default for `@everyone`; granted once to every role and override that allowed `send_messages` when it was introduced (marker `fixup.create_polls`). Covered by the app token scope `messages:write`. |
 | 40 | `use_components` | Use the buttons, select menus and modals of applications' messages (`APPLICATIONS.md` §5.10): clicking, selecting and submitting create interactions. Channel-scoped, grantable alone, independent of `send_messages` (a read-only announcement channel can still carry a sign-up button). Default for `@everyone`; granted once to every role holding `send_messages` when it was introduced (marker `fixup.use_components`). No app-token scope covers it: bots never use components. |
-| 41 | `whisper` | Initiate whisper audio in voice channels (`VOICE.md` §4d). Replies to the last server-confirmed received whisper do not require this bit. Requires `speak`; channel/category scoped, default for `@everyone`, app scope `voice`. |
+| 41 | `whisper` | Initiate whisper audio in voice channels (`VOICE.md` §4d). Replies to the last server-confirmed received whisper do not require this bit. Requires `speak`; channel/category scoped, default for `@everyone`, app scope `voice`. Granted once to existing roles holding `speak`, including `@everyone` (marker `fixup.whisper`); later overrides remain independent. |
 | 62 | `administrator` | All permissions, overrides are ignored |
 
 Default permissions of `@everyone` in new rooms: `view_channel`, `send_messages`, `attach_files`, `add_reactions`,
@@ -297,5 +297,3 @@ closes. Reference: `no_bots_effective` / `noBotsEffective`, vectors in `testvect
 - **2026-10-09, moving channels**: deleting a category or moving a channel out of it copies the category's
   overrides into the channel ("Moving channels" above); moving a channel into a category that grants more needs
   `manage_roles`. Before, a private channel became public when its category was deleted.
-
-Whisper initiation (bit 41) defaults to enabled in new rooms. The one-time `fixup.whisper` grants it to existing roles holding `speak`, including `@everyone`. Overrides are unchanged: subsequent whisper overrides remain independent of speaking.
