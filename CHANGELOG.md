@@ -6,6 +6,9 @@ Changes of the protocol that implementations must follow, newest first. Versions
 ## Unreleased
 
 - Add channel-scoped `whisper` initiation permission (bit 41) and authenticated, bounded `voice.whisper2` initiation/receipt/reply routing.
+- A whisper whose authorization fails mid-hold (a recipient left, was moved or lost access) is hidden from every
+  listener at once; the publisher has five seconds to unpublish before it is disconnected (`VOICE.md` §4d). Clients
+  that end the whisper on recipient departure therefore keep their ordinary voice connection.
 
 
 - **Whisper to selected participants** (`VOICE.md` §4c, §9.0): a second encrypted microphone track named
